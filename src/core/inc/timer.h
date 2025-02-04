@@ -4,13 +4,13 @@
 #include <arch/timer.h>
 #include <list.h>
 
-#define TIME_US(us) (((TIMER_ARCH_FREQ())*(us))/(1000000ull))
-#define TIME_MS(ms) (TIME_US((ms)*1000ull))
-#define TIME_S(s)   (TIME_MS((s)*1000ull))
+#define TIME_US(us) (((TIMER_ARCH_FREQ()) * (us)) / (1000000ull))
+#define TIME_MS(ms) (TIME_US((ms) * 1000ull))
+#define TIME_S(s)   (TIME_MS((s) * 1000ull))
 
 struct timer_event;
 
-typedef void (*timer_event_handler_t)(struct timer_event *event);
+typedef void (*timer_event_handler_t)(struct timer_event* event);
 
 struct timer_event {
     node_t node;
@@ -19,14 +19,14 @@ struct timer_event {
 };
 
 void timer_init(void);
-void timer_event_add(struct timer_event *event);
-void timer_event_remove(struct timer_event *event);
+void timer_event_add(struct timer_event* event);
+void timer_event_remove(struct timer_event* event);
 
-static inline void timer_event_set(struct timer_event *event, timer_value_t timer,
+static inline void timer_event_set(struct timer_event* event, timer_value_t timer,
     timer_event_handler_t handler)
 {
-        event->timer = timer;
-        event->handler = handler;
+    event->timer = timer;
+    event->handler = handler;
 }
 
 static inline void timer_disable(void)
