@@ -26,3 +26,17 @@ void cpu_arch_powerdown()
 {
     __asm__ volatile("wfi");
 }
+
+void cpu_arch_park()
+{
+    // reset stack
+    __asm__ volatile("mov sp, %0\n\r" ::"r"(&cpu()->stack[STACK_SIZE]));
+
+    // enable interrupts
+    // TODO:ARMV8M - What should we do here?
+    // asm volatile("msr   daifclr, 0x3");
+
+    while (true) {
+        __asm__ volatile("wfi");
+    }
+}
