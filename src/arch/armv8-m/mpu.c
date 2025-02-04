@@ -9,6 +9,20 @@
 #include <arch/fences.h>
 #include <arch/mpu.h>
 
+struct mpu_temp {
+    unsigned long rbar;
+    unsigned long rlar;
+} mpu_temp[8];
+
+static void mpu_read_and_save(void)
+{
+    for (uint32_t i = 0; i < 8; i++) {
+        MPU->rnr = i;
+        mpu_temp[i].rbar = MPU->rbar & MPU_RBAR_BASE_MSK;
+        mpu_temp[i].rlar = MPU->rlar | 0x1F;
+    }
+}
+
 static inline size_t mpu_num_entries(void)
 {
     return (size_t)MPU_TYPE_N_RGN(MPU->type);
@@ -61,14 +75,17 @@ bool mpu_add_region(struct mp_region* reg, bool locked)
                 mpu_lock_entry(mpid);
             }
         }
-
     }
+
+    mpu_read_and_save();
 
     return !failed;
 }
 
 bool mpu_arch_perms_compatible(uint8_t perms1, uint8_t perms2)
 {
+    UNUSED_ARG(perms1);
+    UNUSED_ARG(perms2);
     // TODO:ARMV8M - IMPLEMENT on all archs
     // uint8_t perms_mask = SPMPCFG_S_BIT | SPMPCFG_R_BIT | SPMPCFG_W_BIT | SPMPCFG_X_BIT;
     // return (perms1 & perms_mask) == (perms2 & perms_mask);
@@ -133,6 +150,13 @@ bool mpu_remove_region(struct mp_region* reg)
             failed = false;
             mpu_entry_free(mpid);
         }
+
+        // TODO:ARMV8M - REMOVE
+        for (int i = 0; i < 8; i++) {
+            MPU->rnr = i;
+            mpu_temp[i].rbar = MPU->rbar & MPU_RBAR_BASE_MSK;
+            mpu_temp[i].rlar = MPU->rlar | 0x1F;
+        }
     }
 
     return !failed;
@@ -155,6 +179,9 @@ bool mpu_update_region(struct mp_region* mpr)
             break;
         }
     }
+    // TODO:ARMV8M - REMOVE
+    mpu_read_and_save();
+
     return !failed;
 }
 
@@ -181,6 +208,6 @@ void mpu_arch_enable(void)
 {
     MPU->ctrl |= MPU_CTRL_ENABLE;
     /* Enable background region */
-    MPU->ctrl &= ~MPU_CTRL_PRIVDEFENA;
+    MPU->ctrl &= ~(uint32_t)MPU_CTRL_PRIVDEFENA;
     ISB();
 }

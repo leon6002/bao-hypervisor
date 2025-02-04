@@ -10,6 +10,25 @@
 #include <arch/fences.h>
 #include <arch/sau.h>
 
+struct sau_temp {
+    unsigned long rbar;
+    unsigned long rlar;
+} sau_temp[8];
+
+void sau_read_and_save(void)
+{
+    for (size_t i = 0; i < 8; i++) {
+        SAU->rnr = i;
+        sau_temp[i].rbar = SAU->rbar & SAU_RBAR_BADDR_MSK;
+
+        if (sau_temp[i].rbar & 0x1) {
+            sau_temp[i].rlar = SAU->rlar | 0x1F;
+        } else {
+            sau_temp[i].rlar = SAU->rlar;
+        }
+    }
+}
+
 static inline size_t sau_num_entries(void)
 {
     return (size_t)SAU_TYPE_N_RGN(SAU->type);
@@ -63,6 +82,8 @@ bool sau_add_region(struct mp_region* reg, bool locked)
             }
         }
     }
+
+    sau_read_and_save();
 
     return !failed;
 }
@@ -133,6 +154,8 @@ bool sau_remove_region(struct mp_region* reg)
             sau_entry_free(mpid);
         }
     }
+    // TODO:ARMV8M - REMOVE
+    sau_read_and_save();
 
     return !failed;
 }
@@ -154,6 +177,8 @@ bool sau_update_region(struct mp_region* mpr)
             break;
         }
     }
+    // TODO:ARMV8M - REMOVE
+    sau_read_and_save();
 
     return !failed;
 }
@@ -182,4 +207,5 @@ void sau_arch_enable(void)
     SAU->ctrl |= SAU_CTRL_ENABLE;
     ISB();
 
+    sau_read_and_save();
 }
