@@ -11,6 +11,8 @@
 #include <console.h>
 #include <printk.h>
 #include <platform.h>
+#include <sched.h>
+#include <timer.h>
 #include <vmm.h>
 
 extern uint32_t load_addr;
@@ -34,7 +36,13 @@ void init(cpuid_t cpu_id)
 
     interrupts_init();
 
+    timer_init();
+
     vmm_init();
+
+    sched_start();
+
+    vcpu_arch_entry();
 
     /* Should never reach here */
     while (1) { }
