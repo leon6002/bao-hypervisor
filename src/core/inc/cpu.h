@@ -12,6 +12,7 @@
 #include <spinlock.h>
 #include <mem.h>
 #include <list.h>
+#include <timer.h>
 
 #ifndef __ASSEMBLER__
 
@@ -27,11 +28,19 @@ struct cpu {
 
     bool handling_msgs;
 
-    struct addr_space as;
+    struct vcpu* vcpu;      // current vcpu
+    struct vcpu* next_vcpu; // next scheduled vcpu
+    struct list vcpu_list;
 
-    struct vcpu* vcpu;
+    struct list timer_event_list;
+
+    struct {
+        struct timer_event timer_event;
+    } sched;
 
     struct cpu_arch arch;
+
+    struct addr_space as;
 
     struct cpuif* interface;
 
@@ -72,9 +81,13 @@ void cpu_powerdown(void);
 void cpu_standby_wakeup(void);
 void cpu_powerdown_wakeup(void);
 
+void cpu_add_vcpu(struct vcpu* vcpu);
+struct vcpu* cpu_get_vcpu_by_vmid(vmid_t vmid);
+
 void cpu_arch_init(cpuid_t cpu_id, paddr_t load_addr);
 void cpu_arch_standby(void);
 void cpu_arch_powerdown(void);
+void cpu_arch_park(void);
 
 extern struct cpuif cpu_interfaces[];
 static inline struct cpuif* cpu_if(cpuid_t cpu_id)
