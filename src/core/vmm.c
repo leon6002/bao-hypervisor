@@ -198,10 +198,6 @@ void vmm_init()
     while (vmm_get_next_assigned_vm(&master, &vm_id)) {
         struct vm_allocation* vm_alloc = vmm_alloc_install_vm(vm_id, master);
         struct vm_config* vm_config = &config.vmlist[vm_id];
-        struct vm* vm = vm_init(vm_alloc, vm_config, master, vm_id);
-        cpu_sync_barrier(&vm->sync);
-        vcpu_run(cpu()->vcpu);
+        vm_init(vm_alloc, vm_config, master, vm_id);
     }
-
-    cpu_powerdown();
 }
