@@ -15,15 +15,13 @@
 #include <timer.h>
 #include <vmm.h>
 
-extern uint32_t load_addr;
-
 void init(cpuid_t cpu_id)
 {
     /**
      * These initializations must be executed first and in fixed order.
      */
 
-    cpu_init(cpu_id, load_addr);
+    cpu_init(cpu_id);
     mem_init();
 
     /* -------------------------------------------------------------- */

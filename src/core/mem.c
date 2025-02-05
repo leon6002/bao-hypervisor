@@ -16,7 +16,7 @@
 
 extern uint8_t _image_start, _image_load_end, _image_end, _vm_image_start, _vm_image_end,
     _data_vma_start;
-extern uint32_t load_addr, data_addr;
+extern uint32_t _load_addr, _data_addr;
 
 struct list page_pool_list;
 
@@ -37,7 +37,7 @@ static paddr_t get_root_pool_bitmap_base(void)
         size_t image_size = calc_root_mem_size();
         size_t vm_image_size = (size_t)(&_vm_image_end - &_vm_image_start);
 
-        return (paddr_t)(load_addr + image_size + vm_image_size + cpu_size);
+        return (paddr_t)(_load_addr + image_size + vm_image_size + cpu_size);
     } else {
         size_t data_size = (size_t)(&_image_end - &_data_vma_start);
 
@@ -163,7 +163,7 @@ void* mem_alloc_page(size_t num_pages, enum AS_SEC sec, bool phys_aligned)
     return (void*)vpage;
 }
 
-static bool root_pool_set_up_bitmap(paddr_t load_addr, struct page_pool* root_pool)
+static bool root_pool_set_up_bitmap(struct page_pool* root_pool)
 {
     size_t bitmap_base = get_root_pool_bitmap_base();
 
@@ -185,8 +185,6 @@ static bool root_pool_set_up_bitmap(paddr_t load_addr, struct page_pool* root_po
 static bool pp_reserve_hyp_image_load(paddr_t load_addr, struct page_pool* pool)
 {
     size_t image_load_size = (size_t)(&_image_load_end - &_image_start);
-    size_t vm_image_size = (size_t)(&_vm_image_end - &_vm_image_start);
-    paddr_t image_noload_addr = load_addr + image_load_size + vm_image_size;
 
     struct ppages images_load_ppages = mem_ppages_get(load_addr, NUM_PAGES(image_load_size));
 
@@ -220,7 +218,7 @@ static bool pp_reserve_cpus(paddr_t load_addr, struct page_pool* pool)
     return mem_reserve_ppool_ppages(pool, &cpu_ppages);
 }
 
-static bool pp_reserve_hyp_data(paddr_t load_addr, struct page_pool* root_pool)
+static bool pp_reserve_hyp_data(struct page_pool* root_pool)
 {
     size_t data_size = (size_t)(&_image_end - &_data_vma_start);
     size_t cpu_size = platform.cpu_num * mem_cpu_boot_alloc_size();
@@ -244,7 +242,7 @@ static bool pp_root_reserve_hyp_mem(paddr_t load_addr, struct page_pool* root_po
         bool cpus_mem = pp_reserve_cpus(load_addr, root_pool);
         return hyp_image_load_mem && hyp_image_noload_mem && cpus_mem;
     } else {
-        return pp_reserve_hyp_data(load_addr, root_pool);
+        return pp_reserve_hyp_data(root_pool);
     }
 }
 
@@ -256,7 +254,7 @@ static bool pp_root_init(paddr_t load_addr, struct mem_region* root_region)
                                                         aligned? */
     root_pool->free = root_pool->size;
 
-    if (!root_pool_set_up_bitmap(load_addr, root_pool)) {
+    if (!root_pool_set_up_bitmap(root_pool)) {
         return false;
     }
     if (!pp_root_reserve_hyp_mem(load_addr, root_pool)) {
@@ -327,7 +325,7 @@ static bool mem_reserve_physical_memory(struct page_pool* pool)
     }
 
     if (DEFINED(MEM_NON_UNIFIED)) {
-        if (!pp_reserve_hyp_image_load(load_addr, pool)) {
+        if (!pp_reserve_hyp_image_load(_load_addr, pool)) {
             return false;
         }
     }
@@ -491,7 +489,7 @@ void mem_init(void)
     if (cpu_is_master()) {
         cache_enumerate();
 
-        if (!mem_setup_root_pool(data_addr, &root_mem_region)) {
+        if (!mem_setup_root_pool(_data_addr, &root_mem_region)) {
             ERROR("couldn't not initialize root pool");
         }
 
@@ -499,7 +497,7 @@ void mem_init(void)
         list_init(&page_pool_list);
         list_push(&page_pool_list, &(root_mem_region->page_pool.node));
 
-        config_init(load_addr);
+        config_init(_load_addr);
 
         if (!mem_reserve_physical_memory(&root_mem_region->page_pool)) {
             ERROR("failed reserving memory in root pool");
@@ -509,7 +507,7 @@ void mem_init(void)
     cpu_sync_and_clear_msgs(&cpu_glb_sync);
 
     if (!all_clrs(config.hyp.colors)) {
-        mem_color_hypervisor(load_addr, root_mem_region);
+        mem_color_hypervisor(_load_addr, root_mem_region);
     }
 
     if (cpu_is_master()) {
