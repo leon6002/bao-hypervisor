@@ -11,6 +11,7 @@ static inline struct list* timer_cpu_list(void)
 
 static int timer_event_compare(void* cookie, node_t* n1, node_t* n2)
 {
+    UNUSED_ARG(cookie);
     struct timer_event* te1 = CONTAINER_OF(struct timer_event, node, n1);
     struct timer_event* te2 = CONTAINER_OF(struct timer_event, node, n2);
     return (te1->timer == te2->timer) ? 0 : (te1->timer > te2->timer) ? 1 : -1;
@@ -29,6 +30,7 @@ static void timer_set_next_event(void)
 
 static void timer_irq_handler(irqid_t int_id)
 {
+    UNUSED_ARG(int_id);
     node_t* next_node;
 
     while ((next_node = list_peek(timer_cpu_list())) != NULL) {

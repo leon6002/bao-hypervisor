@@ -42,6 +42,7 @@ static inline struct mpe* mem_vmpu_get_entry(struct addr_space* as, mpid_t mpid)
 
 static int vmpu_node_cmp(void* cookie, node_t* _n1, node_t* _n2)
 {
+    UNUSED_ARG(cookie);
     struct mpe* n1 = (struct mpe*)_n1;
     struct mpe* n2 = (struct mpe*)_n2;
     struct mp_region r1;
@@ -117,7 +118,6 @@ static mpid_t mem_vmpu_allocate_entry(struct addr_space* as)
 static mpid_t mem_vmpu_get_entry_by_addr(struct addr_space* as, vaddr_t addr)
 {
     mpid_t mpid = INVALID_MPID;
-    struct mpe* mpe;
 
     for (mpid_t i = 0; i < VMPU_NUM_ENTRIES; i++) {
         struct mpe* mpe = mem_vmpu_get_entry(as, i);
@@ -427,7 +427,7 @@ static mpid_t mem_vmpu_find_overlapping_region(struct addr_space* as, struct mp_
     return mpid;
 }
 
-void mem_vmpu_coalesce_contiguous(struct addr_space* as, bool broadcast, bool locked)
+static void mem_vmpu_coalesce_contiguous(struct addr_space* as, bool broadcast, bool locked)
 {
     while (true) {
         bool merge = false;
@@ -444,8 +444,8 @@ void mem_vmpu_coalesce_contiguous(struct addr_space* as, bool broadcast, bool lo
             prev_reg = mem_vmpu_get_entry(as, prev->mpid);
 
             bool contiguous = prev_reg->region.base + prev_reg->region.size == cur_reg->region.base;
-            bool perms_compatible = mpu_perms_compatible(as, prev_reg->region.mem_flags.raw,
-                cur_reg->region.mem_flags.raw);
+            bool perms_compatible = mpu_perms_compatible(as, prev_reg->region.mem_flags,
+                cur_reg->region.mem_flags);
             bool lock_compatible = prev_reg->lock == cur_reg->lock;
             if (contiguous && perms_compatible && lock_compatible) {
                 cur_mpid = cur->mpid;
@@ -473,7 +473,7 @@ void mem_vmpu_coalesce_contiguous(struct addr_space* as, bool broadcast, bool lo
 bool mem_update(struct addr_space* as, struct mp_region* mpr, bool broadcast, bool locked)
 {
     mpid_t update_mpid = INVALID_MPID;
-    struct mpe* reg;
+
     list_foreach (as->vmpu.ordered_list, struct mpe, cur) {
         if (cur->region.base == mpr->base) {
             update_mpid = cur->mpid;

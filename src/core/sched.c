@@ -40,12 +40,12 @@ static void sched_timer_event_handler(struct timer_event* timer_event)
     sched_set_next_timer_event();
 }
 
-void sched_yield()
+void sched_yield(void)
 {
     sched_timer_event_handler(NULL);
 }
 
-void sched_start()
+void sched_start(void)
 {
     sched_next();
     if (list_size(&cpu()->vcpu_list) > 1) {

@@ -12,8 +12,6 @@
 #include <string.h>
 #include <shmem.h>
 
-#define VMM_MAX_CPU_PER_VCPU ((PLAT_CPU_NUM / CONFIG_VCPU_NUM) + (PLAT_CPU_NUM % CONFIG_VCPU_NUM))
-
 static struct vm_assignment {
     spinlock_t lock;
     bool master;
@@ -24,7 +22,7 @@ static struct vm_assignment {
     volatile bool install_info_ready;
 } vm_assign[CONFIG_VM_NUM];
 
-static size_t max_vcpu_per_cpu()
+static size_t max_vcpu_per_cpu(void)
 {
     size_t vcpu_num = 0;
     size_t exlusive_cpu_num = 0;
@@ -44,7 +42,7 @@ static size_t max_vcpu_per_cpu()
     return max_vcpu;
 }
 
-static bool vmm_assign_vcpus()
+static bool vmm_assign_vcpus(void)
 {
     size_t max_vcpus = max_vcpu_per_cpu();
     cpumap_t exclusive_cpus = 0;
@@ -108,7 +106,7 @@ static bool vmm_assign_vcpus()
     return true;
 }
 
-static bool vmm_alloc_vm(struct vm_allocation* vm_alloc, struct vm_config* config)
+static bool vmm_alloc_vm(struct vm_allocation* vm_alloc, struct vm_config* vm_config)
 {
     /**
      * We know that we will allocate a block aligned to the PAGE_SIZE, which is guaranteed to
@@ -119,7 +117,7 @@ static bool vmm_alloc_vm(struct vm_allocation* vm_alloc, struct vm_config* confi
 
     size_t total_size = sizeof(struct vm);
     size_t vcpus_offset = ALIGN(total_size, _Alignof(struct vcpu));
-    total_size = vcpus_offset + (config->platform.cpu_num * sizeof(struct vcpu));
+    total_size = vcpus_offset + (vm_config->platform.cpu_num * sizeof(struct vcpu));
     total_size = ALIGN(total_size, PAGE_SIZE);
 
     void* allocation = mem_alloc_page(NUM_PAGES(total_size), SEC_HYP_GLOBAL, false);
@@ -164,7 +162,7 @@ static bool vmm_get_next_assigned_vm(bool* master, vmid_t* vm_id)
     for (size_t i = 0; i < config.vmlist_size; i++) {
         if (vm_assign[i].cpus & (1ULL << cpu()->id)) {
             spin_lock(&vm_assign[i].lock);
-            vm_assign[i].cpus &= ~(1ULL << cpu()->id);
+            vm_assign[i].cpus &= ~((cpumap_t)1ULL << cpu()->id);
             if (!vm_assign[i].master) {
                 vm_assign[i].master = true;
                 *master = true;
