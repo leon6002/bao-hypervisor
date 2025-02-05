@@ -11,7 +11,6 @@ cpu-objs-y+=nvic.o
 cpu-objs-y+=sau.o
 cpu-objs-y+=vm.o
 cpu-objs-y+=vmm.o
-cpu-objs-y+=vnvic.o
 cpu-objs-y+=vfp.o
-
+cpu-objs-y+=timer.o
 cpu-objs-y+=cache.o

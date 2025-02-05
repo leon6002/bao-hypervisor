@@ -2,7 +2,7 @@
 ## Copyright (c) Bao Project and Contributors. All rights reserved.
 
 # Architecture definition
-ARCH:=armv8-m
+ARCH:=armv8m
 ARCH_PROFILE:=main
 drivers = lpc_uart
 

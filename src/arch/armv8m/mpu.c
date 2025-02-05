@@ -82,7 +82,7 @@ bool mpu_add_region(struct mp_region* reg, bool locked)
     return !failed;
 }
 
-bool mpu_arch_perms_compatible(uint8_t perms1, uint8_t perms2)
+bool mpu_arch_perms_compatible(mem_flags_t perms1, mem_flags_t perms2)
 {
     UNUSED_ARG(perms1);
     UNUSED_ARG(perms2);
@@ -153,7 +153,7 @@ bool mpu_remove_region(struct mp_region* reg)
 
         // TODO:ARMV8M - REMOVE
         for (int i = 0; i < 8; i++) {
-            MPU->rnr = i;
+            MPU->rnr = (uint32_t)i;
             mpu_temp[i].rbar = MPU->rbar & MPU_RBAR_BASE_MSK;
             mpu_temp[i].rlar = MPU->rlar | 0x1F;
         }

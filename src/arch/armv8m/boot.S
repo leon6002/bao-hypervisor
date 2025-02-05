@@ -222,11 +222,11 @@ clear_sau:
 
 .section ".data"
 .align 2
-.global load_addr
-.global data_addr
+.global _load_addr
+.global _data_addr
 
-load_addr:
+_load_addr:
     .word _image_start
 
-data_addr:
+_data_addr:
     .word _data_vma_start

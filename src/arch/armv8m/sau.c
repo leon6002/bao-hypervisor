@@ -15,6 +15,8 @@ struct sau_temp {
     unsigned long rlar;
 } sau_temp[8];
 
+void sau_read_and_save(void);
+
 void sau_read_and_save(void)
 {
     for (size_t i = 0; i < 8; i++) {
@@ -88,8 +90,10 @@ bool sau_add_region(struct mp_region* reg, bool locked)
     return !failed;
 }
 
-bool sau_perms_compatible(uint8_t perms1, uint8_t perms2)
+bool sau_perms_compatible(mem_flags_t perms1, mem_flags_t perms2)
 {
+    UNUSED_ARG(perms1);
+    UNUSED_ARG(perms2);
     // TODO:ARMV8M - IMPLEMENT on all archs
     // uint8_t perms_mask = SPMPCFG_S_BIT | SPMPCFG_R_BIT | SPMPCFG_W_BIT | SPMPCFG_X_BIT;
     // return (perms1 & perms_mask) == (perms2 & perms_mask);

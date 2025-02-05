@@ -38,7 +38,7 @@ extern volatile bitmap_granule_t* valid;
 void vnvic_ipi_handler(uint32_t event, uint64_t data);
 CPU_MSG_HANDLER(vnvic_ipi_handler, VNVIC_IPI_ID)
 
-struct vnvic_src* vnvic_get_int(struct vcpu* vcpu, irqid_t int_id, vcpuid_t vcpu_id)
+static struct vnvic_src* vnvic_get_int(struct vcpu* vcpu, irqid_t int_id, vcpuid_t vcpu_id)
 {
     /* if (int_id >= vcpu->vm->arch.nvic_int.int_num) { */
     /*     return NULL; */

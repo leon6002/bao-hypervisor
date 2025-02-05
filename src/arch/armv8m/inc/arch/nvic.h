@@ -47,6 +47,7 @@ void nvic_init(void);
 void nvic_cpu_init(void);
 void nvic_handle(void);
 void nvic_set_enbl(struct nvic* ic, irqid_t int_id, bool en);
+bool nvic_get_active(struct nvic* ic, irqid_t int_id);
 bool nvic_get_enbl(struct nvic* ic, irqid_t int_id);
 void nvic_set_prio(struct nvic* ic, irqid_t int_id, uint32_t prio);
 uint32_t nvic_get_prio(struct nvic* ic, irqid_t int_id);

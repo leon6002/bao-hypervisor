@@ -4,8 +4,9 @@
  */
 
 #include <arch/sau.h>
+#include <vmm.h>
 
-void vmm_arch_init()
+void vmm_arch_init(void)
 {
     sau_arch_enable();
 }

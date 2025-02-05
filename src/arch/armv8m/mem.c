@@ -90,7 +90,7 @@ bool mpu_update(struct addr_space* as, struct mp_region* mpr)
     return !failed;
 }
 
-bool mpu_perms_compatible(struct addr_space* as, uint8_t perms1, uint8_t perms2)
+bool mpu_perms_compatible(struct addr_space* as, mem_flags_t perms1, mem_flags_t perms2)
 {
     bool failed = true;
 
