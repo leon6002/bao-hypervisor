@@ -7,12 +7,16 @@
 #define __ARCH_INTERRUPTS_H__
 
 #include <bao.h>
+#include <platform.h>
 
-#define MAX_INTERRUPTS         2048 // TODO PLAT_IR_MAX_INTERUPTS
+#define ARCH_MAX_INTERRUPTS    496
+#define MAX_INTERRUPTS         PLAT_MAX_INTERRUPTS // TODO:ARMV8M - Should this plat or arch-defined?
 #define MAX_GUEST_INTERRUPTS   (MAX_INTERRUPTS)
 
 #define MAX_INTERRUPT_LINES    MAX_INTERRUPTS
 #define MAX_INTERRUPT_HANDLERS MAX_INTERRUPTS
+
+#define SYSTICK_INT_N          15
 
 /* TODO platform dependent */
 #define IPI_CPU_MSG            1304 /* TODO this is the first GPSR in TC49 */
