@@ -25,7 +25,7 @@ struct cpu_arch {
 
 static inline struct cpu* cpu(void)
 {
-    return (struct cpu*)sysreg_psp_s_read();
+    return (struct cpu*)sp_reg_psp_s_read();
 }
 
 #endif /* __ARCH_CPU_H__ */
