@@ -123,7 +123,7 @@ struct node_cmp {
     void* cookie;
 };
 
-static inline void list_insert_ordered(struct list* list, node_t* node, const struct node_cmp *cmp)
+static inline void list_insert_ordered(struct list* list, node_t* node, const struct node_cmp* cmp)
 {
     if (list != NULL && node != NULL) {
         *node = NULL;
