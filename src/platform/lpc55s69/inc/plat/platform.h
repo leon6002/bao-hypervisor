@@ -8,6 +8,8 @@
 
 #include <drivers/lpc_uart.h>
 
-#define PLAT_TIMER_FREQ 216000000UL
+#define PLAT_MAX_INTERRUPTS  75
 
+#define PLAT_TIMER_FREQ      216000000UL
+#define PLAT_MAX_MPU_REGIONS 8
 #endif

@@ -44,16 +44,18 @@ void interrupts_init(void)
 {
     interrupts_arch_init();
 
-    if (cpu_is_master()) {
-        interrupts_ipi_id = interrupts_reserve(IPI_CPU_MSG, (irq_handler_t)cpu_msg_handler);
-        if (interrupts_ipi_id == INVALID_IRQID) {
-            ERROR("Failed to reserve IPI_CPU_MSG interrupt");
+    if (!DEFINED(SINGLE_CORE)) {
+        if (cpu_is_master()) {
+            interrupts_ipi_id = interrupts_reserve(IPI_CPU_MSG, (irq_handler_t)cpu_msg_handler);
+            if (interrupts_ipi_id == INVALID_IRQID) {
+                ERROR("Failed to reserve IPI_CPU_MSG interrupt");
+            }
         }
+
+        cpu_sync_barrier(&cpu_glb_sync);
+
+        interrupts_cpu_enable(interrupts_ipi_id, true);
     }
-
-    cpu_sync_barrier(&cpu_glb_sync);
-
-    interrupts_cpu_enable(interrupts_ipi_id, true);
 }
 
 static inline bool interrupt_assigned_to_hyp(irqid_t int_id)

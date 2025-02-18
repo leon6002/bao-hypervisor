@@ -12,3 +12,5 @@ platform-cppflags =
 platform-cflags =
 platform-asflags =
 platform-ldflags =
+
+plat_core_arch := single_core
