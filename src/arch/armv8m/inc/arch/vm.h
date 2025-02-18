@@ -10,48 +10,17 @@
 #include <arch/csfrs.h>
 #include <cpu.h>
 #include <arch/interrupts.h>
-// #include <arch/vir.h>
 #include <emul.h>
-#include <vm.h>
 #include <arch/csa.h>
 #include <arch/vfp.h>
+#include <arch/sysregs.h>
+#include <timer.h>
+#include <arch/vtimer.h>
+#include <arch/vmpu.h>
+#include <arch/vnvic.h>
 
-#define REG_D0                 (1)
-#define REG_D1                 (2)
-#define REG_D2                 (3)
-#define REG_D3                 (4)
-#define REG_D4                 (5)
-#define REG_D5                 (6)
-#define REG_D6                 (7)
-#define REG_D7                 (8)
-#define REG_D8                 (9)
-#define REG_D9                 (10)
-#define REG_D10                (11)
-#define REG_D11                (12)
-#define REG_D12                (13)
-#define REG_D13                (14)
-#define REG_D14                (15)
-#define REG_A0                 (16)
-#define REG_A1                 (17)
-#define REG_A2                 (18)
-#define REG_A3                 (19)
-#define REG_A4                 (20)
-#define REG_A5                 (21)
-#define REG_A6                 (22)
-#define REG_A7                 (23)
-#define REG_A8                 (24)
-#define REG_A9                 (25)
-#define REG_A10                (26)
-#define REG_SP                 (26)
-#define REG_A11                (27)
-#define REG_RA                 (27)
-#define REG_A12                (28)
-#define REG_A13                (29)
-#define REG_A14                (30)
-#define REG_A15                (31)
+#define MAX_OF_GP_REGS (sizeof(union gp_regs) / sizeof(unsigned long))
 
-#define EXC_RETURN_RESET_VALUE (0xFFFFFFFF)
-#define xPSR_RESET_VALUE       (0x01000000)
 struct vnvic_src {
     node_t node;
     struct vcpu* owner;
@@ -88,8 +57,9 @@ struct vm_arch {
 
 struct vcpu_arch {
     vcpuid_t core_id;
-    /* TODO CPU power state ctx */
-
+    struct vtimer vtimer;
+    struct vmpu vmpu;
+    struct vnvic vnvic;
     struct {
         BITMAP_ALLOC(bitmap, SAU_ARCH_MAX_NUM_ENTRIES);
         /**
@@ -112,8 +82,8 @@ struct special_regs {
 };
 
 struct arch_regs {
-    union {
-        unsigned long gp_regs[14];
+    union gp_regs {
+        unsigned long r[16];
         struct {
             unsigned long r0;
             unsigned long r1;
@@ -128,11 +98,31 @@ struct arch_regs {
             unsigned long r10;
             unsigned long r11;
             unsigned long r12;
-            // unsigned long sp; /* r13 */
+            unsigned long sp; /* r13 */
             unsigned long lr; /* r14 */
-            // unsigned long pc; /* r15 */
+            unsigned long pc; /* r15 */
         };
-    };
+    } gp_regs;
+    // R/W sysregs from SCB
+    unsigned long icsr;
+    unsigned long vtor;
+    unsigned long aircr;
+    unsigned long scr;
+    unsigned long ccr;
+    unsigned long shpr1;
+    unsigned long shpr2;
+    unsigned long shpr3;
+    unsigned long shcsr;
+    unsigned long mmfar;
+    unsigned long bfar;
+    unsigned long csselr;
+    unsigned long cpacr;
+    // R/W sysregs from DHCSR
+    unsigned long dhcsr;
+    unsigned long dcrdr;
+    unsigned long demcr;
+    unsigned long dauthctrl;
+
     struct special_regs sp_regs;
     struct vfp vfp_regs;
 
