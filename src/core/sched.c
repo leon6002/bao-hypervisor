@@ -12,7 +12,7 @@ void sched_init() { }
 static inline timer_value_t sched_next_event_time(void)
 {
     // hardcoded 10 ms time slice
-    return timer_arch_get_count() + TIME_MS(10);
+    return (timer_value_t)(timer_arch_get_count() + TIME_MS(10));
 }
 
 static void sched_timer_event_handler(struct timer_event* timer_event);

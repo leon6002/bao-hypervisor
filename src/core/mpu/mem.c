@@ -444,8 +444,8 @@ static void mem_vmpu_coalesce_contiguous(struct addr_space* as, bool broadcast, 
             prev_reg = mem_vmpu_get_entry(as, prev->mpid);
 
             bool contiguous = prev_reg->region.base + prev_reg->region.size == cur_reg->region.base;
-            bool perms_compatible = mpu_perms_compatible(as, prev_reg->region.mem_flags,
-                cur_reg->region.mem_flags);
+            bool perms_compatible =
+                mpu_perms_compatible(as, prev_reg->region.mem_flags, cur_reg->region.mem_flags);
             bool lock_compatible = prev_reg->lock == cur_reg->lock;
             if (contiguous && perms_compatible && lock_compatible) {
                 cur_mpid = cur->mpid;
