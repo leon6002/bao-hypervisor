@@ -20,20 +20,20 @@ void sau_read_and_save(void);
 void sau_read_and_save(void)
 {
     for (size_t i = 0; i < 8; i++) {
-        SAU->rnr = i;
-        sau_temp[i].rbar = SAU->rbar & SAU_RBAR_BADDR_MSK;
+        sau->rnr = i;
+        sau_temp[i].rbar = sau->rbar & SAU_RBAR_BADDR_MSK;
 
         if (sau_temp[i].rbar & 0x1) {
-            sau_temp[i].rlar = SAU->rlar | 0x1F;
+            sau_temp[i].rlar = sau->rlar | 0x1F;
         } else {
-            sau_temp[i].rlar = SAU->rlar;
+            sau_temp[i].rlar = sau->rlar;
         }
     }
 }
 
 static inline size_t sau_num_entries(void)
 {
-    return (size_t)SAU_TYPE_N_RGN(SAU->type);
+    return (size_t)SAU_TYPE_N_RGN(sau->type);
 }
 
 static inline void sau_lock_entry(mpid_t mpid)
@@ -50,10 +50,10 @@ static void sau_entry_set(mpid_t mpid, struct mp_region* mpr)
 {
     unsigned long lim = mpr->base + mpr->size - 1;
 
-    SAU->rnr = mpid;
+    sau->rnr = mpid;
     ISB();
-    SAU->rbar = (mpr->base & SAU_RBAR_BADDR_MSK);
-    SAU->rlar = (lim & SAU_RLAR_LADDR_MSK) | mpr->mem_flags.rlar;
+    sau->rbar = (mpr->base & SAU_RBAR_BADDR_MSK);
+    sau->rlar = (lim & SAU_RLAR_LADDR_MSK) | mpr->mem_flags.rlar;
 }
 
 static mpid_t sau_entry_allocate(void)
@@ -103,11 +103,11 @@ bool sau_perms_compatible(mem_flags_t perms1, mem_flags_t perms2)
 
 static void sau_entry_get_region(mpid_t mpid, struct mp_region* mpe)
 {
-    SAU->rnr = mpid;
+    sau->rnr = mpid;
     ISB();
 
-    unsigned long rbar = SAU->rbar;
-    unsigned long rlar = SAU->rlar;
+    unsigned long rbar = sau->rbar;
+    unsigned long rlar = sau->rlar;
 
     mpe->mem_flags.rlar = SAU_RLAR_FLAGS(rlar);
     mpe->base = SAU_RBAR_BASE(rbar);
@@ -134,10 +134,10 @@ static mpid_t sau_entry_get_region_id(struct mp_region* mpe)
 
 static void sau_entry_clear(mpid_t mpid)
 {
-    SAU->rnr = mpid;
+    sau->rnr = mpid;
     ISB();
-    SAU->rlar = 0;
-    SAU->rbar = 0;
+    sau->rlar = 0;
+    sau->rbar = 0;
 }
 
 static inline void sau_entry_free(mpid_t mpid)
@@ -189,9 +189,9 @@ bool sau_update_region(struct mp_region* mpr)
 
 static inline bool sau_entry_valid(mpid_t mpid)
 {
-    SAU->rnr = mpid;
+    sau->rnr = mpid;
     ISB();
-    return !!(SAU->rlar & SAU_RLAR_EN);
+    return !!(sau->rlar & SAU_RLAR_EN);
 }
 
 void sau_arch_init(void)
@@ -208,7 +208,7 @@ void sau_arch_init(void)
 
 void sau_arch_enable(void)
 {
-    SAU->ctrl |= SAU_CTRL_ENABLE;
+    sau->ctrl |= SAU_CTRL_ENABLE;
     ISB();
 
     sau_read_and_save();

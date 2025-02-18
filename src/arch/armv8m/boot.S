@@ -132,7 +132,7 @@ _reset_handler:
     /* Enable Fault Handlers */
     ldr r3, =SCB_BASE
     ldr r4, [r3, #SCB_SHCSR_OFF]
-    orr r4, r4, #(SCB_ENABLE_ALL_FAULTS)
+    orr r4, r4, #(SCB_SHCSR_EN_ALL_FAULTS)
     str r4, [r3, #SCB_SHCSR_OFF]
 
     /* Copy data from RX to RWX */

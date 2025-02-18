@@ -17,15 +17,15 @@ struct mpu_temp {
 static void mpu_read_and_save(void)
 {
     for (uint32_t i = 0; i < 8; i++) {
-        MPU->rnr = i;
-        mpu_temp[i].rbar = MPU->rbar & MPU_RBAR_BASE_MSK;
-        mpu_temp[i].rlar = MPU->rlar | 0x1F;
+        mpu_s->rnr = i;
+        mpu_temp[i].rbar = mpu_s->rbar & MPU_RBAR_BASE_MSK;
+        mpu_temp[i].rlar = mpu_s->rlar | 0x1F;
     }
 }
 
 static inline size_t mpu_num_entries(void)
 {
-    return (size_t)MPU_TYPE_N_RGN(MPU->type);
+    return (size_t)MPU_TYPE_N_RGN(mpu_s->type);
 }
 
 static inline void mpu_lock_entry(mpid_t mpid)
@@ -42,10 +42,10 @@ static void mpu_entry_set(mpid_t mpid, struct mp_region* mpr)
 {
     unsigned long lim = mpr->base + mpr->size - 1;
 
-    MPU->rnr = mpid;
+    mpu_set_rnr(mpu_s, mpid);
     ISB();
-    MPU->rbar = (mpr->base & MPU_RBAR_BASE_MSK) | mpr->mem_flags.rbar;
-    MPU->rlar = (lim & MPU_RLAR_LIMIT_MSK) | mpr->mem_flags.rlar;
+    mpu_set_rbar(mpu_s, (mpr->base & MPU_RBAR_BASE_MSK) | mpr->mem_flags.rbar);
+    mpu_set_rlar(mpu_s, (lim & MPU_RLAR_LIMIT_MSK) | mpr->mem_flags.rlar);
 }
 
 static mpid_t mpu_entry_allocate(void)
@@ -95,11 +95,11 @@ bool mpu_arch_perms_compatible(mem_flags_t perms1, mem_flags_t perms2)
 
 static void mpu_entry_get_region(mpid_t mpid, struct mp_region* mpe)
 {
-    MPU->rnr = mpid;
+    mpu_set_rnr(mpu_s, mpid);
     ISB();
 
-    unsigned long rbar = MPU->rbar;
-    unsigned long rlar = MPU->rlar;
+    unsigned long rbar = mpu_get_rbar(mpu_s);
+    unsigned long rlar = mpu_get_rlar(mpu_s);
 
     mpe->mem_flags.rbar = MPU_RBAR_FLAGS(rbar);
     mpe->mem_flags.rlar = MPU_RLAR_FLAGS(rlar);
@@ -127,10 +127,10 @@ static mpid_t mpu_entry_get_region_id(struct mp_region* mpe)
 
 static void mpu_entry_clear(mpid_t mpid)
 {
-    MPU->rnr = mpid;
+    mpu_set_rnr(mpu_s, mpid);
     ISB();
-    MPU->rlar = 0;
-    MPU->rbar = 0;
+    mpu_set_rlar(mpu_s, 0);
+    mpu_set_rbar(mpu_s, 0);
 }
 
 static inline void mpu_entry_free(mpid_t mpid)
@@ -153,9 +153,9 @@ bool mpu_remove_region(struct mp_region* reg)
 
         // TODO:ARMV8M - REMOVE
         for (int i = 0; i < 8; i++) {
-            MPU->rnr = (uint32_t)i;
-            mpu_temp[i].rbar = MPU->rbar & MPU_RBAR_BASE_MSK;
-            mpu_temp[i].rlar = MPU->rlar | 0x1F;
+            mpu_s->rnr = (uint32_t)i;
+            mpu_temp[i].rbar = mpu_s->rbar & MPU_RBAR_BASE_MSK;
+            mpu_temp[i].rlar = mpu_s->rlar | 0x1F;
         }
     }
 
@@ -187,9 +187,9 @@ bool mpu_update_region(struct mp_region* mpr)
 
 static inline bool mpu_entry_valid(mpid_t mpid)
 {
-    MPU->rnr = mpid;
+    mpu_set_rnr(mpu_s, mpid);
     ISB();
-    return !!(MPU->rlar & MPU_RLAR_EN);
+    return !!(mpu_get_rlar(mpu_s) & MPU_RLAR_EN);
 }
 
 void mpu_arch_init(void)
@@ -206,8 +206,8 @@ void mpu_arch_init(void)
 
 void mpu_arch_enable(void)
 {
-    MPU->ctrl |= MPU_CTRL_ENABLE;
+    mpu_set_ctrl(mpu_s, mpu_get_ctrl(mpu_s) | MPU_CTRL_ENABLE);
     /* Enable background region */
-    MPU->ctrl &= ~(uint32_t)MPU_CTRL_PRIVDEFENA;
+    mpu_set_ctrl(mpu_s, mpu_get_ctrl(mpu_s) & ~(uint32_t)MPU_CTRL_PRIVDEFENA);
     ISB();
 }
