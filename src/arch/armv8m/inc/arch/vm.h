@@ -78,17 +78,13 @@ struct special_regs {
     unsigned long primask;
     unsigned long faultmask;
     unsigned long control;
-    unsigned long xpsr;
 };
 
 struct arch_regs {
     union gp_regs {
-        unsigned long r[16];
+        unsigned long r[10];
         struct {
-            unsigned long r0;
-            unsigned long r1;
-            unsigned long r2;
-            unsigned long r3;
+            // r0-r3 are callee-saved
             unsigned long r4;
             unsigned long r5;
             unsigned long r6;
@@ -97,12 +93,15 @@ struct arch_regs {
             unsigned long r9;
             unsigned long r10;
             unsigned long r11;
-            unsigned long r12;
-            unsigned long sp; /* r13 */
+            // r12-r13 are callee-saved
             unsigned long lr; /* r14 */
+            // r15 is used for the first vm entry
             unsigned long pc; /* r15 */
         };
     } gp_regs;
+
+    struct special_regs sp_regs;
+
     // R/W sysregs from SCB
     unsigned long icsr;
     unsigned long vtor;
@@ -123,12 +122,18 @@ struct arch_regs {
     unsigned long demcr;
     unsigned long dauthctrl;
 
-    struct special_regs sp_regs;
     struct vfp vfp_regs;
 
 } __attribute__((__packed__, aligned(sizeof(unsigned long))));
 
-void vcpu_arch_entry(void);
+void vcpu_arch_entry(void)
+{
+    static bool first_run = true;
+    if (first_run) {
+        first_run = false;
+    }
+    vcpu_arch_vm_entry(first_run);
+}
 
 static inline void vcpu_arch_inject_hw_irq(struct vcpu* vcpu, irqid_t id)
 {

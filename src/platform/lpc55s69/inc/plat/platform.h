@@ -6,7 +6,9 @@
 #ifndef __PLAT_PLATFORM_H__
 #define __PLAT_PLATFORM_H__
 
+#ifndef __ASSEMBLER__
 #include <drivers/lpc_uart.h>
+#endif
 
 #define PLAT_MAX_INTERRUPTS  75
 

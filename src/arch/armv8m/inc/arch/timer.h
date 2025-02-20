@@ -29,13 +29,6 @@ static inline void timer_arch_disable(void)
     systick_set_csr(systick_s, systick_get_cvr(systick_s) & ~SYSTICK_CSR_ENABLE);
 }
 
-static inline void timer_arch_enable(void)
-{
-    systick_set_csr(systick_s,
-        systick_get_cvr(systick_s) |
-            (SYSTICK_CSR_ENABLE | SYSTICK_CSR_TICKINT | SYSTICK_CSR_CLKSOURCE));
-}
-
 static inline void timer_arch_init(void)
 {
     timer_arch_disable();

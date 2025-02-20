@@ -42,6 +42,7 @@ __attribute__((used)) static void vcpu_defines(void)
     DEFINE_SIZE(VCPU_ARCH_SIZE, struct vcpu_arch);
     DEFINE_OFFSET(VCPU_REGS_OFF, struct vcpu, regs);
     DEFINE_SIZE(VCPU_REGS_SIZE, struct arch_regs);
+    DEFINE_OFFSET(VCPU_REGS_PC_OFF, struct arch_regs, gp_regs.r[15]);
     DEFINE_OFFSET(VCPU_SPREGS_OFF, struct arch_regs, sp_regs);
     DEFINE_SIZE(VCPU_GP_REGS_SIZE, ((struct arch_regs*)NULL)->gp_regs);
     DEFINE_SIZE(VCPU_SPREGS_SIZE, struct special_regs);

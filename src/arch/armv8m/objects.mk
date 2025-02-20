@@ -17,3 +17,4 @@ cpu-objs-y+=vmpu.o
 cpu-objs-y+=cache.o
 cpu-objs-y+=nvic.o
 cpu-objs-y+=vnvic.o
+cpu-objs-y+=fault_exceptions.o

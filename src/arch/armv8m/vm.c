@@ -13,9 +13,11 @@
 #include <arch/vtimer.h>
 #include <arch/vmpu.h>
 #include <arch/vnvic.h>
+#include <mem.h>
 
-#define ESF_LR_EXEC_RETURN_VALUE (0x00000000)
-#define ESF_xPSR_VALUE           (0x01000000)
+#define ESF_LR_EXEC_RETURN_RESET_VAL (0x00000000)
+#define ESF_LR_EXEC_RETURN_INIT_VAL  (0xFFFFFFB9)
+#define ESF_xPSR_VALUE               (0x01000000)
 
 struct e_stack_frame {
     uint32_t xPSR;
@@ -30,6 +32,19 @@ struct e_stack_frame {
     // TODO:ARMV8M - We are missing here FP context
 };
 
+static inline void vcpu_arch_cpy_esf(paddr_t dst, struct e_stack_frame* frame)
+{
+    size_t frm_size = sizeof(struct e_stack_frame);
+    size_t frm_num_pages = NUM_PAGES(frm_size);
+    struct ppages frm_ppages = mem_ppages_get(dst, frm_num_pages);
+
+    mem_alloc_map(&cpu()->as, SEC_HYP_GLOBAL, &frm_ppages, INVALID_VA, frm_num_pages, PTE_HYP_FLAGS);
+
+    memcpy((void*)dst, (void*)frame, frm_size);
+
+    mem_unmap(&cpu()->as, dst, frm_num_pages, true); // TODO:ARMV8M - Free pages?
+}
+
 void vm_arch_init(struct vm* vm, const struct vm_config* vm_config)
 {
     UNUSED_ARG(vm);
@@ -42,7 +57,7 @@ void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm)
     struct e_stack_frame frame = {
         .xPSR = ESF_xPSR_VALUE,
         .pc = vm->config->entry,
-        .lr = ESF_LR_EXEC_RETURN_VALUE,
+        .lr = ESF_LR_EXEC_RETURN_RESET_VAL,
         .r12 = 0,
         .r3 = 0,
         .r2 = 0,
@@ -52,22 +67,17 @@ void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm)
 
     // TODO:ARMV8M - This can be logically moved to some later stage of vm_init
     //  Find a writable memory region to write the stack frame
-    for (size_t j = 0; j < platform.region_num; j++) {
-        struct mem_region* reg_plat = &platform.regions[j];
-        if (reg_plat->perms == RWX) {
-            for (size_t i = 0; i < vm->config->platform.region_num; i++) {
-                struct vm_mem_region* reg_vm = &vm->config->platform.regions[i];
-                if (reg_plat->base == reg_vm->base) {
-                    // Set the virtual sp to the end of the region
-                    vcpu->regs.sp_regs.msp =
-                        (reg_vm->base + reg_vm->size) - sizeof(struct e_stack_frame);
-                    // Copy the stack frame to the stack
-                    memcpy((void*)(vcpu->regs.gp_regs.sp - sizeof(struct e_stack_frame)), &frame,
-                        sizeof(struct e_stack_frame));
-                    break;
-                }
-            }
-        }
+    struct mem_region* reg = vm_get_writable_mem_region(vm);
+
+    if (reg) {
+        // Set the lr to the first exception return value
+        vcpu->regs.gp_regs.lr = ESF_LR_EXEC_RETURN_INIT_VAL;
+        // Set the virtual sp to the end of the region
+        vcpu->regs.sp_regs.msp = (reg->base + reg->size) - sizeof(struct e_stack_frame);
+        // Copy the stack frame to the stack
+        vcpu_arch_cpy_esf(vcpu->regs.sp_regs.msp, &frame);
+    } else {
+        ERROR("No writable memory region found for the stack frame");
     }
 }
 
@@ -123,16 +133,6 @@ void vcpu_writereg(struct vcpu* vcpu, unsigned long reg, unsigned long val)
         return;
     }
     vcpu->regs.gp_regs.r[reg - 1] = val;
-}
-
-unsigned long vcpu_readpc(struct vcpu* vcpu)
-{
-    return vcpu->regs.gp_regs.pc;
-}
-
-void vcpu_writepc(struct vcpu* vcpu, unsigned long pc)
-{
-    vcpu->regs.gp_regs.pc = pc;
 }
 
 void vcpu_restore_state(struct vcpu* vcpu)

@@ -7,7 +7,7 @@
 #define __ARCH_INTERRUPTS_H__
 
 #include <bao.h>
-#include <platform.h>
+#include <plat/platform.h>
 
 #define ARCH_MAX_INTERRUPTS    496
 #define MAX_INTERRUPTS         PLAT_MAX_INTERRUPTS // TODO:ARMV8M - Should this plat or arch-defined?
@@ -21,7 +21,11 @@
 /* TODO platform dependent */
 #define IPI_CPU_MSG            1304 /* TODO this is the first GPSR in TC49 */
 
+#ifndef __ASSEMBLER__
+
 void interrupts_arch_handle(void);
 void nvic_init_ipi(void);
+
+#endif
 
 #endif /* __ARCH_INTERRUPTS_H__ */

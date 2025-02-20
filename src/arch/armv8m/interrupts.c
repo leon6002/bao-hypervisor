@@ -62,6 +62,8 @@ irqid_t interrupts_arch_reserve(irqid_t int_id)
     if (int_id > EXT_INT_BASE) {
         nvic_int_target(SECURE, int_id);
         return int_id;
+    } else if (int_id == EXC_SYSTICK) {
+        return int_id;
     }
     // TODO:ARMV8M - are we missing something here?!
     return INVALID_IRQID;
