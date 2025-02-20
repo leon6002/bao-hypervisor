@@ -6,17 +6,14 @@
 #include <arch/interrupts.h>
 
 struct vnvic {
-    BITMAP_ALLOC(int_enab, MAX_INTERRUPTS);
-    BITMAP_ALLOC(int_pend, MAX_INTERRUPTS);
-
-    uint8_t int_prio[MAX_INTERRUPTS]; // TODO:ARMV8-M - This should be allocated dynamically
+    BITMAP_ALLOC(irq_enab, MAX_INTERRUPTS);
 };
 
 struct vnvic;
 
 void vnvic_init(void);
 void vnvic_reset(void);
-void vnvic_save_state(struct vnvic* vnvic, bitmap_t *int_bitmap);
-void vnvic_restore_state(struct vnvic* vnvic, bitmap_t *int_bitmap);
+void vnvic_save_state(struct vnvic* vnvic, bitmap_t* vm_irqs);
+void vnvic_restore_state(struct vnvic* vnvic, bitmap_t* vm_irqs);
 
 #endif /* VNVIC_H */
