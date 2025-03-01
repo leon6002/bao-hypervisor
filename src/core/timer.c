@@ -31,18 +31,15 @@ static void timer_set_next_event(void)
 static void timer_irq_handler(irqid_t int_id)
 {
     UNUSED_ARG(int_id);
-    node_t* next_node;
+    node_t* next_node = NULL;
 
-    while ((next_node = list_peek(timer_cpu_list())) != NULL) {
-        struct timer_event* next_event = CONTAINER_OF(struct timer_event, node, next_node);
-        if (next_event->timer <= timer_arch_get_count()) {
-            (void)list_pop(timer_cpu_list());
-            if (next_event->handler != NULL) {
-                next_event->handler(next_event);
-            }
-        } else {
-            break;
-        }
+    // TODO:ARMV8M - This needs to be fixed for all architectures (code was removed ). In this architectures the timer
+    // works as a systick timer instead of a event timer.
+    next_node = list_pop(timer_cpu_list());
+    struct timer_event* next_event = CONTAINER_OF(struct timer_event, node, next_node);
+
+    if (next_event->handler != NULL) {
+        next_event->handler(next_event);
     }
 
     timer_set_next_event();

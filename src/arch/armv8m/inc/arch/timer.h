@@ -34,10 +34,9 @@ static inline void timer_arch_set(timer_value_t value)
 
 static inline timer_value_t timer_arch_get_count(void)
 {
-    //return (timer_value_t)systick_get_cvr(systick_s);
+    // return (timer_value_t)systick_get_cvr(systick_s);
     return 0;
 }
-
 
 static inline void timer_arch_init(void)
 {
