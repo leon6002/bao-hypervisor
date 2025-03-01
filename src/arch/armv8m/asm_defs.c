@@ -12,6 +12,7 @@
 __attribute__((used)) static void sysregs_defines(void)
 {
     DEFINE_OFFSET(SCB_VTOR_OFF, struct scb, vtor);
+    DEFINE_OFFSET(SCB_SHCSR_OFF, struct scb, shcsr);
 
     DEFINE_OFFSET(MPU_CTRL_OFF, struct mpu, ctrl);
     DEFINE_OFFSET(MPU_RNR_OFF, struct mpu, rnr);
@@ -39,12 +40,13 @@ __attribute__((used)) static void cpu_defines(void)
 
 __attribute__((used)) static void vcpu_defines(void)
 {
+    DEFINE_OFFSET(VCPU_FIRST_RUN_OFF, struct vcpu, first_run);
     DEFINE_SIZE(VCPU_ARCH_SIZE, struct vcpu_arch);
     DEFINE_OFFSET(VCPU_REGS_OFF, struct vcpu, regs);
     DEFINE_SIZE(VCPU_REGS_SIZE, struct arch_regs);
-    DEFINE_OFFSET(VCPU_REGS_PC_OFF, struct arch_regs, gp_regs.r[15]);
+    DEFINE_OFFSET(VCPU_REGS_PC_OFF, struct arch_regs, gp_regs.pc);
     DEFINE_OFFSET(VCPU_SPREGS_OFF, struct arch_regs, sp_regs);
-    DEFINE_SIZE(VCPU_GP_REGS_SIZE, ((struct arch_regs*)NULL)->gp_regs);
+    DEFINE_SIZE(VCPU_GPREGS_SIZE, ((struct arch_regs*)NULL)->gp_regs);
     DEFINE_SIZE(VCPU_SPREGS_SIZE, struct special_regs);
     DEFINE_OFFSET(VCPU_BLOCKED_COUNT, struct vcpu, blocked_count);
 }

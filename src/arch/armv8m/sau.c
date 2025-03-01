@@ -46,14 +46,18 @@ static inline bool sau_entry_locked(mpid_t mpid)
     return !!bitmap_get(cpu()->vcpu->arch.sau_vm.locked, mpid);
 }
 
-static void sau_entry_set(mpid_t mpid, struct mp_region* mpr)
+static void sau_entry_set(struct sau_vm* sau_vm, mpid_t mpid, struct mp_region* mpr)
 {
     unsigned long lim = mpr->base + mpr->size - 1;
+    unsigned long rbar = (mpr->base & SAU_RBAR_BADDR_MSK);
+    unsigned long rlar = (lim & SAU_RLAR_LADDR_MSK) | mpr->mem_flags.rlar;
 
     sau->rnr = mpid;
     ISB();
-    sau->rbar = (mpr->base & SAU_RBAR_BADDR_MSK);
-    sau->rlar = (lim & SAU_RLAR_LADDR_MSK) | mpr->mem_flags.rlar;
+    sau->rbar = rbar;
+    sau_vm->entry[mpid].rbar = rbar;
+    sau->rlar = rlar;
+    sau_vm->entry[mpid].rlar = rlar;
 }
 
 static mpid_t sau_entry_allocate(void)
@@ -69,16 +73,32 @@ static mpid_t sau_entry_allocate(void)
     return reg_num;
 }
 
-bool sau_add_region(struct mp_region* reg, bool locked)
+static struct sau_vm* sau_vm_get_local(struct addr_space* as)
+{
+    struct sau_vm* sau_vm = NULL;
+
+    list_foreach (cpu()->vcpu_list, struct vcpu, vcpu) {
+        if (as == &vcpu->vm->as) {
+            sau_vm = &vcpu->arch.sau_vm;
+            break;
+        }
+    }
+
+    return sau_vm;
+}
+
+bool sau_add_region(struct addr_space* as, struct mp_region* reg, bool locked)
 {
     bool failed = true;
+    struct sau_vm* sau_vm = sau_vm_get_local(as);
+    ;
 
     if (reg->size > 0) {
         mpid_t mpid = sau_entry_allocate();
 
         if (mpid != INVALID_MPID) {
             failed = false;
-            sau_entry_set(mpid, reg);
+            sau_entry_set(sau_vm, mpid, reg);
             if (locked) {
                 sau_lock_entry(mpid);
             }
@@ -132,30 +152,33 @@ static mpid_t sau_entry_get_region_id(struct mp_region* mpe)
     return mpid;
 }
 
-static void sau_entry_clear(mpid_t mpid)
+static void sau_entry_clear(struct sau_vm* sau_vm, mpid_t mpid)
 {
     sau->rnr = mpid;
     ISB();
     sau->rlar = 0;
+    sau_vm->entry[mpid].rlar = 0;
     sau->rbar = 0;
+    sau_vm->entry[mpid].rbar = 0;
 }
 
-static inline void sau_entry_free(mpid_t mpid)
+static inline void sau_entry_free(struct sau_vm* sau_vm, mpid_t mpid)
 {
-    sau_entry_clear(mpid);
+    sau_entry_clear(sau_vm, mpid);
     bitmap_clear(cpu()->vcpu->arch.sau_vm.bitmap, mpid);
 }
 
-bool sau_remove_region(struct mp_region* reg)
+bool sau_remove_region(struct addr_space* as, struct mp_region* reg)
 {
     bool failed = true;
+    struct sau_vm* sau_vm = sau_vm_get_local(as);
 
     if (reg->size > 0) {
         mpid_t mpid = sau_entry_get_region_id(reg);
 
         if (mpid != INVALID_MPID) {
             failed = false;
-            sau_entry_free(mpid);
+            sau_entry_free(sau_vm, mpid);
         }
     }
     // TODO:ARMV8M - REMOVE
@@ -164,9 +187,10 @@ bool sau_remove_region(struct mp_region* reg)
     return !failed;
 }
 
-bool sau_update_region(struct mp_region* mpr)
+bool sau_update_region(struct addr_space* as, struct mp_region* mpr)
 {
     bool failed = true;
+    struct sau_vm* sau_vm = sau_vm_get_local(as);
 
     for (mpid_t mpid = 0; mpid < (mpid_t)sau_num_entries(); mpid++) {
         if (bitmap_get(cpu()->vcpu->arch.sau_vm.bitmap, mpid) == 0) {
@@ -176,7 +200,7 @@ bool sau_update_region(struct mp_region* mpr)
         sau_entry_get_region(mpid, &mpe_cmp);
 
         if (mpe_cmp.base == mpr->base) {
-            sau_entry_set(mpid, mpr);
+            sau_entry_set(sau_vm, mpid, mpr);
             failed = false;
             break;
         }
@@ -210,6 +234,20 @@ void sau_arch_enable(void)
 {
     sau->ctrl |= SAU_CTRL_ENABLE;
     ISB();
+
+    sau_read_and_save();
+}
+
+void sau_restore(struct sau_vm* sau_vm)
+{
+    for (mpid_t i = 0; i < SAU_ARCH_MAX_NUM_ENTRIES; i++) {
+        if (bitmap_get(sau_vm->bitmap, i) != 0) {
+            sau->rnr = i;
+            ISB();
+            sau->rbar = sau_vm->entry[i].rbar;
+            sau->rlar = sau_vm->entry[i].rlar;
+        }
+    }
 
     sau_read_and_save();
 }

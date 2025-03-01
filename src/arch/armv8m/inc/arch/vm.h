@@ -18,6 +18,7 @@
 #include <arch/vtimer.h>
 #include <arch/vmpu.h>
 #include <arch/vnvic.h>
+#include <arch/sau.h>
 
 #define MAX_OF_GP_REGS (sizeof(union gp_regs) / sizeof(unsigned long))
 
@@ -60,13 +61,7 @@ struct vcpu_arch {
     struct vtimer vtimer;
     struct vmpu vmpu;
     struct vnvic vnvic;
-    struct {
-        BITMAP_ALLOC(bitmap, SAU_ARCH_MAX_NUM_ENTRIES);
-        /**
-         * A locked region means that it can never be removed from the MPU. For example,
-         */
-        BITMAP_ALLOC(locked, SAU_ARCH_MAX_NUM_ENTRIES);
-    } sau_vm;
+    struct sau_vm sau_vm;
 };
 
 struct special_regs {
@@ -84,7 +79,8 @@ struct arch_regs {
     union gp_regs {
         unsigned long r[10];
         struct {
-            // r0-r3 are callee-saved
+            // r0-r3, r12 are callee-saved, and they are sanitized in the first execution on the
+            // vcpu_arch_vm_entry
             unsigned long r4;
             unsigned long r5;
             unsigned long r6;
@@ -93,7 +89,6 @@ struct arch_regs {
             unsigned long r9;
             unsigned long r10;
             unsigned long r11;
-            // r12-r13 are callee-saved
             unsigned long lr; /* r14 */
             // r15 is used for the first vm entry
             unsigned long pc; /* r15 */
@@ -126,14 +121,7 @@ struct arch_regs {
 
 } __attribute__((__packed__, aligned(sizeof(unsigned long))));
 
-void vcpu_arch_entry(void)
-{
-    static bool first_run = true;
-    if (first_run) {
-        first_run = false;
-    }
-    vcpu_arch_vm_entry(first_run);
-}
+void vcpu_arch_entry(void);
 
 static inline void vcpu_arch_inject_hw_irq(struct vcpu* vcpu, irqid_t id)
 {

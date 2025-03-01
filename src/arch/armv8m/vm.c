@@ -12,38 +12,9 @@
 #include <platform.h>
 #include <arch/vtimer.h>
 #include <arch/vmpu.h>
+#include <arch/sau.h>
 #include <arch/vnvic.h>
 #include <mem.h>
-
-#define ESF_LR_EXEC_RETURN_RESET_VAL (0x00000000)
-#define ESF_LR_EXEC_RETURN_INIT_VAL  (0xFFFFFFB9)
-#define ESF_xPSR_VALUE               (0x01000000)
-
-struct e_stack_frame {
-    uint32_t xPSR;
-    uint32_t pc; // Return Address
-    uint32_t lr; // LR (EXC_RETURN)
-    uint32_t r12;
-    uint32_t r3;
-    uint32_t r2;
-    uint32_t r1;
-    uint32_t r0;
-
-    // TODO:ARMV8M - We are missing here FP context
-};
-
-static inline void vcpu_arch_cpy_esf(paddr_t dst, struct e_stack_frame* frame)
-{
-    size_t frm_size = sizeof(struct e_stack_frame);
-    size_t frm_num_pages = NUM_PAGES(frm_size);
-    struct ppages frm_ppages = mem_ppages_get(dst, frm_num_pages);
-
-    mem_alloc_map(&cpu()->as, SEC_HYP_GLOBAL, &frm_ppages, INVALID_VA, frm_num_pages, PTE_HYP_FLAGS);
-
-    memcpy((void*)dst, (void*)frame, frm_size);
-
-    mem_unmap(&cpu()->as, dst, frm_num_pages, true); // TODO:ARMV8M - Free pages?
-}
 
 void vm_arch_init(struct vm* vm, const struct vm_config* vm_config)
 {
@@ -53,58 +24,24 @@ void vm_arch_init(struct vm* vm, const struct vm_config* vm_config)
 
 void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm)
 {
-    // Prepare exception stack frame for the first jump via exception return
-    struct e_stack_frame frame = {
-        .xPSR = ESF_xPSR_VALUE,
-        .pc = vm->config->entry,
-        .lr = ESF_LR_EXEC_RETURN_RESET_VAL,
-        .r12 = 0,
-        .r3 = 0,
-        .r2 = 0,
-        .r1 = 0,
-        .r0 = 0,
-    };
+    UNUSED_ARG(vcpu);
+    UNUSED_ARG(vm);
 
-    // TODO:ARMV8M - This can be logically moved to some later stage of vm_init
-    //  Find a writable memory region to write the stack frame
-    struct mem_region* reg = vm_get_writable_mem_region(vm);
-
-    if (reg) {
-        // Set the lr to the first exception return value
-        vcpu->regs.gp_regs.lr = ESF_LR_EXEC_RETURN_INIT_VAL;
-        // Set the virtual sp to the end of the region
-        vcpu->regs.sp_regs.msp = (reg->base + reg->size) - sizeof(struct e_stack_frame);
-        // Copy the stack frame to the stack
-        vcpu_arch_cpy_esf(vcpu->regs.sp_regs.msp, &frame);
-    } else {
-        ERROR("No writable memory region found for the stack frame");
-    }
+    vcpu->first_run = 0x0;
 }
 
 void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry)
 {
-    UNUSED_ARG(entry);
-
     // TODO:ARMV8-M - to we need replicate the warm reset sequence? (TakeReset - page 1919)
     // msp = vector[0]
     // If so, we do this:
     // Set gp regs to reset values (except regs from exception stack frame r0-r3, r12, sp, lr, pc)
-    vcpu->regs.gp_regs.r4 = 0;
-    vcpu->regs.gp_regs.r5 = 0;
-    vcpu->regs.gp_regs.r6 = 0;
-    vcpu->regs.gp_regs.r7 = 0;
-    vcpu->regs.gp_regs.r8 = 0;
-    vcpu->regs.gp_regs.r9 = 0;
-    vcpu->regs.gp_regs.r10 = 0;
-    vcpu->regs.gp_regs.r11 = 0;
+    memset(&vcpu->regs.gp_regs, 0, sizeof(((struct arch_regs*)NULL)->gp_regs));
+    // Set PC to entry
+    vcpu->regs.gp_regs.pc = entry;
+
     // Set sp regs to reset values (except regs from exception stack frame xPSR, msp)
-    vcpu->regs.sp_regs.psp = 0;
-    vcpu->regs.sp_regs.msp_lim = 0;
-    vcpu->regs.sp_regs.psp_lim = 0;
-    vcpu->regs.sp_regs.basepri = 0;
-    vcpu->regs.sp_regs.primask = 0;
-    vcpu->regs.sp_regs.faultmask = 0;
-    vcpu->regs.sp_regs.control = 0;
+    memset(&vcpu->regs.sp_regs, 0, sizeof(struct special_regs));
 
     vfp_reset(&vcpu->regs.vfp_regs);
     vnvic_reset();
@@ -156,13 +93,17 @@ void vcpu_restore_state(struct vcpu* vcpu)
     dcb_ns->dauthctrl = vcpu->regs.dauthctrl;
 
     vnvic_restore_state(&vcpu->arch.vnvic, vcpu->vm->interrupt_bitmap);
-    vtimer_restore_state(&vcpu->arch.vtimer);
+    
     vmpu_restore_state(&vcpu->arch.vmpu);
-    vfp_restore_state(&vcpu->regs.vfp_regs);
+    // vfp_restore_state(&vcpu->regs.vfp_regs);
+    vtimer_restore_state(&vcpu->arch.vtimer);
+    sau_restore(&vcpu->arch.sau_vm);
 }
 
 void vcpu_save_state(struct vcpu* vcpu)
 {
+    vtimer_save_state(&vcpu->arch.vtimer);
+
     vcpu->regs.icsr = scb_ns->icsr;
     vcpu->regs.vtor = scb_ns->vtor;
     vcpu->regs.aircr = scb_ns->aircr;
@@ -182,7 +123,7 @@ void vcpu_save_state(struct vcpu* vcpu)
     vcpu->regs.dauthctrl = dcb_ns->dauthctrl;
 
     vnvic_save_state(&vcpu->arch.vnvic, vcpu->vm->interrupt_bitmap);
-    vtimer_save_state(&vcpu->arch.vtimer);
     vmpu_save_state(&vcpu->arch.vmpu);
-    vfp_save_state(&vcpu->regs.vfp_regs);
+    // vfp_save_state(&vcpu->regs.vfp_regs);
+
 }

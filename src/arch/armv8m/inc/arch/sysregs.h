@@ -20,6 +20,11 @@
 #define SCB_SHCSR_BUSFAULTENA    (1 << 17)
 #define SCB_SHCSR_USGFAULTENA    (1 << 18)
 #define SCB_SHCSR_SECUREFAULTEMA (1 << 19)
+#define SCB_SHCSR_SYSTICKACT     (1UL << 11UL)
+
+#define SCB_AIRCR_VECTKEY        (0x5FAUL << 16)
+#define SCB_AIRCR_VECTKEY_MSK    (0xFFFFUL << 16)
+#define SCB_AIRCR_PRIS           (1 << 14)
 
 #define SCB_ICSR_PENDSTSET       (1 << 26)
 #define SCB_ICSR_PENDSTCLR       (1 << 25)
