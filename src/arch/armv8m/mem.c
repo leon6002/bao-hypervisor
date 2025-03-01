@@ -19,7 +19,7 @@ bool mpu_map(struct addr_space* as, struct mp_region* mpr, bool locked)
 {
     bool failed = true;
 
-    if (as == &cpu()->as) {
+    if (as->type == AS_HYP) {
         /* Add region to MPU */
         if (!mpu_add_region(mpr, locked)) {
             ERROR("failed to register mpu entry");
@@ -27,9 +27,9 @@ bool mpu_map(struct addr_space* as, struct mp_region* mpr, bool locked)
             failed = false;
         }
     } else {
-        if (as == &cpu()->vcpu->vm->as) {
+        if (as->type == AS_VM) {
             /* Add region to SAU  */
-            if (!sau_add_region(mpr, locked)) {
+            if (!sau_add_region(as, mpr, locked)) {
                 ERROR("failed to register sau entry");
             } else {
                 failed = false;
@@ -44,7 +44,7 @@ bool mpu_unmap(struct addr_space* as, struct mp_region* mpr)
 {
     bool failed = true;
 
-    if (as == &cpu()->as) {
+    if (as->type == AS_HYP) {
         /* Remove region */
         if (!mpu_remove_region(mpr)) {
             ERROR("failed to register mpu entry");
@@ -52,9 +52,9 @@ bool mpu_unmap(struct addr_space* as, struct mp_region* mpr)
             failed = false;
         }
     } else {
-        if (as == &cpu()->vcpu->vm->as) {
+        if (as->type == AS_VM) {
             /* Remove region */
-            if (!sau_remove_region(mpr)) {
+            if (!sau_remove_region(as, mpr)) {
                 ERROR("failed to register sau entry");
             } else {
                 failed = false;
@@ -69,7 +69,7 @@ bool mpu_update(struct addr_space* as, struct mp_region* mpr)
 {
     bool failed = true;
 
-    if (as == &cpu()->as) {
+    if (as->type == AS_HYP) {
         /* Remove region */
         if (!mpu_update_region(mpr)) {
             ERROR("failed to register mpu entry");
@@ -77,9 +77,9 @@ bool mpu_update(struct addr_space* as, struct mp_region* mpr)
             failed = false;
         }
     } else {
-        if (as == &cpu()->vcpu->vm->as) {
+        if (as->type == AS_VM) {
             /* Remove region */
-            if (!sau_update_region(mpr)) {
+            if (!sau_update_region(as, mpr)) {
                 ERROR("failed to register sau entry");
             } else {
                 failed = false;
@@ -94,13 +94,13 @@ bool mpu_perms_compatible(struct addr_space* as, mem_flags_t perms1, mem_flags_t
 {
     bool failed = true;
 
-    if (as == &cpu()->as) {
+    if (as->type == AS_HYP) {
         if (!mpu_arch_perms_compatible(perms1, perms2)) {
         } else {
             failed = false;
         }
     } else {
-        if (as == &cpu()->vcpu->vm->as) {
+        if (as->type == AS_VM) {
             if (!sau_perms_compatible(perms1, perms2)) {
             } else {
                 failed = false;
