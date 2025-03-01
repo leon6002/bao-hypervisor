@@ -20,6 +20,9 @@ void interrupts_arch_init()
 {
     nvic_init();
 
+    // Prioritize secure exceptions
+    scb_s->aircr = (scb_s->aircr & ~SCB_AIRCR_VECTKEY_MSK) | (SCB_AIRCR_VECTKEY | SCB_AIRCR_PRIS);
+
     // Enable all interrupts.
     interrupts_arch_enable_all();
 }
