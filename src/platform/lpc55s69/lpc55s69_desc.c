@@ -34,6 +34,16 @@ struct platform platform = {
             .base = 0x20010000, //SRAM1 (64 + 64 KiB)
             .size = 0x10000,    //64 KiB
             .perms = RWX,
+        },
+        {
+            .base = 0x40000, //Flash
+            .size = 0x10000, //630 KiB
+            .perms = RX,
+        },
+        {
+            .base = 0x20030000, //SRAM1 (64 + 64 KiB)
+            .size = 0x10000, //64 KiB
+            .perms = RWX,
         }
     },
 
