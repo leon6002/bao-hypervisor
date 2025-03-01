@@ -102,6 +102,7 @@ struct vcpu {
     vcpuid_t id;
     cpuid_t phys_id;
     bool active;
+    unsigned long first_run;
 
     spinlock_t blocked_count_lock;
     int blocked_count;

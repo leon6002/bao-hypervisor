@@ -13,7 +13,7 @@ static inline uint32_t systick_get_cvr(struct systick* st)
 
 static inline void systick_clear_actbit(struct systick* st)
 {
-    if(st == systick_ns) {
+    if (st == systick_ns) {
         scb_ns->shcsr &= ~SCB_SHCSR_SYSTICKACT;
     } else {
         scb_s->shcsr &= ~SCB_SHCSR_SYSTICKACT;
@@ -22,7 +22,7 @@ static inline void systick_clear_actbit(struct systick* st)
 
 static inline void systick_clear_pendbit(struct systick* st)
 {
-    if(st == systick_ns) {
+    if (st == systick_ns) {
         scb_ns->icsr |= SCB_ICSR_PENDSTCLR;
     } else {
         scb_s->icsr |= SCB_ICSR_PENDSTCLR;

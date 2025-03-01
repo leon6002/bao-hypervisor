@@ -93,7 +93,7 @@ void vcpu_restore_state(struct vcpu* vcpu)
     dcb_ns->dauthctrl = vcpu->regs.dauthctrl;
 
     vnvic_restore_state(&vcpu->arch.vnvic, vcpu->vm->interrupt_bitmap);
-    
+
     vmpu_restore_state(&vcpu->arch.vmpu);
     // vfp_restore_state(&vcpu->regs.vfp_regs);
     vtimer_restore_state(&vcpu->arch.vtimer);
@@ -125,5 +125,4 @@ void vcpu_save_state(struct vcpu* vcpu)
     vnvic_save_state(&vcpu->arch.vnvic, vcpu->vm->interrupt_bitmap);
     vmpu_save_state(&vcpu->arch.vmpu);
     // vfp_save_state(&vcpu->regs.vfp_regs);
-
 }

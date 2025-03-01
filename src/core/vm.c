@@ -49,7 +49,8 @@ static void vm_vcpu_init(struct vm* vm, const struct vm_config* vm_config)
     vcpu->id = vcpu_id;
     vcpu->phys_id = cpu()->id;
     vcpu->vm = vm;
-
+    // TODO:ARMV8M - check this
+    cpu()->vcpu = vcpu;
     vcpu->blocked_count = 0;
 
     vcpu_arch_init(vcpu, vm);
