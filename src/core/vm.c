@@ -98,8 +98,12 @@ static void vm_map_img_rgn_inplace(struct vm* vm, const struct vm_config* vm_con
         mem_alloc_map(&vm->as, SEC_VM_ANY, &pa_img, img_base, n_img, PTE_VM_FLAGS);
         /* we are mapping in place, config is already reserved */
     } else {
+#ifdef MEM_PROT_MMU
         /* recolour img */
         mem_map_reclr(&vm->as, img_base, &pa_img, n_img, PTE_VM_FLAGS);
+#else
+        ERROR("coloring not supported");
+#endif
     }
     /* map pages after img */
     mem_alloc_map(&vm->as, SEC_VM_ANY, NULL, img_base + NUM_PAGES(img_size) * PAGE_SIZE, n_aft,
@@ -378,7 +382,7 @@ void vm_msg_broadcast(struct vm* vm, struct cpu_msg* msg)
     }
 }
 
-__attribute__((weak)) cpumap_t vm_translate_to_pcpu_mask(struct vm* vm, cpumap_t mask, size_t len)
+cpumap_t vm_translate_to_pcpu_mask(struct vm* vm, cpumap_t mask, size_t len)
 {
     cpumap_t pmask = 0;
     cpuid_t shift;
@@ -390,7 +394,7 @@ __attribute__((weak)) cpumap_t vm_translate_to_pcpu_mask(struct vm* vm, cpumap_t
     return pmask;
 }
 
-__attribute__((weak)) cpumap_t vm_translate_to_vcpu_mask(struct vm* vm, cpumap_t mask, size_t len)
+cpumap_t vm_translate_to_vcpu_mask(struct vm* vm, cpumap_t mask, size_t len)
 {
     cpumap_t pmask = 0;
     vcpuid_t shift;

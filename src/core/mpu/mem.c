@@ -168,7 +168,7 @@ static void mem_init_boot_regions(void)
     vaddr_t image_end = (vaddr_t)&_image_end;
 
 #ifdef MEM_NON_UNIFIED
-    extern uint8_t _data_vma_start;
+    uint8_t _data_vma_start;
     vaddr_t data_vma_start = (vaddr_t)&_data_vma_start;
 #endif
 
@@ -257,7 +257,12 @@ static void mem_msg_handler(uint32_t event, uint64_t data)
 {
     mem_handle_broadcast_region(event, data);
 }
-CPU_MSG_HANDLER(mem_msg_handler, MEM_PROT_SYNC)
+// CPU_MSG_HANDLER(mem_msg_handler, MEM_PROT_SYNC)
+#pragma section.ipi_cpumsg_handlers
+cpu_msg_handler_t __cpumsg_handler_mem_msg_handler = mem_msg_handler;
+#pragma section.ipi_cpumsg_handlers_id
+volatile size_t MEM_PROT_SYNC;
+#pragma section default
 
 static void mem_region_broadcast(struct addr_space* as, struct mp_region* mpr, uint32_t op,
     bool locked)

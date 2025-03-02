@@ -56,7 +56,13 @@ static void ipc_handler(uint32_t event, uint64_t data)
             break;
     }
 }
-CPU_MSG_HANDLER(ipc_handler, IPC_CPUMSG_ID)
+/* TODO register in runime */
+// CPU_MSG_HANDLER(ipc_handler, IPC_CPUMSG_ID)
+#pragma section.ipi_cpumsg_handlers
+cpu_msg_handler_t __cpumsg_handler_ipc_handler = ipc_handler;
+#pragma section.ipi_cpumsg_handlers_id
+volatile size_t IPC_CPUMSG_ID;
+#pragma section default
 
 long int ipc_hypercall(void)
 {
