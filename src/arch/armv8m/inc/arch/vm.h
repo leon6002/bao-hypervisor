@@ -32,14 +32,14 @@ struct vnvic_src {
     bool enabled;
 };
 
-struct vnvic_dscrp {
+struct intc_dscrp {
     paddr_t int_addr;
     paddr_t src_addr;
 };
 
 struct arch_vm_platform {
     /* interrupt controller */
-    struct vnvic_dscrp vir;
+    struct intc_dscrp vir;
 };
 
 struct vm_arch {
@@ -53,7 +53,7 @@ struct vm_arch {
     spinlock_t vnvic_src_lock;
 
     struct emul_mem vnvic_int_emul;
-    struct emul_mem vnvic_src_emul;
+    struct emul_mem vnvic_int2_emul;
 };
 
 struct vcpu_arch {

@@ -24,6 +24,18 @@
 
 void init(cpuid_t cpu_id);
 
+#ifdef CC_IS_RHCC
+
+#define ATTRIBUTE_ALIGN(x) __align((x))
+#define FALLTHROUGH        // FALLTHROUGH
+
+#else
+
+#define ATTRIBUTE_ALIGN(x) __attribute__((aligned((x))))
+#define FALLTHROUGH        __attribute__((fallthrough))
+
+#endif
+
 #endif /* __ASSEMBLER__ */
 
 #endif /* __BAO_H__ */

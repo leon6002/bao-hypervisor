@@ -131,7 +131,12 @@ struct list remio_device_list;
 static void remio_cpu_msg_handler(uint32_t event, uint64_t data);
 
 /** Associate the Remote I/O CPU message handler with a new Remote I/O CPU message ID */
-CPU_MSG_HANDLER(remio_cpu_msg_handler, REMIO_CPUMSG_ID)
+/* CPU_MSG_HANDLER(remio_cpu_msg_handler, REMIO_CPUMSG_ID) */
+#pragma section.ipi_cpumsg_handlers
+cpu_msg_handler_t __cpumsg_handler_remio_cpu_msg_handler = remio_cpu_msg_handler;
+#pragma section.ipi_cpumsg_handlers_id
+volatile size_t REMIO_CPUMSG_ID;
+#pragma section default
 
 /** Object pool to allocate Remote I/O devices */
 OBJPOOL_ALLOC(remio_device_pool, struct remio_device,

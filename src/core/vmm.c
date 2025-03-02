@@ -116,7 +116,7 @@ static bool vmm_alloc_vm(struct vm_allocation* vm_alloc, struct vm_config* vm_co
      */
 
     size_t total_size = sizeof(struct vm);
-    size_t vcpus_offset = ALIGN(total_size, _Alignof(struct vcpu));
+    size_t vcpus_offset = ALIGN(total_size, 64);
     total_size = vcpus_offset + (vm_config->platform.cpu_num * sizeof(struct vcpu));
     total_size = ALIGN(total_size, PAGE_SIZE);
 

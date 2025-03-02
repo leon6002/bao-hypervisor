@@ -14,9 +14,20 @@
 #include <fences.h>
 #include <config.h>
 
-extern uint8_t _image_start, _image_load_end, _image_end, _vm_image_start, _vm_image_end,
-    _data_vma_start;
-extern uint32_t _load_addr, _data_addr;
+extern uint8_t _S_text;
+uint8_t* _image_start = &_S_text; /* TODO _S_boot */
+
+extern uint8_t _S_bss;
+uint8_t* _image_load_end = &_S_bss;
+
+extern uint8_t _E_bss;
+uint8_t* _image_end = &_E_bss;
+
+uint8_t* _vm_image_start = 0;
+uint8_t* _vm_image_end = 0;
+
+uint8_t* _data_vma_start = (uint8_t*)0xaaaaaaaa; /* TODO */
+extern uint32_t _load_addr, _data_addr;          /* TODO from Assembly */
 
 struct list page_pool_list;
 
@@ -427,6 +438,7 @@ static bool mem_setup_root_pool(paddr_t load_addr, struct mem_region** root_mem_
     return pp_root_init(load_addr, *root_mem_region);
 }
 
+#ifdef MEM_PROT_MMU
 __attribute__((weak)) void mem_color_hypervisor(const paddr_t load_addr,
     struct mem_region* root_region)
 {
@@ -460,14 +472,23 @@ __attribute__((weak)) bool pp_alloc_clr(struct page_pool* pool, size_t num_pages
     ERROR("Trying to allocate colored pages but there is no coloring "
           "implementation");
 }
+#endif
 
 struct ppages mem_alloc_ppages(colormap_t colors, size_t num_pages, bool aligned)
 {
     struct ppages pages = { .num_pages = 0 };
 
     list_foreach (page_pool_list, struct page_pool, pool) {
-        bool ok = (!all_clrs(colors) && !aligned) ? pp_alloc_clr(pool, num_pages, colors, &pages) :
-                                                    pp_alloc(pool, num_pages, aligned, &pages);
+        bool ok;
+        if (!all_clrs(colors) && !aligned) {
+#ifdef MEM_PROT_MMU
+            ok = pp_alloc_clr(pool, num_pages, colors, &pages);
+#else
+            ERROR("not supported %s", __func__);
+#endif
+        } else {
+            ok = pp_alloc(pool, num_pages, aligned, &pages);
+        }
         if (ok) {
             break;
         }
@@ -506,9 +527,11 @@ void mem_init(void)
 
     cpu_sync_and_clear_msgs(&cpu_glb_sync);
 
+#ifdef MEM_PROT_MMU
     if (!all_clrs(config.hyp.colors)) {
         mem_color_hypervisor(_load_addr, root_mem_region);
     }
+#endif
 
     if (cpu_is_master()) {
         if (!mem_create_ppools(root_mem_region)) {

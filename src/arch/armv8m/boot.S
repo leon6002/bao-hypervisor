@@ -138,6 +138,7 @@ _reset_handler:
     /* Copy data from RX to RWX */
     ldr r7, =_data_lma_start        // LMA start
     ldr r11, =_data_vma_start       // VMA start
+
     ldr r12, =_image_load_end       // LMA end
     bl copy_data
 

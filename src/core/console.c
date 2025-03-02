@@ -54,7 +54,7 @@ void console_write(const char* buf, size_t n)
 #define PRINTF_BUFFER_LEN (256)
 static char console_bufffer[PRINTF_BUFFER_LEN];
 
-__attribute__((format(printf, 1, 2))) void console_printk(const char* fmt, ...)
+void console_printk(const char* fmt, ...)
 {
     va_list args;
     size_t chars_writen;

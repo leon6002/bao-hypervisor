@@ -11,38 +11,23 @@ define current_directory
 $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 endef
 
-# Check cross compiler
-ifneq ($(findstring clang,$(CROSS_COMPILE)),)
-CC_IS_CLANG =	y
-else
-CC_IS_GCC =	y
-endif
+CC_IS_RHCC =	y
+
 
 # Setup toolchain macros
 
-ifdef CC_IS_CLANG
-clang_version:=$(strip $(patsubst clang%, %, $(notdir $(CROSS_COMPILE))))
-clang_path:=$(dir $(wildcard $(abspath $(CROSS_COMPILE))))
-cpp=		$(clang_path)clang-cpp$(clang_version)
-sstrip= 	$(clang_path)llvm-strip$(clang_version)
-cc=			$(clang_path)clang$(clang_version)
-ld = 		$(clang_path)ld.lld$(clang_version)
-as=			$(clang_path)llvm-as$(clang_version)
-objcopy=	$(clang_path)llvm-objcopy$(clang_version)
-objdump=	$(clang_path)llvm-objdump$(clang_version)
-readelf=	$(clang_path)llvm-readelf$(clang_version)
-size=		$(clang_path)llvm-size$(clang_version)
-else
-cpp=		$(CROSS_COMPILE)cpp
+
+cpp=		ccrh
 sstrip= 	$(CROSS_COMPILE)strip
-cc=			$(CROSS_COMPILE)gcc
-ld = 		$(CROSS_COMPILE)ld
-as=			$(CROSS_COMPILE)as
-objcopy=	$(CROSS_COMPILE)objcopy
-objdump=	$(CROSS_COMPILE)objdump
-readelf=	$(CROSS_COMPILE)readelf
-size=		$(CROSS_COMPILE)size
-endif
+cc=		ccrh
+ld = 		rlink
+as=		asrh
+objcopy=	
+objdump=	
+readelf=	
+size=		
+
+
 
 HOST_CC:=gcc
 
@@ -180,10 +165,17 @@ objs-y+=$(addprefix $(platform_dir)/, $(boards-objs-y))
 objs-y+=$(addprefix $(drivers_dir)/, $(drivers-objs-y))
 
 c_src_files:=$(wildcard $(patsubst %.o,%.c, $(objs-y)))
-asm_src_files:=$(wildcard $(patsubst %.o,%.S, $(objs-y)))
+asm_src_files:=$(wildcard $(patsubst %.o,%.asm, $(objs-y)))
 c_hdr_files=$(shell cat $(deps) | grep -o "$(src_dir)/\S*\.h" | sort | uniq)
 
 deps+=$(patsubst %.o,%.d,$(objs-y))
+
+c_objs:=$(patsubst %.c,%.o, $(c_src_files))
+c_objs:=$(patsubst $(src_dir)%, $(build_dir)%, $(c_objs))
+
+asm_objs:=$(patsubst %.asm,%.o, $(asm_src_files))
+asm_objs:=$(patsubst $(src_dir)%, $(build_dir)%, $(asm_objs))
+
 objs-y:=$(patsubst $(src_dir)%, $(build_dir)%, $(objs-y))
 
 config_obj:=$(config_src:$(config_dir)/%.c=$(config_build_dir)/%.o)
@@ -191,6 +183,9 @@ config_dep:=$(config_src:$(config_dir)/%.c=$(config_build_dir)/%.d)
 
 deps+=$(config_dep)
 objs-y+=$(config_obj)
+c_objs+=$(config_obj)
+
+
 
 # Toolchain flags
 
@@ -208,11 +203,7 @@ ifeq ($(plat_core_arch),single_core)
 	build_macros+=-DSINGLE_CORE
 endif
 
-ifeq ($(CC_IS_GCC),y)
-	build_macros+=-DCC_IS_GCC
-else ifeq ($(CC_IS_CLANG),y)
-	build_macros+=-DCC_IS_CLANG
-endif
+build_macros+=-DCC_IS_RHCC
 
 override CPPFLAGS+=$(addprefix -I, $(inc_dirs)) $(arch-cppflags) \
 	$(platform-cppflags) $(build_macros)
@@ -227,32 +218,7 @@ ifeq ($(DEBUG), y)
 endif
 
 
-ifeq ($(CC_IS_GCC),y)
-	cflags_warns:= \
-		-Warith-conversion -Wbuiltin-declaration-mismatch \
-		-Wcomments  -Wdiscarded-qualifiers \
-		-Wimplicit-fallthrough \
-		-Wswitch-unreachable -Wreturn-local-addr  \
-		-Wshift-count-negative  -Wuninitialized \
-		-Wunused -Wunused-local-typedefs  -Wunused-parameter \
-		-Wunused-result -Wvla \
-		-Wconversion -Wsign-conversion \
-		-Wmissing-prototypes -Wmissing-declarations  \
-		-Wswitch-default -Wshadow -Wshadow=global \
-		-Wcast-qual -Wunused-macros \
-		-Wstrict-prototypes -Wunused-but-set-variable
-
-	override CFLAGS+=-Wno-unused-command-line-argument \
-		-pedantic -pedantic-errors
-	override LDFLAGS+=--no-check-sections
-else ifeq ($(CC_IS_CLANG), y)
-	override CFLAGS+=-Wno-unused-command-line-argument --target=$(clang_arch_target)
-	override CPPFLAGS+=--target=$(clang_arch_target) -ffreestanding
-	override LDFLAGS+=--no-check-sections
-endif
-
-override CFLAGS+=-O$(OPTIMIZATIONS) -Wall -Werror -Wextra $(cflags_warns) \
-	-ffreestanding -std=c11 -fno-pic \
+override CFLAGS+= -Xcommon=rh850 \
 	$(arch-cflags) $(platform-cflags) $(CPPFLAGS) $(debug_flags)
 
 override ASFLAGS+=$(CFLAGS) $(arch-asflags) $(platform-asflags)
@@ -269,19 +235,21 @@ all: $(targets-y)
 
 $(bin_dir)/$(PROJECT_NAME).elf: $(gens) $(objs-y) $(ld_script_temp)
 	@echo "Linking			$(patsubst $(cur_dir)/%, %, $@)"
-	@$(ld) $(LDFLAGS) -T$(ld_script_temp) $(objs-y) -o $@
-	@$(objdump) -S --wide $@ > $(basename $@).asm
-	@$(readelf) -a --wide $@ > $@.txt
+	@$(ld) -subcommand="$(ld_script_temp)" -form=absolute -output="$@"
 
 ifneq ($(DEBUG), y)
 	@echo "Striping		$(patsubst $(cur_dir)/%, %, $@)"
-	@$(sstrip) -s $@
 endif
 
 $(ld_script_temp):
 	@echo "Pre-processing		$(patsubst $(cur_dir)/%, %, $(ld_script))"
-	@$(cc) $(CFLAGS) -E $(addprefix -I, $(inc_dirs)) -x assembler-with-cpp  $(CPPFLAGS) \
-		$(ld_script) | grep -v '^\#' > $(ld_script_temp)
+	@$(HOST_CC) $(HOST_CPPFLAGST) -E $(addprefix -I, $(inc_dirs)) -x assembler-with-cpp  $(HOST_CPPFLAGST) \
+		$(ld_script) | grep -v '^\#' > $(ld_script_temp).tmp.ld
+	@echo -e $(foreach obj,$(objs-y),-input="$(obj)\n") > $(ld_script_temp)
+	@echo " -list" >> $(ld_script_temp)
+	@echo " -nologo" >> $(ld_script_temp)
+	@echo ' -library="$(shell dirname $(shell dirname $(shell which $(cc))))/lib/v850e3v5/rhs8n.lib"' >> $(ld_script_temp)
+	@echo " -start=VECTAB,EINTTBL,.text,.const,.data,.ipi_cpumsg_handlers*,.bss/0" >> $(ld_script_temp)
 
 ifneq ($(build_targets),)
 -include $(deps)
@@ -289,44 +257,53 @@ endif
 
 $(ld_script_temp).d: $(ld_script)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %, $<)"
-	@$(cc) -x assembler-with-cpp  -MM -MT "$(ld_script_temp) $@" \
+	@$(HOST_CC) -x assembler-with-cpp  -MM -MT "$(ld_script_temp) $@" \
 		$(addprefix -I, $(inc_dirs))  $< > $@
 
-$(build_dir)/%.d : $(src_dir)/%.[c,S]
-	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %, $<)"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
+$(build_dir)/%.d : $(src_dir)/%.c
+	@echo "Creating C dependency	 $(patsubst $(cur_dir)/%, %, $<)"
+	@$(HOST_CC) $(HOST_CPPFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@" $(CPPFLAGS) $< > $@
 
-$(objs-y):
-	@echo "Compiling source	$(patsubst $(cur_dir)/%, %, $<)"
-	@$(cc) $(CFLAGS) -c $< -o $@
+$(build_dir)/%.d : $(src_dir)/%.asm
+	@echo "Creating Asm dependency	$(patsubst $(cur_dir)/%, %, $<)"
+	@$(HOST_CC) $(HOST_CPPFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@" -x assembler-with-cpp $(CPPFLAGS) $< > $@
+
+$(c_objs):
+	@echo "Compiling C source	$(patsubst $(cur_dir)/%, %, $<)"
+	@$(cc) $(CFLAGS) -lang=c99 -c $< -o$@
+
+$(asm_objs):
+	@echo "Compiling Asm source	$(patsubst $(cur_dir)/%, %, $<)"
+	@$(cc) $(CFLAGS) -c $< -o$@
 
 %.bin: %.elf
-	@echo "Generating binary	$(patsubst $(cur_dir)/%, %, $@)"
-	@$(objcopy) -S -O binary $< $@
+	@echo "generating binary	$(patsubst $(cur_dir)/%, %, $@)"
+	@$(ld) -subcommand="$(ld_script_temp)" -form=binary -output="$@"
 
 $(deps): | $(gens)
 
 #Generate assembly macro definitions from arch/$(ARCH)/$(asm_defs_src) if such
 #	file exists
 
+
 ifneq ($(wildcard $(asm_defs_src)),)
 $(asm_defs_hdr): $(asm_defs_src)
 	@echo "Generating header	$(patsubst $(cur_dir)/%, %, $@)"
-	@$(cc) -S $(CFLAGS) -DGENERATING_DEFS $< -o - \
+	@$(HOST_CC) -S $(HOST_CPPFLAGS) -DGENERATING_DEFS $< -o - \
 		| awk '($$1 == "//#" || $$1 == "##" || $$1 == "@#")   \
 			{ gsub("#", "", $$3); print "#define " $$2 " " $$3 }' > $@
 
 $(asm_defs_hdr).d: $(asm_defs_src)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %,\
 		 $(patsubst %.d,%, $@))"
-	@$(cc) -MM -MT $(CFLAGS) "$(patsubst %.d,%, $@)" $(addprefix -I, $(inc_dirs)) $< > $@
+	@$(HOST_CC) -MM -MT $(HOST_CPPFLAGS) "$(patsubst %.d,%, $@)" $(addprefix -I, $(inc_dirs)) $< > $@
 endif
 
 $(config_dep): $(config_src)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %,\
 		 $(patsubst %.d,%, $@))"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(config_obj) $@" $(CPPFLAGS) $(filter %.c, $^) > $@
-	@$(cc) $(CFLAGS) $(CPPFLAGS) -S $(config_src) -o - | grep ".incbin" | \
+	@$(HOST_CC) $(HOST_CPPFLAGS) -MM -MG -MT "$(config_obj) $@" $(HOST_CPPFLAGS) $(filter %.c, $^) > $@
+	@$(HOST_CC) $(HOST_CPPFLAGS) -S $(config_src) -o - | grep ".incbin" | \
 		awk '{ gsub("\"", "", $$2); print "$(config_obj): " $$2 }' >> $@
 
 $(config_def_generator): $(config_def_generator_src) $(config_src)

@@ -107,7 +107,7 @@ struct vcpu {
     spinlock_t blocked_count_lock;
     int blocked_count;
 
-    uint8_t stack[STACK_SIZE] __attribute__((aligned(PAGE_SIZE)));
+    uint8_t stack[STACK_SIZE];
     struct vm* vm;
 };
 

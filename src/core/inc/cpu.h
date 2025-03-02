@@ -18,8 +18,7 @@
 
 struct cpuif {
     struct list event_list;
-
-} __attribute__((aligned(PAGE_SIZE)));
+};
 
 struct vcpu;
 
@@ -44,9 +43,8 @@ struct cpu {
 
     struct cpuif* interface;
 
-    uint8_t stack[STACK_SIZE] __attribute__((aligned(PAGE_SIZE)));
-
-} __attribute__((aligned(PAGE_SIZE)));
+    uint8_t stack[STACK_SIZE];
+};
 struct cpu_msg {
     uint32_t handler;
     uint32_t event;
@@ -57,10 +55,18 @@ void cpu_send_msg(cpuid_t cpu, struct cpu_msg* msg);
 
 typedef void (*cpu_msg_handler_t)(uint32_t event, uint64_t data);
 
+#ifdef CC_IS_RHCC
 #define CPU_MSG_HANDLER(handler, handler_id)                           \
     __attribute__((section(".ipi_cpumsg_handlers"),                    \
         used)) cpu_msg_handler_t __cpumsg_handler_##handler = handler; \
     __attribute__((section(".ipi_cpumsg_handlers_id"), used)) volatile const size_t handler_id;
+#else
+
+#define CPU_MSG_HANDLER(handler, handler_id)                           \
+    __attribute__((section(".ipi_cpumsg_handlers"),                    \
+        used)) cpu_msg_handler_t __cpumsg_handler_##handler = handler; \
+    __attribute__((section(".ipi_cpumsg_handlers_id"), used)) volatile const size_t handler_id;
+#endif
 
 struct cpu_synctoken {
     spinlock_t lock;

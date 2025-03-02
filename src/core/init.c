@@ -38,8 +38,6 @@ void init(cpuid_t cpu_id)
 
     vmm_init();
 
-    sched_start();
-
     vcpu_arch_entry();
 
     /* Should never reach here */
