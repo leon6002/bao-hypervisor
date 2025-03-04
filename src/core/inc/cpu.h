@@ -44,7 +44,7 @@ struct cpu_msg {
 
 void cpu_send_msg(cpuid_t cpu, struct cpu_msg* msg);
 
-typedef void (*cpu_msg_handler_t)(uint32_t event, uint64_t data);
+typedef void (*const cpu_msg_handler_t)(uint32_t event, uint64_t data);
 
 #ifdef CC_IS_RHCC
 #define CPU_MSG_HANDLER(handler, handler_id)                           \

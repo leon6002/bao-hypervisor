@@ -26,8 +26,10 @@ uint8_t* _image_end = &_E_bss;
 uint8_t* _vm_image_start = 0;
 uint8_t* _vm_image_end = 0;
 
-uint8_t* _data_vma_start = (uint8_t*)0xaaaaaaaa; /* TODO */
-extern uint32_t _load_addr, _data_addr;          /* TODO from Assembly */
+extern uint8_t _S_data_R;
+uint8_t* _data_vma_start = 0x00;  /* TODO */
+
+extern uint32_t _load_addr, _data_addr; /* TODO from Assembly */
 
 struct list page_pool_list;
 

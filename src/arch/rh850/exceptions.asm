@@ -1,4 +1,6 @@
 .section "VECTAB", text
+.public _hyp_vector_table
+_hyp_vector_table:
 	.align	512
 	jr32	_Dummy ; RESET
 
@@ -51,6 +53,8 @@
 	syncp
 	jr32	_Dummy ; FEINT
 
+.public _hyp_interrupt_table
+_hyp_interrupt_table:
 	.align	16
 	syncp
 	jr32	_Dummy_EI ; INTn(priority0)
