@@ -24,8 +24,8 @@ OBJPOOL_ALLOC(msg_pool, struct cpu_msg_node, CPU_MSG_POOL_SIZE);
 
 struct cpu_synctoken cpu_glb_sync = { .ready = false };
 
-extern const uint8_t _S_ipi_cpumsg_handlers_data;
-cpu_msg_handler_t* ipi_cpumsg_handlers = (cpu_msg_handler_t*)&_S_ipi_cpumsg_handlers_data;
+extern uint8_t _S_ipi_cpumsg_handlers_const;
+cpu_msg_handler_t* ipi_cpumsg_handlers = (cpu_msg_handler_t*)&_S_ipi_cpumsg_handlers_const;
 
 extern uint8_t _S_ipi_cpumsg_handlers_id_bss;
 size_t _ipi_cpumsg_handlers_id_start = (size_t)&_S_ipi_cpumsg_handlers_id_bss;

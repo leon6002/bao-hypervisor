@@ -249,7 +249,9 @@ $(ld_script_temp):
 	@echo " -list" >> $(ld_script_temp)
 	@echo " -nologo" >> $(ld_script_temp)
 	@echo ' -library="$(shell dirname $(shell dirname $(shell which $(cc))))/lib/v850e3v5/rhs8n.lib"' >> $(ld_script_temp)
-	@echo " -start=VECTAB,EINTTBL,.text,.const,.data,.ipi_cpumsg_handlers*,.bss/0" >> $(ld_script_temp)
+	@echo " -start=VECTAB,EINTTBL,.text,.const/0,.data,.bss/08000,.data.R,.bss.R/ff0000" >> $(ld_script_temp)
+
+	@echo " -rom=.data*=.data.*R,.ipi_cpumsg_handlers*=.ipi_cpumsg_handlers*.R,.bss*=.bss*.R" >> $(ld_script_temp)
 
 ifneq ($(build_targets),)
 -include $(deps)
