@@ -250,7 +250,6 @@ $(ld_script_temp):
 	@echo " -nologo" >> $(ld_script_temp)
 	@echo ' -library="$(shell dirname $(shell dirname $(shell which $(cc))))/lib/v850e3v5/rhs8n.lib"' >> $(ld_script_temp)
 	@echo " -start=VECTAB,EINTTBL,.text,.const/0,.data,.bss/08000,.data.R,.bss.R/ff0000" >> $(ld_script_temp)
-
 	@echo " -rom=.data*=.data.*R,.ipi_cpumsg_handlers*=.ipi_cpumsg_handlers*.R,.bss*=.bss*.R" >> $(ld_script_temp)
 
 ifneq ($(build_targets),)
@@ -293,7 +292,7 @@ $(asm_defs_hdr): $(asm_defs_src)
 	@echo "Generating header	$(patsubst $(cur_dir)/%, %, $@)"
 	@$(HOST_CC) -S $(HOST_CPPFLAGS) -DGENERATING_DEFS $< -o - \
 		| awk '($$1 == "//#" || $$1 == "##" || $$1 == "@#")   \
-			{ gsub("#", "", $$3); print "#define " $$2 " " $$3 }' > $@
+			{ gsub("#", "", $$3); gsub("\\$$", "", $$3); print "#define " $$2 " " $$3 }' > $@
 
 $(asm_defs_hdr).d: $(asm_defs_src)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %,\
