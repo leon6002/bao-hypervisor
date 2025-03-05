@@ -2,7 +2,6 @@
 ## Copyright (c) Bao Project and Contributors. All rights reserved.
 
 cpu-objs-y+=aborts.o
-cpu-objs-y+=asm_defs.o
 cpu-objs-y+=boot.o
 cpu-objs-y+=cache.o
 cpu-objs-y+=cpu.o

@@ -1,8 +1,3 @@
-#include <arch/bao.h>
-#include <arch/sysregs.h>
-#include <asm_defs.h>
-#include <config_defs.h>
-#include <platform_defs.h>
 
 .section ".data", data
 .align 2
@@ -48,14 +43,18 @@ __start:
     ldsr r0, 17, 5 ; set MPBK
     jarl clear_mpu, lp
 
+    ; CPU physical based address
+    mov #__s.bss, r10
 
-    ; Initialize stack pointer and stack limit
-    ;mov CPU_STACK_OFF, r4
-    ;add r5, r10, r4
-    ; msr msplim, r5
-    ; add r4, r4, CPU_STACK_SIZE
-    ; add r5, r10, r4
-    ; msr msp, r5
+    ; CPUx physical based address
+    mov 3768, r12 ; CPU_SIZE
+    mulh r12, r1
+    add r12, r10
+
+    ; clear CPUx struct
+    mov r10, r11
+    ; r11: start r12: end
+    jarl boot_clear, lp
 
     ; enable faults ?
 
@@ -66,7 +65,13 @@ __start:
     mov #__e.bss, r12
     jarl boot_clear, lp
 
-    ; initialize stack pointer
+    ; Initialize stack pointer
+    mov 3768, r4 ; CPU_STACK_OFF
+    add r10, r4 
+    mov 4096, r5
+    add r5, r4
+    mov r4, sp ; set sp
+    mov #__start, r5 ; set Text Pointer
 
     br _init
 
