@@ -300,6 +300,54 @@ static void set_bmid(unsigned long val)
     ldsr r6, 1, 2
 }
 
+#pragma inline_asm get_intbp
+static unsigned long get_intbp(void)
+{
+    stsr 4, r10, 1;
+}
+
+#pragma inline_asm set_intbp
+static void set_intbp(unsigned long val)
+{
+    ldsr r6, 4, 1;
+}
+
+#pragma inline_asm get_mea
+static unsigned long get_mea(void)
+{
+    stsr 6, r10, 2;
+}
+
+#pragma inline_asm set_mea
+static void set_mea(unsigned long val)
+{
+    ldsr r6, 6, 2;
+}
+
+#pragma inline_asm get_mei
+static unsigned long get_mei(void)
+{
+    stsr 8, r10, 2;
+}
+
+#pragma inline_asm set_mei
+static void set_mei(unsigned long val)
+{
+    ldsr r6, 8, 2;
+}
+
+#pragma inline_asm get_rbip
+static unsigned long get_rbip(void)
+{
+    stsr 18, r10, 2;
+}
+
+#pragma inline_asm set_rbip
+static void set_rbip(unsigned long val)
+{
+    ldsr r6, 18, 2;
+}
+
 /* INTERRUPT SYS REGS */
 #pragma inline_asm get_ispr
 static unsigned long get_ispr(void)

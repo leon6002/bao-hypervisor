@@ -63,7 +63,7 @@ void vm_arch_init(struct vm* vm, const struct vm_config* vm_config)
     unsigned long GMMEI;
 }
 
-void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm) 
+void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm)
 {
     vintc_init(vcpu);
 }
@@ -95,6 +95,16 @@ void vcpu_writereg(struct vcpu* vcpu, unsigned long reg, unsigned long val)
     }
 
     vcpu->regs.gp_regs.r[reg] = val;
+}
+
+unsigned long vcpu_readpc(struct vcpu* vcpu)
+{
+    return vcpu->regs.pc;
+}
+
+void vcpu_writepc(struct vcpu* vcpu, unsigned long val)
+{
+    vcpu->regs.pc = val;
 }
 
 void vcpu_restore_state(struct vcpu* vcpu)

@@ -6,7 +6,6 @@
 #include <cpu.h>
 #include <arch/intc.h>
 
-
 static volatile struct intc1* intc1_hw_pe[PLAT_CPU_NUM];
 static volatile struct intc2* intc2_hw;
 static volatile struct intif* intif_hw;
