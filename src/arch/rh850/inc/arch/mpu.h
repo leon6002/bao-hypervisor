@@ -8,7 +8,6 @@
 #define __ARCH_MPU_H__
 
 #include <bao.h>
-#include <arch/sysregs.h>
 
 void mpu_arch_init(void);
 void mpu_arch_enable(void);

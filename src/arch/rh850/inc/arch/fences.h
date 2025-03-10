@@ -8,16 +8,58 @@
 
 #include <bao.h>
 
-static inline void fence_ord_write(void) { }
+#pragma inline_asm syncp
+static unsigned long syncp(void)
+{
+    syncp
+}
 
-static inline void fence_ord_read(void) { }
+#pragma inline_asm syncm
+static unsigned long syncm(void)
+{
+    syncm
+}
 
-static inline void fence_ord(void) { }
+#pragma inline_asm synci
+static unsigned long synci(void)
+{
+    synci
+}
 
-static inline void fence_sync_write(void) { }
+#pragma inline_asm synce
+static unsigned long synce(void)
+{
+    synce
+}
 
-static inline void fence_sync_read(void) { }
+static inline void fence_ord_write(void)
+{
+    synci();
+}
 
-static inline void fence_sync(void) { }
+static inline void fence_ord_read(void)
+{
+    synci();
+}
+
+static inline void fence_ord(void)
+{
+    synci();
+}
+
+static inline void fence_sync_write(void)
+{
+    synci();
+}
+
+static inline void fence_sync_read(void)
+{
+    synci();
+}
+
+static inline void fence_sync(void)
+{
+    synci();
+}
 
 #endif /* __FENCES_ARCH_H__ */

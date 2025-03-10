@@ -4,7 +4,6 @@
  */
 
 #include <cache.h>
-#include <arch/sysregs.h>
 #include <fences.h>
 #include <bit.h>
 #include <platform.h>

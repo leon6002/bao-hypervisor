@@ -700,6 +700,78 @@ static void set_hvcfg(unsigned long val)
     ldsr r6, 16, 1
 }
 
+#pragma inline_asm get_gmcfg
+static unsigned long get_gmcfg(void)
+{
+    stsr 17, r10, 1
+}
+
+#pragma inline_asm set_gmcfg
+static void set_gmcfg(unsigned long val)
+{
+    ldsr r6, 17, 1
+}
+
+#pragma inline_asm get_pswh
+static unsigned long get_pswh(void)
+{
+    stsr 15, r10, 0
+}
+
+#pragma inline_asm set_pswh
+static void set_pswh(unsigned long val)
+{
+    ldsr r6, 15, 0
+}
+
+#pragma inline_asm get_eipswh
+static unsigned long get_eipswh(void)
+{
+    stsr 18, r10, 0
+}
+
+#pragma inline_asm set_eipswh
+static void set_eipswh(unsigned long val)
+{
+    ldsr r6, 18, 0
+}
+
+#pragma inline_asm get_fepswh
+static unsigned long get_fepswh(void)
+{
+    stsr 19, r10, 0
+}
+
+#pragma inline_asm set_fepswh
+static void set_fepswh(unsigned long val)
+{
+    ldsr r6, 19, 0
+}
+
+#pragma inline_asm get_hvsb
+static unsigned long get_hvsb(void)
+{
+    stsr 20, r10, 1
+}
+
+#pragma inline_asm set_hvsb
+static void set_hvsb(unsigned long val)
+{
+    ldsr r6, 20, 1
+}
+
+#pragma inline_asm get_dbgen
+static unsigned long get_dbgen(void)
+{
+    stsr 0, r10, 3
+}
+
+#pragma inline_asm set_dbgen
+static void set_dbgen(unsigned long val)
+{
+    ldsr r6, 0, 3
+}
+
 #endif /* GENERATING_DEFS */
 #endif /* __ASSEMBLER__ */
 

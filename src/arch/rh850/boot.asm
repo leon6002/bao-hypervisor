@@ -4,7 +4,6 @@
 ;
 
 ; TODO #include <arch/bao.h>
-; #include <arch/sysregs.h>
 ; #include <asm_defs.h>
 ; #include <config_defs.h>
 ; #include <platform_defs.h>
@@ -26,6 +25,7 @@ __data_addr:
 
 .section	".text", text
 .align	2
+    .public __start
 __start:
     di ; Disable interrupts
     ; Disable faults ?
@@ -34,7 +34,6 @@ __start:
 
     mov #_hyp_vector_table, r2
     ldsr r2, 2, 1 ; set RBASE (regID 2, selID 1) ; TODO figure out what this is exactly
-    ldsr r2, 3, 1 ; set EBASE (regID 3, selID 1) ; TODO figure out what this is exactly
 
     mov #_hyp_interrupt_table, r2
     ldsr r2, 4, 1 ; set INTBP (regID 4, selID 1)
@@ -99,9 +98,13 @@ __start:
 
     ;; clear CPUx struct
     add r14, r11
-    mov r10, r11
+    mov r20, r11
     ;; clear from [r11] to [r12]
     jarl boot_clear, lp
+
+    ldl.w [r6], r21
+
+    ldsr r20, 3, 1 ; use EBASE as CPU* pointer holder
 
     ; Initialize stack pointer
     mov 3768, r4 ; CPU_STACK_OFF TODO value from .h

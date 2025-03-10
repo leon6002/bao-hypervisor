@@ -12,7 +12,6 @@
 #include <platform.h>
 #include <vm.h>
 #include <fences.h>
-#include <arch/sysregs.h>
 
 extern irq_handler_t interrupt_handlers[MAX_INTERRUPT_HANDLERS];
 
