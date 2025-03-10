@@ -243,14 +243,15 @@ endif
 
 $(ld_script_temp):
 	@echo "Pre-processing		$(patsubst $(cur_dir)/%, %, $(ld_script))"
-	@$(HOST_CC) $(HOST_CPPFLAGST) -E $(addprefix -I, $(inc_dirs)) -x assembler-with-cpp  $(HOST_CPPFLAGST) \
-		$(ld_script) | grep -v '^\#' > $(ld_script_temp).tmp.ld
+	@$(HOST_CC) $(HOST_CPPFLAGST) -E $(addprefix -I, $(inc_dirs)) -x \
+	assembler-with-cpp  $(HOST_CPPFLAGST) $(ld_script) | grep -v '^\#' > \
+	$(ld_script_temp).tmp.ld
 	@echo -e $(foreach obj,$(objs-y),-input="$(obj)\n") > $(ld_script_temp)
 	@echo " -list" >> $(ld_script_temp)
 	@echo " -nologo" >> $(ld_script_temp)
 	@echo ' -library="$(shell dirname $(shell dirname $(shell which $(cc))))/lib/v850e3v5/rhs8n.lib"' >> $(ld_script_temp)
-	@echo " -start=VECTAB,EINTTBL,.text,.const/0,.data,.bss/08000,.data.R,.bss.R/ff0000" >> $(ld_script_temp)
-	@echo " -rom=.data*=.data.*R,.ipi_cpumsg_handlers*=.ipi_cpumsg_handlers*.R,.bss*=.bss*.R" >> $(ld_script_temp)
+	@echo " -start=VECTAB,EINTTBL,.text,.const/0,.data,.ipi_cpumsg_handlers.const,.bss,.ipi_cpumsg_handlers_id.bss/08000,.data.R,.ipi_cpumsg_handlers.const.R,.bss.R,.bss.R,.ipi_cpumsg_handlers_id.bss/ff000000" >> $(ld_script_temp)
+	@echo " -rom=.data*=.data.*R,.ipi_cpumsg_handlers*=.ipi_cpumsg_handlers*.R,.bss=.bss.R" >> $(ld_script_temp)
 
 ifneq ($(build_targets),)
 -include $(deps)

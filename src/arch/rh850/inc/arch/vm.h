@@ -7,7 +7,6 @@
 #define __ARCH_VM_H__
 
 #include <bao.h>
-#include <arch/srs.h>
 #include <cpu.h>
 #include <arch/interrupts.h>
 #include <emul.h>
@@ -37,10 +36,15 @@ struct vcpu_arch {
 
 struct arch_regs {
     union gp_regs {
-        unsigned long r[10];
+        unsigned long r[32]; /* r0 is always 0x0 */
         struct {
-            // r0-r3, r12 are callee-saved, and they are sanitized in the first execution on the
-            // vcpu_arch_vm_entry
+            unsigned long r0;
+            unsigned long r1;
+            unsigned long r2;
+            union {
+                unsigned long r3;
+                unsigned long sp;
+            };
             unsigned long r4;
             unsigned long r5;
             unsigned long r6;
@@ -49,11 +53,33 @@ struct arch_regs {
             unsigned long r9;
             unsigned long r10;
             unsigned long r11;
-            unsigned long lr; /* r14 */
-            // r15 is used for the first vm entry
-            unsigned long pc; /* r15 */
+            unsigned long r12;
+            unsigned long r13;
+            unsigned long r14;
+            unsigned long r15;
+            unsigned long r16;
+            unsigned long r17;
+            unsigned long r18;
+            unsigned long r19;
+            unsigned long r20;
+            unsigned long r21;
+            unsigned long r22;
+            unsigned long r23;
+            unsigned long r24;
+            unsigned long r25;
+            unsigned long r26;
+            unsigned long r27;
+            unsigned long r28;
+            unsigned long r29;
+            unsigned long r30;
+            union {
+                unsigned long r31;
+                unsigned long lp;
+            };
         };
     } gp_regs;
+    // Basic system registers
+    unsigned long pc;
 };
 
 void vcpu_arch_entry(void);

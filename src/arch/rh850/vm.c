@@ -3,8 +3,9 @@
  * Copyright (c) Bao Project and Contributors. All rights reserved.
  */
 
+#include "inc/arch/srs.h"
 #include <vm.h>
-#include <arch/sysregs.h>
+#include <arch/srs.h>
 #include <fences.h>
 #include <string.h>
 #include <config.h>
@@ -13,11 +14,62 @@
 #include <arch/vmpu.h>
 #include <mem.h>
 
-void vm_arch_init(struct vm* vm, const struct vm_config* vm_config) { }
+void vm_arch_init(struct vm* vm, const struct vm_config* vm_config)
+{
+    /* TODO these registers must be initialized */
+    // Basic system registers
+    unsigned long EIPC;
+    unsigned long FEPC;
+    unsigned long CTPC;
+    unsigned long EIWR;
+    unsigned long FEWR;
+    unsigned long EBASE;
+    unsigned long INTBP;
+    unsigned long MEA;
+    unsigned long MEI;
+    unsigned long RBIP;
+
+    // FPU system registers
+    unsigned long FPSR;
+    unsigned long FPEPC;
+    unsigned long FPST;
+    unsigned long FPCC;
+
+    // MPU function registers
+    unsigned long MCA;
+    unsigned long MCS;
+    unsigned long MCR;
+    unsigned long MPLA;
+    unsigned long MPUA;
+    unsigned long MPAT;
+    unsigned long MPIDn;
+    unsigned long MCI;
+
+    // Cache operation function registers
+    unsigned long ICTAGL;
+    unsigned long ICTAGH;
+    unsigned long ICDATL;
+    unsigned long ICDATH;
+    unsigned long ICERR;
+
+    // Guest Context Registers
+    unsigned long GMEIPC;
+    unsigned long GMFEPC;
+    unsigned long GMEBASE;
+    unsigned long GMINTBP;
+    unsigned long GMEIWR;
+    unsigned long GMFEWR;
+    unsigned long GMMEA;
+    unsigned long GMMEI;
+}
 
 void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm) { }
 
-void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry) { }
+void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry)
+{
+    memset(&vcpu->regs, 0, sizeof(struct arch_regs));
+    set_eipc(entry);
+}
 
 bool vcpu_arch_is_on(struct vcpu* vcpu)
 {
@@ -26,13 +78,28 @@ bool vcpu_arch_is_on(struct vcpu* vcpu)
 
 unsigned long vcpu_readreg(struct vcpu* vcpu, unsigned long reg)
 {
-    return 0;
+    if (reg > 32) {
+        ERROR("reading register out of bounds");
+    }
+
+    return vcpu->arch_regs.gp_regs.r[reg];
 }
 
-void vcpu_writereg(struct vcpu* vcpu, unsigned long reg, unsigned long val) { }
+void vcpu_writereg(struct vcpu* vcpu, unsigned long reg, unsigned long val)
+{
+    if (reg > 32) {
+        ERROR("writing register out of bounds");
+    }
 
-void vcpu_restore_state(struct vcpu* vcpu) { }
+    return vcpu->arch_regs.gp_regs.r[reg];
+}
 
-void vcpu_save_state(struct vcpu* vcpu) { }
+void vcpu_restore_state(struct vcpu* vcpu)
+{
+    ERROR("%s not implemented", __func__);
+}
 
-void vcpu_arch_entry() { }
+void vcpu_save_state(struct vcpu* vcpu)
+{
+    ERROR("%s not implemented", __func__);
+}

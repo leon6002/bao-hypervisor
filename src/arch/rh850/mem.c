@@ -17,13 +17,26 @@ void as_arch_init(struct addr_space* as)
 bool mpu_map(struct addr_space* as, struct mp_region* mpr, bool locked)
 {
     bool failed = true;
+    UNUSED_ARG(as);
 
+    /* Add region to MPU */
+    if (!mpu_add_region(mpr, locked)) {
+        ERROR("failed to register mpu entry");
+    } else {
+        failed = false;
+    }
     return !failed;
 }
 
 bool mpu_unmap(struct addr_space* as, struct mp_region* mpr)
 {
     bool failed = true;
+
+    if (!mpu_remove_region(mpr)) {
+        ERROR("failed to register mpu entry");
+    } else {
+        failed = false;
+    }
 
     return !failed;
 }
@@ -32,12 +45,22 @@ bool mpu_update(struct addr_space* as, struct mp_region* mpr)
 {
     bool failed = true;
 
+    /* Remove region */
+    if (!mpu_update_region(mpr)) {
+        ERROR("failed to register mpu entry");
+    } else {
+        failed = false;
+    }
+
     return !failed;
 }
 
 bool mpu_perms_compatible(struct addr_space* as, mem_flags_t perms1, mem_flags_t perms2)
 {
     bool failed = true;
+
+    failed = false;
+
     return !failed;
 }
 

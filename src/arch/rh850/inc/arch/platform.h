@@ -10,7 +10,14 @@
 
 // Arch-specific platform data
 struct arch_platform {
-    size_t hello;
+    struct {
+        paddr_t intc1_addr;
+        paddr_t intc2_addr;
+        paddr_t intif_addr;
+        paddr_t eint_addr;
+        paddr_t fenc_addr;
+        paddr_t feinc_addr[8];
+    } intc;
 };
 
 #endif /* __ARCH_PLATFORM_H */

@@ -8,20 +8,118 @@
 #include <arch/sysregs.h>
 #include <arch/fences.h>
 #include <arch/mpu.h>
+#include <arch/srs.h>
 
 struct mpu_temp {
+    /* TODO */
     unsigned long rbar;
     unsigned long rlar;
 } mpu_temp[8];
+
+static inline size_t mpu_num_entries(void)
+{
+    unsigned long mpcfg = get_mpcfg();
+    size_t num = mpcfg & 0xf + 1;
+    return num;
+}
+
+static inline void mpu_lock_entry(mpid_t mpid)
+{
+    bitmap_set(cpu()->arch.mpu_hyp.locked, mpid);
+}
+
+// static inline bool mpu_entry_locked(mpid_t mpid)
+// {
+//     return !!bitmap_get(cpu()->arch.mpu_hyp.locked, mpid);
+// }
+
+static void mpu_entry_set(mpid_t mpid, struct mp_region* mpr)
+{
+    unsigned long lim = mpr->base + mpr->size - 1;
+
+    set_mpidx(mpid);
+    set_mpla(mpr->base);
+    set_mpua(mpr->base + mpr->size);
+    set_mpat(mpr->mem_flags);
+}
+
+static void mpu_entry_clear(mpid_t mpid)
+{
+    set_mpidx(mpid);
+    set_mpla(0);
+    set_mpua(0);
+    set_mpat(0); /* TODO is disabling enough */
+}
+
+static mpid_t mpu_entry_allocate_guest(void)
+{
+    mpid_t reg_num = INVALID_MPID;
+    for (mpid_t i = 0; i < (mpid_t)mpu_num_entries(); i++) {
+        if (bitmap_get(cpu()->arch.mpu_hyp.bitmap, i) == 0) {
+            bitmap_set(cpu()->arch.mpu_hyp.bitmap, i);
+            reg_num = i;
+
+            unsigned long mpcfg = get_mpcfg();
+
+            // TODO right now hyp entries must be allocated first
+            //
+            // TODO add hyp mpu entry counter to prevent guest mpu entries from
+            // spiling into hyp entries
+            unsigned long hbe = (mpu_num_entries() - reg_num) << 8;
+            mpcfg = (mpcfg & ~0x3F00) & hbe;
+            ;
+            set_mpcfg(mpcfg);
+            break;
+        }
+    }
+
+    // TODO hopefully this is enough to guarantee hypervisor entries come last
+    return mpu_num_entries() - reg_num;
+}
+
+static mpid_t mpu_entry_allocate_hyp(void)
+{
+    mpid_t reg_num = INVALID_MPID;
+    for (mpid_t i = (mpid_t)mpu_num_entries() - 1; i >= 0; i--) {
+        if (bitmap_get(cpu()->arch.mpu_hyp.bitmap, i) == 0) {
+            bitmap_set(cpu()->arch.mpu_hyp.bitmap, i);
+            reg_num = i;
+
+            break;
+        }
+    }
+
+    // TODO hopefully this is enough to guarantee hypervisor entries come last
+    return mpu_num_entries() - reg_num;
+}
 
 bool mpu_add_region(struct mp_region* reg, bool locked)
 {
     bool failed = true;
 
+    if (reg->size > 0) {
+        mpid_t mpid = 0;
+        if (reg->as_sec == SEC_VM_ANY) {
+            mpu_entry_allocate_guest();
+        } else {
+            mpu_entry_allocate_hyp();
+        }
+
+        if (mpid != INVALID_MPID) {
+            failed = false;
+            mpu_entry_set(mpid, reg);
+            if (locked) {
+                mpu_lock_entry(mpid);
+            }
+        }
+    }
+
+    /* mpu_read_and_save(); TODO what is this? */
+
     return !failed;
 }
 
-bool mpu_arch_perms_compatible(mem_flags_t perms1, mem_flags_t perms2)
+static inline bool mpu_arch_perms_compatible(mem_flags_t perms1, mem_flags_t perms2)
 {
     UNUSED_ARG(perms1);
     UNUSED_ARG(perms2);
@@ -29,9 +127,61 @@ bool mpu_arch_perms_compatible(mem_flags_t perms1, mem_flags_t perms2)
     return 1;
 }
 
+static void mpu_entry_get_region(mpid_t mpid, struct mp_region* mpe)
+{
+    set_mpidx(mpid);
+
+    unsigned long base = get_mpla();
+    unsigned long limit = get_mpua();
+
+    mpe->mem_flags = get_mpat();
+    mpe->base = base;
+    mpe->size = limit;
+    mpe->as_sec = SEC_UNKNOWN;
+}
+
+static mpid_t mpu_entry_get_region_id(struct mp_region* mpe)
+{
+    mpid_t mpid = INVALID_MPID;
+
+    for (mpid_t i = 0; i < (mpid_t)mpu_num_entries(); i++) {
+        struct mp_region mpe_cmp;
+        mpu_entry_get_region(i, &mpe_cmp);
+
+        if (mpe_cmp.base == mpe->base && mpe_cmp.size == mpe->size) {
+            mpid = i;
+            break;
+        }
+    }
+
+    return mpid;
+}
+
+static inline void mpu_entry_free(mpid_t mpid)
+{
+    mpu_entry_clear(mpid);
+    bitmap_clear(cpu()->arch.mpu_hyp.bitmap, mpid);
+}
+
 bool mpu_remove_region(struct mp_region* reg)
 {
     bool failed = true;
+
+    if (reg->size > 0) {
+        mpid_t mpid = mpu_entry_get_region_id(reg);
+
+        if (mpid != INVALID_MPID) {
+            failed = false;
+            mpu_entry_free(mpid);
+        }
+
+        // TODO what is this
+        /* for (int i = 0; i < 8; i++) { */
+        /*     mpu_s->rnr = (uint32_t)i; */
+        /*     mpu_temp[i].rbar = mpu_s->rbar & MPU_RBAR_BASE_MSK; */
+        /*     mpu_temp[i].rlar = mpu_s->rlar | 0x1F; */
+        /* } */
+    }
 
     return !failed;
 }
@@ -40,9 +190,54 @@ bool mpu_update_region(struct mp_region* mpr)
 {
     bool failed = true;
 
+    for (mpid_t mpid = 0; mpid < (mpid_t)mpu_num_entries(); mpid++) {
+        if (bitmap_get(cpu()->arch.mpu_hyp.bitmap, mpid) == 0) {
+            continue;
+        }
+        struct mp_region mpe_cmp;
+        mpu_entry_get_region(mpid, &mpe_cmp);
+
+        if (mpe_cmp.base == mpr->base) {
+            mpu_entry_set(mpid, mpr);
+            failed = false;
+            break;
+        }
+    }
+    // TODO:ARMV8M - what is this?
+    /* mpu_read_and_save(); */
+
     return !failed;
 }
 
-void mpu_arch_init(void) { }
+static inline bool mpu_entry_valid(mpid_t mpid)
+{
+    set_mpidx(mpid);
+    unsigned long attr = get_mpat();
+    unsigned long valid_bit = (attr & (1 << 7)) >> 7;
 
-void mpu_arch_enable(void) { }
+    return !!valid_bit;
+}
+
+void mpu_arch_init(void)
+{
+    bitmap_clear_consecutive(cpu()->arch.mpu_hyp.bitmap, 0, mpu_num_entries());
+
+    for (mpid_t mpid = 0; mpid < (mpid_t)mpu_num_entries(); mpid++) {
+        if (mpu_entry_valid(mpid)) {
+            bitmap_set(cpu()->arch.mpu_hyp.bitmap, mpid);
+            bitmap_set(cpu()->arch.mpu_hyp.locked, mpid);
+        }
+    }
+
+    unsigned long mpcfg = get_mpcfg();
+    // givef all entries to the hypervisor
+    unsigned long hbe = (mpu_num_entries()) << 8;
+    mpcfg = (mpcfg & ~0x3F00) & hbe;
+    ;
+    set_mpcfg(mpcfg);
+}
+
+void mpu_arch_enable(void)
+{
+    set_mpm(3); // TODO don't hardcode
+}
