@@ -26,7 +26,12 @@ struct arch_vm_platform {
 
 struct vm_arch {
     /* interrupt controller */
-    size_t hello;
+    struct emul_mem intc1_emul;
+    struct emul_mem intc2_emul;
+    struct emul_mem intif_emul;
+    struct emul_mem eint_emul;
+    struct emul_mem fenc_emul;
+    struct emul_mem feinc_emul;
 };
 
 struct vcpu_arch {
@@ -41,10 +46,7 @@ struct arch_regs {
             unsigned long r0;
             unsigned long r1;
             unsigned long r2;
-            union {
-                unsigned long r3;
-                unsigned long sp;
-            };
+            unsigned long sp;
             unsigned long r4;
             unsigned long r5;
             unsigned long r6;
@@ -72,10 +74,7 @@ struct arch_regs {
             unsigned long r28;
             unsigned long r29;
             unsigned long r30;
-            union {
-                unsigned long r31;
-                unsigned long lp;
-            };
+            unsigned long r31;
         };
     } gp_regs;
     // Basic system registers
@@ -88,14 +87,14 @@ static inline void vcpu_arch_inject_hw_irq(struct vcpu* vcpu, irqid_t id)
 {
     (void)vcpu;
     (void)id;
-    /* virqc_inject(vcpu, id); */
+    /* vintc_inject(vcpu, id); */
 }
 
 static inline void vcpu_arch_inject_irq(struct vcpu* vcpu, irqid_t id)
 {
     (void)vcpu;
     (void)id;
-    /* virqc_inject(vcpu, id); */
+    /* vint_inject(vcpu, id); */
 }
 
 #endif /* __ARCH_VM_H__ */

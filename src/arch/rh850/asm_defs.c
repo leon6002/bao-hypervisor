@@ -7,7 +7,6 @@
 #include <cpu.h>
 #include <vm.h>
 #include <platform.h>
-#include <arch/sysregs.h>
 
 static void sysregs_defines(void) { }
 
@@ -21,6 +20,14 @@ static void cpu_defines(void)
     DEFINE_OFFSET(CPU_NEXT_VCPU_OFF, struct cpu, next_vcpu);
 }
 
-static void vcpu_defines(void) { }
+static void vcpu_defines(void) 
+{
+    DEFINE_SIZE(VCPU_ARCH_SIZE, struct vcpu_arch);
+    DEFINE_OFFSET(VCPU_REGS_OFF, struct vcpu, regs);
+    DEFINE_SIZE(VCPU_REGS_SIZE, struct arch_regs);
+}
 
-static void platform_defines(void) { }
+static void platform_defines(void) 
+{
+
+}

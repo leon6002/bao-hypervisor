@@ -5,7 +5,6 @@
 
 #include <mem.h>
 #include <cpu.h>
-#include <arch/sysregs.h>
 #include <arch/fences.h>
 #include <arch/mpu.h>
 #include <arch/srs.h>

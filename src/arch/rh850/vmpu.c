@@ -1,7 +1,6 @@
 #include <arch/vmpu.h>
 #include <vm.h>
 #include <string.h>
-#include <arch/sysregs.h>
 
 typedef unsigned long region_t;
 

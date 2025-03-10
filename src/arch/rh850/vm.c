@@ -63,7 +63,10 @@ void vm_arch_init(struct vm* vm, const struct vm_config* vm_config)
     unsigned long GMMEI;
 }
 
-void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm) { }
+void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm) 
+{
+    vintc_init(vcpu);
+}
 
 void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry)
 {
@@ -82,7 +85,7 @@ unsigned long vcpu_readreg(struct vcpu* vcpu, unsigned long reg)
         ERROR("reading register out of bounds");
     }
 
-    return vcpu->arch_regs.gp_regs.r[reg];
+    return vcpu->regs.gp_regs.r[reg];
 }
 
 void vcpu_writereg(struct vcpu* vcpu, unsigned long reg, unsigned long val)
@@ -91,7 +94,7 @@ void vcpu_writereg(struct vcpu* vcpu, unsigned long reg, unsigned long val)
         ERROR("writing register out of bounds");
     }
 
-    return vcpu->arch_regs.gp_regs.r[reg];
+    vcpu->regs.gp_regs.r[reg] = val;
 }
 
 void vcpu_restore_state(struct vcpu* vcpu)

@@ -7,7 +7,6 @@
 #define __ARCH_MEM_H__
 
 #include <bao.h>
-#include <arch/sysregs.h>
 
 typedef union {
     struct {

@@ -23,10 +23,6 @@ struct cpu_arch {
     } mpu_hyp;
 };
 
-static inline struct cpu* cpu(void)
-{
-    volatile struct cpu* x = 0;
-    return (struct cpu*)x;
-}
+struct cpu* cpu();
 
 #endif /* __ARCH_CPU_H__ */
