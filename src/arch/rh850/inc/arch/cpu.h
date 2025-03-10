@@ -25,7 +25,8 @@ struct cpu_arch {
 
 static inline struct cpu* cpu(void)
 {
-    return (struct cpu*)NULL;
+    volatile struct cpu* x = 0;
+    return (struct cpu*)x;
 }
 
 #endif /* __ARCH_CPU_H__ */

@@ -13,7 +13,7 @@ struct platform platform = {
     .cpu_master_fixed = true,
     .cpu_master = 0,
 
-    .region_num = 4,
+    .region_num = 1,
     .regions =
         (struct mem_region[]){
             {
@@ -23,4 +23,20 @@ struct platform platform = {
             },
 
         },
+
+    .arch = {
+        .intc = {
+            .intc1_addr = 0xFFFC0000,
+            .intc2_addr = 0xFFF80000,
+            .intif_addr = 0xFF090000,
+            .eint_addr = 0xFFC00000,
+            .fenc_addr = 0xFF9A3A00,
+            .feinc_addr = {
+                0xFF9A3B00,
+                0xFF9A3C00,
+                0xFF9A3D00,
+                0xFF9A3E00,
+            },
+        }
+    }
 };

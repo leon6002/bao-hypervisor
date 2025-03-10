@@ -504,8 +504,7 @@ bool mem_map(struct addr_space* as, struct mp_region* mpr, bool broadcast, bool 
     }
 
     if ((mpr->size % mpu_granularity()) != 0) {
-        ERROR("trying to set mpu region which is not a multiple of "
-              "granularity");
+        ERROR("trying to set mpu region which is not a multiple of granularity");
     }
 
     spin_lock(&as->lock);

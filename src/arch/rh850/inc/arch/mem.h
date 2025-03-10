@@ -27,28 +27,18 @@ typedef union {
     uint16_t raw;
 } rlar_flags_t;
 
-typedef union {
-    unsigned long raw;
-    struct {
-        uint16_t rbar;
-        uint16_t rlar;
-    };
-} mem_flags_t;
+typedef unsigned long mem_flags_t;
 
-#define PTE_FLAGS(_rbar, _rlar) \
-    ((mem_flags_t){             \
-        .rbar = (_rbar),        \
-        .rlar = (_rlar),        \
-    })
+#define PTE_FLAGS(at)     ((mem_flags_t)at)
 
-#define PTE_INVALID       PTE_FLAGS(0, 0)
+#define PTE_INVALID       PTE_FLAGS(0)
 
-#define PTE_HYP_FLAGS     PTE_FLAGS(0, 0)
-#define PTE_HYP_DEV_FLAGS PTE_FLAGS(0, 0)
+#define PTE_HYP_FLAGS     PTE_FLAGS(0)
+#define PTE_HYP_DEV_FLAGS PTE_FLAGS(0)
 // TODO:ARMV8M - We are missing flags to distinguish flags for mem regions RX or RW
 
-#define PTE_VM_FLAGS      PTE_FLAGS(0, 0)
-#define PTE_VM_DEV_FLAGS  PTE_FLAGS(0, 0)
+#define PTE_VM_FLAGS      PTE_FLAGS(0)
+#define PTE_VM_DEV_FLAGS  PTE_FLAGS(0)
 
 #define MPU_ARCH_MAX_NUM_ENTRIES \
     (8) // TODO:ARMV8M - This is implementation-def so it should be defined in the platform

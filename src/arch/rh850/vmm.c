@@ -5,4 +5,10 @@
 
 #include <vmm.h>
 
-void vmm_arch_init(void) { }
+#include <arch/srs.h>
+
+void vmm_arch_init(void)
+{
+    /* enable virtualization */
+    set_hvcfg(1);
+}

@@ -9,10 +9,7 @@
 #include <platform.h>
 #include <arch/sysregs.h>
 
-static void sysregs_defines(void)
-{
-
-}
+static void sysregs_defines(void) { }
 
 static void cpu_defines(void)
 {
@@ -24,9 +21,6 @@ static void cpu_defines(void)
     DEFINE_OFFSET(CPU_NEXT_VCPU_OFF, struct cpu, next_vcpu);
 }
 
-static void vcpu_defines(void)
-{
-
-}
+static void vcpu_defines(void) { }
 
 static void platform_defines(void) { }
