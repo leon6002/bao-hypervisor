@@ -30,7 +30,7 @@ unsigned long cpu_id_to_mpidr(cpuid_t id)
 
 inline struct cpu* cpu(void)
 {
-    return (struct cpu *)get_ebase();
+    return (struct cpu*)get_ebase();
 }
 
 void cpu_arch_standby()

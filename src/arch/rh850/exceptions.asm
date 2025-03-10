@@ -133,7 +133,7 @@ _hyp_interrupt_table:
 	.align	2
 
 VM_EXIT .macro
-    ldsr r31, 2, 1 ; set RBASE (regID 2, selID 1) ; TODO figure out what this is exactly
+    ldsr r31, 28, 0 ; use EIWR as scratchpad
     stsr 3, r31, 1
     add 16, r31 ; CPU_VCPU_OFF
     ld.dw [r31], r31 ; cpu.VCPU
@@ -169,13 +169,11 @@ VM_EXIT .macro
     st.dw r28, 112[r31]
     st.dw r29, 116[r31]
     st.dw r30, 120[r31]
-    ; TODO PC etc 
+    ; TODO PC etc
 
     mov r31, r30
-    stsr 2, r31, 1
+    stsr 28, r31, 0
     st.dw r31, 124[r30]
-    mov #_hyp_vector_table, r31
-    ldsr r31, 2, 1 ; set RBASE (regID 2, selID 1) ; TODO figure out what this is exactly
 .endm
 
 VM_ENTRY .macro
@@ -221,12 +219,13 @@ VM_ENTRY .macro
     eiret
 .endm
 
+
+.extern _abort
+
 _guest_exception:
     VM_EXIT
-_guest_exception_loop:
-    br	_guest_exception_loop
+    jarl _abort, lp
     VM_ENTRY
-
 
 
 _host_exception:

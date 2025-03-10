@@ -1,2 +1,157 @@
 #include <arch/srs.h>
+#include <emul.h>
+#include <vm.h>
+#include <arch/vm.h>
 
+// LEN (Bits 31-28)
+#define MEI_LEN_MASK     (0xF << 28)
+#define MEI_LEN_SHIFT    28
+#define MEI_GET_LEN(val) (((val) & MEI_LEN_MASK) >> MEI_LEN_SHIFT)
+#define MEI_SET_LEN(val, len) ((val) = ((val) & ~MEI_LEN_MASK) | (((len) & 0xF) << MEI_LEN_SHIFT))
+
+// REG (Bits 20-16)
+#define MEI_REG_MASK     (0x1F << 16)
+#define MEI_REG_SHIFT    16
+#define MEI_GET_REG(val) (((val) & MEI_REG_MASK) >> MEI_REG_SHIFT)
+#define MEI_SET_REG(val, reg) ((val) = ((val) & ~MEI_REG_MASK) | (((reg) & 0x1F) << MEI_REG_SHIFT))
+
+// DS (Bits 11-9)
+#define MEI_DS_MASK      (0x7 << 9)
+#define MEI_DS_SHIFT     9
+#define MEI_GET_DS(val)  (((val) & MEI_DS_MASK) >> MEI_DS_SHIFT)
+#define MEI_SET_DS(val, ds) ((val) = ((val) & ~MEI_DS_MASK) | (((ds) & 0x7) << MEI_DS_SHIFT))
+
+// U (Bit 8)
+#define MEI_U_MASK       (1 << 8)
+#define MEI_GET_U(val)   (((val) & MEI_U_MASK) >> 8)
+#define MEI_SET_U(val, u) ((val) = ((val) & ~MEI_U_MASK) | (((u) & 0x1) << 8))
+
+// ITYPE (Bits 5-1)
+#define MEI_ITYPE_MASK   (0x1F << 1)
+#define MEI_ITYPE_SHIFT  1
+#define MEI_GET_ITYPE(val) (((val) & MEI_ITYPE_MASK) >> MEI_ITYPE_SHIFT)
+#define MEI_SET_ITYPE(val, itype) ((val) = ((val) & ~MEI_ITYPE_MASK) | (((itype) & 0x1F) << MEI_ITYPE_SHIFT))
+
+// RW (Bit 0)
+#define MEI_RW_MASK      (1 << 0)
+#define MEI_GET_RW(val)  ((val) & MEI_RW_MASK)
+#define MEI_SET_RW(val, rw) ((val) = ((val) & ~MEI_RW_MASK) | ((rw) & 0x1))
+
+
+static void data_abort()
+{
+    unsigned long mea = get_mea();
+    unsigned long mei = get_mei();
+
+    unsigned int len = MEI_GET_LEN(mei);
+    unsigned int reg = MEI_GET_REG(mei);
+    unsigned int ds = MEI_GET_DS(mei);
+    unsigned int u = MEI_GET_U(mei);
+    unsigned int itype = MEI_GET_ITYPE(mei);
+    unsigned int rw = MEI_GET_RW(mei);
+    vaddr_t addr = mea;
+
+    emul_handler_t handler = vm_emul_get_mem(cpu()->vcpu->vm, addr);
+    if (handler != NULL) {
+        struct emul_access emul;
+        emul.addr = addr;
+        emul.width = len;
+        emul.write = rw ? true : false;
+        emul.reg = reg;
+        emul.reg_width = ds;
+        emul.sign_ext = u;
+
+        // TODO: check if the access is aligned. If not, inject an exception in the vm
+
+        if (handler(&emul)) {
+            unsigned long pc_step = len;
+            vcpu_writepc(cpu()->vcpu, vcpu_readpc(cpu()->vcpu) + pc_step);
+        } else {
+            ERROR("data abort emulation failed (0x%x)", addr);
+        }
+    } else {
+        ERROR("no emulation handler for abort(0x%x at 0x%x)", addr, vcpu_readpc(cpu()->vcpu));
+    }
+}
+
+void abort()
+{
+    unsigned long cause = get_eiic();
+
+
+    switch (cause) {
+        case 0x01:
+            /* printf("Exception: RESET - Reset input\n"); */
+            break;
+
+        case 0xE0:
+            /* printf("Exception: FENMI - FENMI interrupt\n"); */
+            break;
+
+        case 0x1C:
+            /* printf("Exception: SYSERR - System error (context saving error)\n"); */
+            break;
+
+        case 0x90:
+            /* printf("Exception: MIP - Memory protection exception (execution privilege)\n"); */
+            break;
+        case 0x91:
+            /* printf("Exception: MDP - Memory protection exception (operand access)\n"); */
+            data_abort();
+            break;
+        case 0x95:
+            // printf("Exception: MDP - Memory protection exception (interrupt table reference method)\n");
+            break;
+
+        case 0x80:
+        case 0x81:
+        case 0x82:
+            /* printf("Exception: UCPOP - Coprocessor unusable exception\n"); */
+            break;
+
+        case 0x60:
+            /* printf("Exception: RIE - Reserved instruction exception\n"); */
+            break;
+
+        case 0xA0:
+            /* printf("Exception: PIE - Privilege instruction exception\n"); */
+            break;
+
+        case 0x1D:
+            /* printf("Exception: SYSERR - System error (error prior to register bank restoration)\n"); */
+            break;
+
+        case 0xC0:
+            /* printf("Exception: MAE - Misalignment exception\n"); */
+            break;
+
+        case 0x71:
+            /* printf("Exception: FPE - FPU exception (precise)\n"); */
+            break;
+
+        case 0x75:
+            /* printf("Exception: FXE - FXU exception (precise)\n"); */
+            break;
+
+        default:
+
+            if (cause >= 0xF0 && cause <= 0xFF) {
+                /* FEINT - FEINT interrupt */
+            } else if (cause >= 0x1000 && cause <= 0x17FF) {
+                /* EIINT - User interrupt */
+            } else if (cause >= 0x10 && cause <= 0x1F) {
+                /* SYSERR - System error (instruction fetch error) */
+            } else if (cause >= 0x8000 && cause <= 0x80FF) {
+                /* SYSCALL - System call */
+            } else if (cause >= 0x31 && cause <= 0x3F) {
+                /* FETRAP - FE level trap */
+            } else if (cause >= 0x40 && cause <= 0x4F) {
+                /* TRAP0 - EI level trap 0 */
+            } else if (cause >= 0x50 && cause <= 0x5F) {
+                /* TRAP1 - EI level trap 1 */
+            } else {
+                /* printf("Exception: Unknown exception code: 0x%X\n", cause); */
+            }
+            break;
+    }
+}
