@@ -10,21 +10,37 @@
 
 typedef union {
     struct {
-        uint16_t xn : 1;
-        uint16_t ap : 2;
-        uint16_t sh : 2;
+        uint16_t ur : 1; // hyp att? 
+        uint16_t uw : 1; // hyp att?
+        uint16_t ux : 1; // hyp att?
+        uint16_t sr : 1; // hyp att?
+        uint16_t sw : 1; // hyp att?
+        uint16_t sx : 1; // hyp att?
+        uint16_t res1 : 1;
+        uint16_t e : 1;
+        uint16_t res2 : 6;
+        uint16_t rg;
+        uint16_t wg;
+        uint16_t rmpid0: 1; // VM attributes?
+        uint16_t rmpid1: 1; // VM attributes?
+        uint16_t rmpid2: 1; // VM attributes?
+        uint16_t rmpid3: 1; // VM attributes?
+        uint16_t rmpid4: 1; // VM attributes?
+        uint16_t rmpid5: 1; // VM attributes?
+        uint16_t rmpid6: 1; // VM attributes?
+        uint16_t rmpid7: 1; // VM attributes?
+        uint16_t wmpid0: 1; // VM attributes?
+        uint16_t wmpid1: 1; // VM attributes?
+        uint16_t wmpid2: 1; // VM attributes?
+        uint16_t wmpid3: 1; // VM attributes?
+        uint16_t wmpid4: 1; // VM attributes?
+        uint16_t wmpid5: 1; // VM attributes?
+        uint16_t wmpid6: 1; // VM attributes?
+        uint16_t wmpid7: 1; // VM attributes?
     };
-    uint16_t raw;
-} rbar_flags_t;
+    uint32_t raw;
+} mpat_flags_t;
 
-typedef union {
-    struct {
-        uint16_t en : 1;
-        uint16_t attr_indx : 3;
-        uint16_t pxn : 1;
-    };
-    uint16_t raw;
-} rlar_flags_t;
 
 typedef unsigned long mem_flags_t;
 
