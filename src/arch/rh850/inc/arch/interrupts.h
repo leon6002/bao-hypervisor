@@ -10,7 +10,7 @@
 #include <plat/platform.h>
 
 #define ARCH_MAX_INTERRUPTS    496
-#define MAX_INTERRUPTS         PLAT_MAX_INTERRUPTS // TODO:ARMV8M - Should this plat or arch-defined?
+#define MAX_INTERRUPTS         PLAT_MAX_INTERRUPTS 
 #define MAX_GUEST_INTERRUPTS   (MAX_INTERRUPTS)
 
 #define MAX_INTERRUPT_LINES    MAX_INTERRUPTS
