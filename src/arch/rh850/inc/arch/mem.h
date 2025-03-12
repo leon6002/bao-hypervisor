@@ -55,10 +55,8 @@ typedef unsigned long mem_flags_t;
 #define PTE_VM_FLAGS      PTE_FLAGS(0)
 #define PTE_VM_DEV_FLAGS  PTE_FLAGS(0)
 
-#define MPU_ARCH_MAX_NUM_ENTRIES \
-    (8) // TODO:ARMV8M - This is implementation-def so it should be defined in the platform
-#define SAU_ARCH_MAX_NUM_ENTRIES \
-    (8) // TODO:ARMV8M - This is implementation-def so it should be defined in the platform
+#define MPU_ARCH_MAX_NUM_ENTRIES (32)
+
 
 static inline size_t mpu_granularity(void)
 {

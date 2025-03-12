@@ -204,11 +204,11 @@ static void intc_map_global_mmio()
     vaddr_t global_start_addr = platform.arch.intc.intc2_addr;
     vaddr_t global_end_addr = platform.arch.intc.fenc_addr + sizeof(struct fenc);
     size_t global_size = global_end_addr - global_start_addr;
-    size_t glabal_npages = NUM_PAGES(global_size);
+    size_t global_npages = NUM_PAGES(global_size);
 
     vaddr_t global_ptr;
     global_ptr =
-        mem_alloc_map_dev(&cpu()->as, SEC_HYP_GLOBAL, INVALID_VA, global_start_addr, glabal_npages);
+        mem_alloc_map_dev(&cpu()->as, SEC_HYP_GLOBAL, INVALID_VA, global_start_addr, global_npages);
     if (global_ptr == INVALID_VA) {
         ERROR("maping global interrupt controller region failed");
     }
