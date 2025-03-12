@@ -134,7 +134,7 @@ _hyp_interrupt_table:
 
 VM_EXIT .macro
     ldsr r31, 28, 0 ; use EIWR as scratchpad
-    stsr 3, r31, 1
+    stsr 3, r31, 1 ; get cpu* from EBASE
     add 16, r31 ; CPU_VCPU_OFF
     ld.dw [r31], r31 ; cpu.VCPU
     add 8, r31 ; VCPU_REGS_OFF

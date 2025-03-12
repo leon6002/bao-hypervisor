@@ -81,76 +81,76 @@ void abort()
 
     switch (cause) {
         case 0x01:
-            /* printf("Exception: RESET - Reset input\n"); */
+            ERROR("Exception: RESET - Reset input\n");
             break;
 
         case 0xE0:
-            /* printf("Exception: FENMI - FENMI interrupt\n"); */
+            ERROR("Exception: FENMI - FENMI interrupt\n");
             break;
 
         case 0x1C:
-            /* printf("Exception: SYSERR - System error (context saving error)\n"); */
+            ERROR("Exception: SYSERR - System error (context saving error)\n");
             break;
 
         case 0x90:
-            /* printf("Exception: MIP - Memory protection exception (execution privilege)\n"); */
+            ERROR("Exception: MIP - Memory protection exception (execution privilege)\n");
             break;
         case 0x91:
-            /* printf("Exception: MDP - Memory protection exception (operand access)\n"); */
+            ERROR("Exception: MDP - Memory protection exception (operand access)\n");
             data_abort();
             break;
         case 0x95:
-            // printf("Exception: MDP - Memory protection exception (interrupt table reference method)\n");
+            ERROR("Exception: MDP - Memory protection exception (interrupt table reference method)\n");
             break;
 
         case 0x80:
         case 0x81:
         case 0x82:
-            /* printf("Exception: UCPOP - Coprocessor unusable exception\n"); */
+            ERROR("Exception: UCPOP - Coprocessor unusable exception\n");
             break;
 
         case 0x60:
-            /* printf("Exception: RIE - Reserved instruction exception\n"); */
+            ERROR("Exception: RIE - Reserved instruction exception\n");
             break;
 
         case 0xA0:
-            /* printf("Exception: PIE - Privilege instruction exception\n"); */
+            ERROR("Exception: PIE - Privilege instruction exception\n");
             break;
 
         case 0x1D:
-            /* printf("Exception: SYSERR - System error (error prior to register bank restoration)\n"); */
+            ERROR("Exception: SYSERR - System error (error prior to register bank restoration)\n");
             break;
 
         case 0xC0:
-            /* printf("Exception: MAE - Misalignment exception\n"); */
+            ERROR("Exception: MAE - Misalignment exception\n");
             break;
 
         case 0x71:
-            /* printf("Exception: FPE - FPU exception (precise)\n"); */
+            ERROR("Exception: FPE - FPU exception (precise)\n");
             break;
 
         case 0x75:
-            /* printf("Exception: FXE - FXU exception (precise)\n"); */
+            ERROR("Exception: FXE - FXU exception (precise)\n");
             break;
 
         default:
 
             if (cause >= 0xF0 && cause <= 0xFF) {
-                /* FEINT - FEINT interrupt */
+                ERROR("FEINT - FEINT interrupt");
             } else if (cause >= 0x1000 && cause <= 0x17FF) {
-                /* EIINT - User interrupt */
+                ERROR("EIINT - User interrupt");
             } else if (cause >= 0x10 && cause <= 0x1F) {
-                /* SYSERR - System error (instruction fetch error) */
+                ERROR("SYSERR - System error (instruction fetch error)");
             } else if (cause >= 0x8000 && cause <= 0x80FF) {
-                /* SYSCALL - System call */
+                ERROR("SYSCALL - System call");
             } else if (cause >= 0x31 && cause <= 0x3F) {
-                /* FETRAP - FE level trap */
+                ERROR("FETRAP - FE level trap");
             } else if (cause >= 0x40 && cause <= 0x4F) {
-                /* TRAP0 - EI level trap 0 */
+                ERROR("TRAP0 - EI level trap 0");
             } else if (cause >= 0x50 && cause <= 0x5F) {
-                /* TRAP1 - EI level trap 1 */
+                ERROR("TRAP1 - EI level trap 1");
             } else {
-                /* printf("Exception: Unknown exception code: 0x%X\n", cause); */
+                ERROR("Exception: Unknown exception code: 0x%X\n", cause);
             }
             break;
     }
