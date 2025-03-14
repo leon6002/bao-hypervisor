@@ -35,7 +35,7 @@ struct vm_arch {
 };
 
 struct vcpu_arch {
-    vcpuid_t core_id;
+    vcpuid_t vcpuid;
     struct vmpu vmpu;
 };
 
