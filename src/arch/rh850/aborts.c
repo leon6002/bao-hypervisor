@@ -4,7 +4,7 @@
 #include <arch/vm.h>
 
 // LEN (Bits 31-28)
-#define MEI_LEN_MASK     (0xF << 28)
+#define MEI_LEN_MASK     (0xFUL << 28)
 #define MEI_LEN_SHIFT    28
 #define MEI_GET_LEN(val) (((val) & MEI_LEN_MASK) >> MEI_LEN_SHIFT)
 #define MEI_SET_LEN(val, len) ((val) = ((val) & ~MEI_LEN_MASK) | (((len) & 0xF) << MEI_LEN_SHIFT))
@@ -47,7 +47,7 @@ static void data_abort()
     unsigned int reg = MEI_GET_REG(mei);
     unsigned int ds = MEI_GET_DS(mei);
     unsigned int u = MEI_GET_U(mei);
-    unsigned int itype = MEI_GET_ITYPE(mei);
+    /* unsigned int itype = MEI_GET_ITYPE(mei); */
     unsigned int rw = MEI_GET_RW(mei);
     vaddr_t addr = mea;
 
@@ -81,76 +81,76 @@ void abort()
 
     switch (cause) {
         case 0x01:
-            ERROR("Exception: RESET - Reset input\n");
+            WARNING("Exception: RESET - Reset input\n");
             break;
 
         case 0xE0:
-            ERROR("Exception: FENMI - FENMI interrupt\n");
+            WARNING("Exception: FENMI - FENMI interrupt\n");
             break;
 
         case 0x1C:
-            ERROR("Exception: SYSERR - System error (context saving error)\n");
+            WARNING("Exception: SYSERR - System error (context saving error)\n");
             break;
 
         case 0x90:
-            ERROR("Exception: MIP - Memory protection exception (execution privilege)\n");
+            WARNING("Exception: MIP - Memory protection exception (execution privilege)\n");
             break;
         case 0x91:
-            ERROR("Exception: MDP - Memory protection exception (operand access)\n");
+            WARNING("Exception: MDP - Memory protection exception (operand access)\n");
             data_abort();
             break;
         case 0x95:
-            ERROR("Exception: MDP - Memory protection exception (interrupt table reference method)\n");
+            WARNING("Exception: MDP - Memory protection exception (interrupt table reference method)\n");
             break;
 
         case 0x80:
         case 0x81:
         case 0x82:
-            ERROR("Exception: UCPOP - Coprocessor unusable exception\n");
+            WARNING("Exception: UCPOP - Coprocessor unusable exception\n");
             break;
 
         case 0x60:
-            ERROR("Exception: RIE - Reserved instruction exception\n");
+            WARNING("Exception: RIE - Reserved instruction exception\n");
             break;
 
         case 0xA0:
-            ERROR("Exception: PIE - Privilege instruction exception\n");
+            WARNING("Exception: PIE - Privilege instruction exception\n");
             break;
 
         case 0x1D:
-            ERROR("Exception: SYSERR - System error (error prior to register bank restoration)\n");
+            WARNING("Exception: SYSERR - System error (error prior to register bank restoration)\n");
             break;
 
         case 0xC0:
-            ERROR("Exception: MAE - Misalignment exception\n");
+            WARNING("Exception: MAE - Misalignment exception\n");
             break;
 
         case 0x71:
-            ERROR("Exception: FPE - FPU exception (precise)\n");
+            WARNING("Exception: FPE - FPU exception (precise)\n");
             break;
 
         case 0x75:
-            ERROR("Exception: FXE - FXU exception (precise)\n");
+            WARNING("Exception: FXE - FXU exception (precise)\n");
             break;
 
         default:
 
             if (cause >= 0xF0 && cause <= 0xFF) {
-                ERROR("FEINT - FEINT interrupt");
+                WARNING("FEINT - FEINT interrupt");
             } else if (cause >= 0x1000 && cause <= 0x17FF) {
-                ERROR("EIINT - User interrupt");
+                WARNING("EIINT - User interrupt");
             } else if (cause >= 0x10 && cause <= 0x1F) {
-                ERROR("SYSERR - System error (instruction fetch error)");
+                WARNING("SYSERR - System error (instruction fetch error)");
             } else if (cause >= 0x8000 && cause <= 0x80FF) {
-                ERROR("SYSCALL - System call");
+                WARNING("SYSCALL - System call");
             } else if (cause >= 0x31 && cause <= 0x3F) {
-                ERROR("FETRAP - FE level trap");
+                WARNING("FETRAP - FE level trap");
             } else if (cause >= 0x40 && cause <= 0x4F) {
-                ERROR("TRAP0 - EI level trap 0");
+                WARNING("TRAP0 - EI level trap 0");
             } else if (cause >= 0x50 && cause <= 0x5F) {
-                ERROR("TRAP1 - EI level trap 1");
+                WARNING("TRAP1 - EI level trap 1");
             } else {
-                ERROR("Exception: Unknown exception code: 0x%X\n", cause);
+                WARNING("Exception: Unknown exception code: 0x%X\n", cause);
             }
             break;
     }
