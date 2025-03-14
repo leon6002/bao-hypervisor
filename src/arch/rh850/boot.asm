@@ -33,7 +33,7 @@ __start:
     stsr 0, r5, 2 ; get PEID (regID 0, selID 2)
 
     mov #_hyp_vector_table, r2
-    ldsr r2, 2, 1 ; set RBASE (regID 2, selID 1) ; TODO figure out what this is exactly
+    ldsr r2, 2, 1 ; set RBASE (regID 2, selID 1)
 
     mov #_hyp_interrupt_table, r2
     ldsr r2, 4, 1 ; set INTBP (regID 4, selID 1)
@@ -42,7 +42,7 @@ __start:
     ; TODO is this not done already on the platform description?
 
     ; disable memory protections
-    mov r0, r2 ; MPM.MPE i(and all else) disabled
+    mov r0, r2 ; MPM.MPE (and all else) disabled
     ldsr r2, 0, 5 ; set MPM
 
     ;; cover all memory with protection check
@@ -81,38 +81,37 @@ __start:
     mov r11, r14 ; store for later
 
     ;; .bss end
-    add r11, r12 ; r12 is end of .bss
+    add r11, r12 ; r12 becomes end of .bss
     mov r12, r20 ; store for later
     add 8, r12 ; TODO make sure we cover all .bss memory even we write zero a little bit after
 
     ;; clear from [r11] to [r12]
     jarl boot_clear, lp
 
-    ; set up this cpus CPU Struct
-    ;; r20 contains end of .bss / beginning of struct cpu[]
+    ; set up this cpu's CPU Struct
+    ;; r20 contains end of .bss / beginning of struct cpu
     ;; CPUx physical based address
-    mov 3768, r14 ; CPU_SIZE
+    mov 3768, r14 ; CPU_SIZE TODO value from .h
     mov r5, r6 ; copy cpu_id to r6
     mulh r14, r6 ; r6 is cpu struct offset
-    add r6, r20 ; end of .bss + cpu struct offset
+    add r6, r20 ; end of .bss + cpu struct offset r20 points to cpu
 
     ;; clear CPUx struct
-    add r14, r11
     mov r20, r11
+    mov r20, r12
+    add r14, r12
     ;; clear from [r11] to [r12]
     jarl boot_clear, lp
-
-    ldl.w [r6], r21
 
     ldsr r20, 3, 1 ; use EBASE as CPU* pointer holder
 
     ; Initialize stack pointer
     mov 3768, r4 ; CPU_STACK_OFF TODO value from .h
-    add r10, r4 
+    add r10, r4
     mov 4096, r5 ; CPU STACK SIZE TODO can it be smaller?
     add r5, r4
     mov r4, sp ; set sp
-    mov #__start, r5 ; set Text Pointer
+    mov #_init, r5 ; set Text Pointer TODO what should be here?
 
     br _init
 

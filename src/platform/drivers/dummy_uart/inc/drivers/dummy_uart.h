@@ -9,8 +9,11 @@
 #include <bao.h>
 #include <plat/platform.h>
 
+#define DUMMY_BUF_SIZE 256
+
 struct dummy_hw {
-    uint32_t c;
+    char buf[DUMMY_BUF_SIZE];
+    size_t count;
 };
 
 typedef struct dummy_hw bao_uart_t;
