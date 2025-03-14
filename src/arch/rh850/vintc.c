@@ -3,6 +3,15 @@
 #include <platform.h>
 #include <arch/intc.h>
 #include <emul.h>
+#include <bitmap.h>
+#include <interrupts.h>
+
+extern volatile struct intc1* intc1_hw_pe[PLAT_CPU_NUM];
+extern volatile struct intc2* intc2_hw;
+extern volatile struct intif* intif_hw;
+extern volatile struct eint* eint_hw;
+extern volatile struct fenc* fenc_hw;
+extern volatile struct feinc* feinc_hw[PLAT_CPU_NUM];
 
 static void emulate_intc1_eic_access(struct emul_access *acc, size_t offset)
 {
@@ -18,10 +27,9 @@ static void emulate_intc1_eic_access(struct emul_access *acc, size_t offset)
 
     if(acc->write){
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        /* TODO access eic */
+        intc1_hw_pe[cpu()->id]->EIC[int_id] = val;
     } else {
-        /* TODO access eic */
-        unsigned int val = 0;
+        unsigned int val = intc1_hw_pe[cpu()->id]->EIC[int_id];
         vcpu_writereg(vcpu, acc->reg, val);
     }
 }
@@ -31,58 +39,35 @@ static void emulate_intc1_imr_access(struct emul_access *acc, size_t offset)
     struct vcpu* vcpu = cpu()->vcpu;
     struct vm* vm = vcpu->vm;
 
-    for(unsigned int i = 0; i < 32; i++){
-        if(!vm_has_interrupt(vm, i)){
-            continue;
-        }
-
-        if(acc->write){
-            unsigned long val = vcpu_readreg(vcpu, acc->reg);
-            /* TODO access imr */
-        } else {
-            /* TODO access imr */
-            unsigned int val = 0;
-            vcpu_writereg(vcpu, acc->reg, val);
-        }
-    }
-}
-
-static void emulate_intc1_eibd_access(struct emul_access *acc, size_t offset)
-{
-    size_t int_id = ALIGN(offset, 32)/32;
-
-    struct vcpu* vcpu = cpu()->vcpu;
-    struct vm* vm = vcpu->vm;
-
-    if(!vm_has_interrupt(vm, int_id)){
-        ERROR("VM tried to access unassigned interrupt");
-    }
-
     if(acc->write){
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        /* TODO access imr */
+
+        for(unsigned int i = 0; i < 32; i++){
+            if(!vm_has_interrupt(vm, i)){
+                continue;
+            }
+            unsigned int imr_bit = (i % 32);
+            if((1UL << imr_bit) & val){
+                intc1_hw_pe[cpu()->id]->IMR |= 1UL << imr_bit;
+            }
+        }
     } else {
-        /* TODO access imr */
-        unsigned int val = 0;
+        unsigned long val = 0;
+
+        for(unsigned int i = 0; i < 32; i++){
+            if(!vm_has_interrupt(vm, i)){
+                continue;
+            }
+            unsigned int imr_bit = (i % 32);
+            unsigned int imr_val = intc1_hw_pe[cpu()->id]->IMR;
+            if((1UL << imr_bit) & imr_val){
+                val |= (1UL << imr_bit);
+            }
+        }
         vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
-static void emulate_intc1_fibd_access(struct emul_access *acc, size_t offset)
-{
-    struct vcpu* vcpu = cpu()->vcpu;
-
-    /* how to check if guest can use FE? */
-
-    if(acc->write){
-        unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        /* TODO access imr */
-    } else {
-        /* TODO access imr */
-        unsigned int val = 0;
-        vcpu_writereg(vcpu, acc->reg, val);
-    }
-}
 
 static void emulate_intc1_eeic_access(struct emul_access *acc, size_t offset)
 {
@@ -97,10 +82,9 @@ static void emulate_intc1_eeic_access(struct emul_access *acc, size_t offset)
 
     if(acc->write){
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        /* TODO access imr */
+        intc1_hw_pe[cpu()->id]->EEIC[int_id] = val;
     } else {
-        /* TODO access imr */
-        unsigned int val = 0;
+        unsigned int val = intc1_hw_pe[cpu()->id]->EEIC[int_id];
         vcpu_writereg(vcpu, acc->reg, val);
     }
 }
@@ -114,27 +98,10 @@ static void emulate_intc1_eibg_access(struct emul_access *acc, size_t offset)
 
     if(acc->write){
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        /* TODO access imr */
+        intc1_hw_pe[cpu()->id]->EIBG = val;
     } else {
         /* TODO access imr */
-        unsigned int val = 0;
-        vcpu_writereg(vcpu, acc->reg, val);
-    }
-}
-
-
-static void emulate_intc1_fibg_access(struct emul_access *acc, size_t offset)
-{
-    struct vcpu* vcpu = cpu()->vcpu;
-
-    /* TODO */
-
-    if(acc->write){
-        unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        /* TODO access imr */
-    } else {
-        /* TODO access imr */
-        unsigned int val = 0;
+        unsigned int val = intc1_hw_pe[cpu()->id]->EIBG;
         vcpu_writereg(vcpu, acc->reg, val);
     }
 }
@@ -155,18 +122,6 @@ static bool vintc1_emul_handler(struct emul_access* acc)
         emulate_intc1_imr_access(acc, acc_offset - intc1_imr_bot);
     }
 
-    size_t intc1_eibd_bot = offsetof(struct intc1, EIBD);
-    size_t intc1_eibd_top = sizeof(((struct intc1*)NULL)->EIBD);
-    if(acc_offset >= intc1_eibd_bot && acc_offset < intc1_eibd_top){
-        emulate_intc1_eibd_access(acc, acc_offset - intc1_eibd_bot);
-    }
-
-    size_t intc1_fibd_bot = offsetof(struct intc1, FIBD);
-    size_t intc1_fibd_top = sizeof(((struct intc1*)NULL)->FIBD);
-    if(acc_offset >= intc1_fibd_bot && acc_offset < intc1_fibd_top){
-        emulate_intc1_fibd_access(acc, acc_offset - intc1_fibd_bot);
-    }
-
     size_t intc1_eeic_bot = offsetof(struct intc1, EEIC);
     size_t intc1_eeic_top = sizeof(((struct intc1*)NULL)->EEIC);
     if(acc_offset >= intc1_eeic_bot && acc_offset < intc1_eeic_top){
@@ -178,13 +133,6 @@ static bool vintc1_emul_handler(struct emul_access* acc)
     if(acc_offset >= intc1_eibg_bot && acc_offset < intc1_eibg_top){
         emulate_intc1_eibg_access(acc, acc_offset - intc1_eibg_bot);
     }
-
-    size_t intc1_fibg_bot = offsetof(struct intc1, FIBG);
-    size_t intc1_fibg_top = sizeof(((struct intc1*)NULL)->FIBG);
-    if(acc_offset >= intc1_fibg_bot && acc_offset < intc1_fibg_top){
-        emulate_intc1_fibg_access(acc, acc_offset - intc1_fibg_bot);
-    }
-
 
     ERROR("%s not implemented", __func__);
 }
@@ -214,21 +162,37 @@ static void emulate_intc2_eic_access(struct emul_access *acc, size_t offset)
 
 static void emulate_intc2_imr_access(struct emul_access *acc, size_t offset)
 {
-    size_t int_id = ALIGN(offset, 32)/32;
-
     struct vcpu* vcpu = cpu()->vcpu;
     struct vm* vm = vcpu->vm;
 
-    if(!vm_has_interrupt(vm, int_id)){
-        ERROR("VM tried to access unassigned interrupt");
-    }
+    size_t imr_idx = ALIGN(offset, 32)/32;
 
+    irqid_t first_imr_int = imr_idx * 32 + 32;
     if(acc->write){
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        /* TODO access imr */
+
+        for(unsigned int i = first_imr_int; i < first_imr_int + 32; i++){
+            if(!vm_has_interrupt(vm, i)){
+                continue;
+            }
+            unsigned int imr_bit = (i % 32);
+            if((1UL << imr_bit) & val){
+                intc2_hw->IMR[imr_idx] |= 1UL << imr_bit;
+            }
+        }
     } else {
-        /* TODO access imr */
-        unsigned int val = 0;
+        unsigned long val = 0;
+
+        for(unsigned int i = first_imr_int; i < first_imr_int + 32; i++){
+            if(!vm_has_interrupt(vm, i)){
+                continue;
+            }
+            unsigned int imr_bit = (i % 32);
+            unsigned int imr_val = intc2_hw->IMR[imr_idx];
+            if((1UL << imr_bit) & imr_val){
+                val |= 1UL << imr_bit;
+            }
+        }
         vcpu_writereg(vcpu, acc->reg, val);
     }
 }

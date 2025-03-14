@@ -222,6 +222,7 @@ void mpu_arch_init(void)
     bitmap_clear_consecutive(cpu()->arch.mpu_hyp.bitmap, 0, mpu_num_entries());
 
     for (mpid_t mpid = 0; mpid < (mpid_t)mpu_num_entries(); mpid++) {
+        /* TODO No entry should be valid at this point... */
         if (mpu_entry_valid(mpid)) {
             bitmap_set(cpu()->arch.mpu_hyp.bitmap, mpid);
             bitmap_set(cpu()->arch.mpu_hyp.locked, mpid);
@@ -229,10 +230,9 @@ void mpu_arch_init(void)
     }
 
     unsigned long mpcfg = get_mpcfg();
-    // givef all entries to the hypervisor
+    // give all entries to the hypervisor
     unsigned long hbe = (mpu_num_entries()) << 8;
     mpcfg = (mpcfg & ~0x3F00) & hbe;
-    ;
     set_mpcfg(mpcfg);
 }
 

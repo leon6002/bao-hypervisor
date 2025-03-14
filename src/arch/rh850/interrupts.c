@@ -64,4 +64,5 @@ void interrupts_arch_ipi_send(cpuid_t cpu_target, irqid_t ipi_id)
     UNUSED_ARG(cpu_target);
     UNUSED_ARG(ipi_id);
     ERROR("not implemented");
+#warning interrupts_arch_ipi_send not implemented
 }

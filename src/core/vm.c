@@ -200,6 +200,12 @@ static void vm_init_ipc(struct vm* vm, const struct vm_config* vm_config)
         };
 
         vm_map_mem_region(vm, &reg);
+
+        for (size_t j = 0; j < ipc->interrupt_num; j++) {
+            if (!interrupts_vm_assign(vm, ipc->interrupts[j])) {
+                ERROR("Failed to assign interrupt id %d", ipc->interrupts[j]);
+            }
+        }
     }
 }
 

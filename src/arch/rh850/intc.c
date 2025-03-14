@@ -6,12 +6,12 @@
 #include <cpu.h>
 #include <arch/intc.h>
 
-static volatile struct intc1* intc1_hw_pe[PLAT_CPU_NUM];
-static volatile struct intc2* intc2_hw;
-static volatile struct intif* intif_hw;
-static volatile struct eint* eint_hw;
-static volatile struct fenc* fenc_hw;
-static volatile struct feinc* feinc_hw[PLAT_CPU_NUM];
+volatile struct intc1* intc1_hw_pe[PLAT_CPU_NUM];
+volatile struct intc2* intc2_hw;
+volatile struct intif* intif_hw;
+volatile struct eint* eint_hw;
+volatile struct fenc* fenc_hw;
+volatile struct feinc* feinc_hw[PLAT_CPU_NUM];
 
 // EIC Register Bit Definitions
 #define EICTn_BIT                (1 << 15)
@@ -120,6 +120,7 @@ void intc_hyp_assign(irqid_t int_id)
 
 void intc_vm_assign(irqid_t int_id, vmid_t vm_id)
 {
+    /* assumes calling cpu is configuring this interrupt */
     if (int_id < PRIVATE_IRQS_NUM) {
         EIBD_SET_GM(intc1_hw_pe[cpu()->id]->EIBD[int_id]);
         EIBD_SET_GPID(intc1_hw_pe[cpu()->id]->EIBD[int_id], vm_id);
@@ -128,7 +129,6 @@ void intc_vm_assign(irqid_t int_id, vmid_t vm_id)
         EIBD_SET_GM(intc2_hw->EIBD[intc2_irq_id]);
         EIBD_SET_GPID(intc2_hw->EIBD[intc2_irq_id], vm_id);
 
-        /* assumes calling cpu is configuring this interrupt */
         EIBD_SET_PEID(intc2_hw->EIBD[intc2_irq_id], cpu()->id);
     }
 }
@@ -237,5 +237,6 @@ void intc_init()
 {
     intc_map_mmio();
 
-    intc1_hw_pe[cpu()->id]->IHVCFG = 1; // (mandatory) enable virtualization support
+    // (mandatory) enable virtualization support
+    intc1_hw_pe[cpu()->id]->IHVCFG = 1;
 }
