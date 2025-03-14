@@ -48,7 +48,7 @@ struct intif {
 };
 
 struct eint {
-    uint32_t sintr[PLAT_CPU_NUM];
+    uint8_t sintr[PLAT_CPU_NUM];
 };
 
 struct fenc {

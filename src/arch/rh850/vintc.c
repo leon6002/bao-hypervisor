@@ -1,4 +1,5 @@
 #include <vm.h>
+#include <arch/vm.h>
 #include <platform.h>
 #include <arch/intc.h>
 #include <emul.h>
@@ -16,12 +17,12 @@ static void emulate_intc1_eic_access(struct emul_access *acc, size_t offset)
     }
 
     if(acc->write){
-        unsigned long val = vcpu_read(vcpu, acc->reg);
+        unsigned long val = vcpu_readreg(vcpu, acc->reg);
         /* TODO access eic */
     } else {
         /* TODO access eic */
         unsigned int val = 0;
-        vcpu_write(vcpu, acc->reg, val);
+        vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
@@ -30,18 +31,18 @@ static void emulate_intc1_imr_access(struct emul_access *acc, size_t offset)
     struct vcpu* vcpu = cpu()->vcpu;
     struct vm* vm = vcpu->vm;
 
-    for(unsigned int i; i < 32; i++){
+    for(unsigned int i = 0; i < 32; i++){
         if(!vm_has_interrupt(vm, i)){
             continue;
         }
 
         if(acc->write){
-            unsigned long val = vcpu_read(vcpu, acc->reg);
+            unsigned long val = vcpu_readreg(vcpu, acc->reg);
             /* TODO access imr */
         } else {
             /* TODO access imr */
             unsigned int val = 0;
-            vcpu_write(vcpu, acc->reg, val);
+            vcpu_writereg(vcpu, acc->reg, val);
         }
     }
 }
@@ -58,29 +59,28 @@ static void emulate_intc1_eibd_access(struct emul_access *acc, size_t offset)
     }
 
     if(acc->write){
-        unsigned long val = vcpu_read(vcpu, acc->reg);
+        unsigned long val = vcpu_readreg(vcpu, acc->reg);
         /* TODO access imr */
     } else {
         /* TODO access imr */
         unsigned int val = 0;
-        vcpu_write(vcpu, acc->reg, val);
+        vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
 static void emulate_intc1_fibd_access(struct emul_access *acc, size_t offset)
 {
     struct vcpu* vcpu = cpu()->vcpu;
-    struct vm* vm = vcpu->vm;
 
     /* how to check if guest can use FE? */
 
     if(acc->write){
-        unsigned long val = vcpu_read(vcpu, acc->reg);
+        unsigned long val = vcpu_readreg(vcpu, acc->reg);
         /* TODO access imr */
     } else {
         /* TODO access imr */
         unsigned int val = 0;
-        vcpu_write(vcpu, acc->reg, val);
+        vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
@@ -96,32 +96,29 @@ static void emulate_intc1_eeic_access(struct emul_access *acc, size_t offset)
     }
 
     if(acc->write){
-        unsigned long val = vcpu_read(vcpu, acc->reg);
+        unsigned long val = vcpu_readreg(vcpu, acc->reg);
         /* TODO access imr */
     } else {
         /* TODO access imr */
         unsigned int val = 0;
-        vcpu_write(vcpu, acc->reg, val);
+        vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
 
 static void emulate_intc1_eibg_access(struct emul_access *acc, size_t offset)
 {
-    size_t int_id = ALIGN(offset, 32)/32;
-
     struct vcpu* vcpu = cpu()->vcpu;
-    struct vm* vm = vcpu->vm;
 
     /* TODO  Check priority threshold ... */
 
     if(acc->write){
-        unsigned long val = vcpu_read(vcpu, acc->reg);
+        unsigned long val = vcpu_readreg(vcpu, acc->reg);
         /* TODO access imr */
     } else {
         /* TODO access imr */
         unsigned int val = 0;
-        vcpu_write(vcpu, acc->reg, val);
+        vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
@@ -129,17 +126,16 @@ static void emulate_intc1_eibg_access(struct emul_access *acc, size_t offset)
 static void emulate_intc1_fibg_access(struct emul_access *acc, size_t offset)
 {
     struct vcpu* vcpu = cpu()->vcpu;
-    struct vm* vm = vcpu->vm;
 
     /* TODO */
 
     if(acc->write){
-        unsigned long val = vcpu_read(vcpu, acc->reg);
+        unsigned long val = vcpu_readreg(vcpu, acc->reg);
         /* TODO access imr */
     } else {
         /* TODO access imr */
         unsigned int val = 0;
-        vcpu_write(vcpu, acc->reg, val);
+        vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
@@ -207,12 +203,12 @@ static void emulate_intc2_eic_access(struct emul_access *acc, size_t offset)
     }
 
     if(acc->write){
-        unsigned long val = vcpu_read(vcpu, acc->reg);
+        unsigned long val = vcpu_readreg(vcpu, acc->reg);
         /* TODO access eic */
     } else {
         /* TODO access eic */
         unsigned int val = 0;
-        vcpu_write(vcpu, acc->reg, val);
+        vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
@@ -228,12 +224,12 @@ static void emulate_intc2_imr_access(struct emul_access *acc, size_t offset)
     }
 
     if(acc->write){
-        unsigned long val = vcpu_read(vcpu, acc->reg);
+        unsigned long val = vcpu_readreg(vcpu, acc->reg);
         /* TODO access imr */
     } else {
         /* TODO access imr */
         unsigned int val = 0;
-        vcpu_write(vcpu, acc->reg, val);
+        vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
@@ -249,12 +245,12 @@ static void emulate_intc2_i2eibg_access(struct emul_access *acc, size_t offset)
     }
 
     if(acc->write){
-        unsigned long val = vcpu_read(vcpu, acc->reg);
+        unsigned long val = vcpu_readreg(vcpu, acc->reg);
         /* TODO access i2eibg */
     } else {
         /* TODO access i2eibg */
         unsigned int val = 0;
-        vcpu_write(vcpu, acc->reg, val);
+        vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
@@ -270,12 +266,12 @@ static void emulate_intc2_eibd_access(struct emul_access *acc, size_t offset)
     }
 
     if(acc->write){
-        unsigned long val = vcpu_read(vcpu, acc->reg);
+        unsigned long val = vcpu_readreg(vcpu, acc->reg);
         /* TODO access eibd */
     } else {
         /* TODO access eibd */
         unsigned int val = 0;
-        vcpu_write(vcpu, acc->reg, val);
+        vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
@@ -291,12 +287,12 @@ static void emulate_intc2_eeic_access(struct emul_access *acc, size_t offset)
     }
 
     if(acc->write){
-        unsigned long val = vcpu_read(vcpu, acc->reg);
+        unsigned long val = vcpu_readreg(vcpu, acc->reg);
         /* TODO access imr */
     } else {
         /* TODO access imr */
         unsigned int val = 0;
-        vcpu_write(vcpu, acc->reg, val);
+        vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 

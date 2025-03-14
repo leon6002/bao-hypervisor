@@ -38,7 +38,7 @@ static void mpu_entry_set(mpid_t mpid, struct mp_region* mpr)
 
     set_mpidx(mpid);
     set_mpla(mpr->base);
-    set_mpua(mpr->base + mpr->size);
+    set_mpua(lim);
     set_mpat(mpr->mem_flags);
 }
 
@@ -79,7 +79,7 @@ static mpid_t mpu_entry_allocate_guest(void)
 static mpid_t mpu_entry_allocate_hyp(void)
 {
     mpid_t reg_num = INVALID_MPID;
-    for (mpid_t i = (mpid_t)mpu_num_entries() - 1; i >= 0; i--) {
+    for (int i = (int)mpu_num_entries() - 1; i >= 0; i--) {
         if (bitmap_get(cpu()->arch.mpu_hyp.bitmap, i) == 0) {
             bitmap_set(cpu()->arch.mpu_hyp.bitmap, i);
             reg_num = i;
@@ -118,13 +118,13 @@ bool mpu_add_region(struct mp_region* reg, bool locked)
     return !failed;
 }
 
-static inline bool mpu_arch_perms_compatible(mem_flags_t perms1, mem_flags_t perms2)
-{
-    UNUSED_ARG(perms1);
-    UNUSED_ARG(perms2);
+/* static inline bool mpu_arch_perms_compatible(mem_flags_t perms1, mem_flags_t perms2) */
+/* { */
+/*     UNUSED_ARG(perms1); */
+/*     UNUSED_ARG(perms2); */
 
-    return 1;
-}
+/*     return 1; */
+/* } */
 
 static void mpu_entry_get_region(mpid_t mpid, struct mp_region* mpe)
 {
