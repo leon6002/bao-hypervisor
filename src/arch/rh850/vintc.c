@@ -28,9 +28,11 @@ static void emulate_intc1_eic_access(struct emul_access *acc, size_t offset)
     if(acc->write){
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
         intc1_hw_pe[cpu()->id]->EIC[int_id] = val;
+#warning "Unimplemented need to virtualize intc1 emulation peid"
     } else {
         unsigned int val = intc1_hw_pe[cpu()->id]->EIC[int_id];
         vcpu_writereg(vcpu, acc->reg, val);
+#warning "Unimplemented need to virtualize intc1 emulation peid"
     }
 }
 
@@ -83,9 +85,11 @@ static void emulate_intc1_eeic_access(struct emul_access *acc, size_t offset)
     if(acc->write){
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
         intc1_hw_pe[cpu()->id]->EEIC[int_id] = val;
+#warning "Unimplemented need to virtualize intc1 emulation peid"
     } else {
         unsigned int val = intc1_hw_pe[cpu()->id]->EEIC[int_id];
         vcpu_writereg(vcpu, acc->reg, val);
+#warning "Unimplemented need to virtualize intc1 emulation peid"
     }
 }
 
@@ -137,11 +141,10 @@ static bool vintc1_emul_handler(struct emul_access* acc)
     ERROR("%s not implemented", __func__);
 }
 
-
-
 static void emulate_intc2_eic_access(struct emul_access *acc, size_t offset)
 {
-    size_t int_id = ALIGN(offset, 16)/16;
+    size_t eeic_idx = ALIGN(offset, 16)/16;
+    irqid_t int_id = eeic_idx + 32;
 
     struct vcpu* vcpu = cpu()->vcpu;
     struct vm* vm = vcpu->vm;
@@ -152,10 +155,9 @@ static void emulate_intc2_eic_access(struct emul_access *acc, size_t offset)
 
     if(acc->write){
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        /* TODO access eic */
+        intc2_hw->EIC[eeic_idx] = val;
     } else {
-        /* TODO access eic */
-        unsigned int val = 0;
+        unsigned int val = intc2_hw->EIC[eeic_idx];
         vcpu_writereg(vcpu, acc->reg, val);
     }
 }
@@ -167,6 +169,7 @@ static void emulate_intc2_imr_access(struct emul_access *acc, size_t offset)
 
     size_t imr_idx = ALIGN(offset, 32)/32;
 
+    /* code below is a bit messy but it should work since we are multiple of 32bit*/
     irqid_t first_imr_int = imr_idx * 32 + 32;
     if(acc->write){
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
@@ -197,30 +200,10 @@ static void emulate_intc2_imr_access(struct emul_access *acc, size_t offset)
     }
 }
 
-static void emulate_intc2_i2eibg_access(struct emul_access *acc, size_t offset)
-{
-    size_t int_id = ALIGN(offset, 32)/32;
-
-    struct vcpu* vcpu = cpu()->vcpu;
-    struct vm* vm = vcpu->vm;
-
-    if(!vm_has_interrupt(vm, int_id)){
-        ERROR("VM tried to access unassigned interrupt");
-    }
-
-    if(acc->write){
-        unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        /* TODO access i2eibg */
-    } else {
-        /* TODO access i2eibg */
-        unsigned int val = 0;
-        vcpu_writereg(vcpu, acc->reg, val);
-    }
-}
-
 static void emulate_intc2_eibd_access(struct emul_access *acc, size_t offset)
 {
-    size_t int_id = ALIGN(offset, 32)/32;
+    size_t eibd_idx = ALIGN(offset, 32)/32;
+    irqid_t int_id = eibd_idx + 32;
 
     struct vcpu* vcpu = cpu()->vcpu;
     struct vm* vm = vcpu->vm;
@@ -229,19 +212,20 @@ static void emulate_intc2_eibd_access(struct emul_access *acc, size_t offset)
         ERROR("VM tried to access unassigned interrupt");
     }
 
+    /* we use 0xFFFF0000 to mask access to virtualization configuration */
     if(acc->write){
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        /* TODO access eibd */
+        intc2_hw->EIBD[eibd_idx] = val & 0xFFFF0000;
     } else {
-        /* TODO access eibd */
-        unsigned int val = 0;
+        unsigned int val = intc2_hw->EIBD[eibd_idx] & 0xFFFF0000;
         vcpu_writereg(vcpu, acc->reg, val);
     }
 }
 
 static void emulate_intc2_eeic_access(struct emul_access *acc, size_t offset)
 {
-    size_t int_id = ALIGN(offset, 32)/32;
+    size_t eeic_idx = ALIGN(offset, 32)/32;
+    size_t int_id = eeic_idx + 32;
 
     struct vcpu* vcpu = cpu()->vcpu;
     struct vm* vm = vcpu->vm;
@@ -252,11 +236,12 @@ static void emulate_intc2_eeic_access(struct emul_access *acc, size_t offset)
 
     if(acc->write){
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        /* TODO access imr */
+        intc2_hw->EEIC[eeic_idx] = val;
+#warning "Unimplemented need to virtualize intc2 emulation peid"
     } else {
-        /* TODO access imr */
-        unsigned int val = 0;
+        unsigned int val = intc2_hw->EEIC[eeic_idx];
         vcpu_writereg(vcpu, acc->reg, val);
+#warning "Unimplemented need to virtualize intc2 emulation peid"
     }
 }
 
@@ -274,12 +259,6 @@ bool vintc2_emul_handler(struct emul_access* acc)
     size_t intc2_imr_top = sizeof(((struct intc2*)NULL)->IMR);
     if(acc_offset >= intc2_imr_bot && acc_offset < intc2_imr_top){
         emulate_intc2_imr_access(acc, acc_offset - intc2_imr_bot);
-    }
-
-    size_t intc2_i2eibg_bot = offsetof(struct intc2, I2EIBG);
-    size_t intc2_i2eibg_top = sizeof(((struct intc2*)NULL)->I2EIBG);
-    if(acc_offset >= intc2_i2eibg_bot && acc_offset < intc2_i2eibg_top){
-        emulate_intc2_i2eibg_access(acc, acc_offset - intc2_i2eibg_bot);
     }
 
     size_t intc2_eibd_bot = offsetof(struct intc2, EIBD);
