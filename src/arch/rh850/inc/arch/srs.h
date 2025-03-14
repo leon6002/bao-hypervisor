@@ -820,6 +820,19 @@ static void set_dbgen(unsigned long val)
     ldsr r6, 0, 3
 }
 
+#pragma inline_asm get_gmpeid
+static unsigned long get_gmpeid(void)
+{
+    stsr 30, r10, 9
+}
+
+#pragma inline_asm set_gmpeid
+static void set_gmpeid(unsigned long val)
+{
+    ldsr r6, 30, 9
+}
+
+
 #endif /* GENERATING_DEFS */
 #endif /* __ASSEMBLER__ */
 

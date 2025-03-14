@@ -67,6 +67,7 @@ void vm_arch_init(struct vm* vm, const struct vm_config* vm_config)
 void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm)
 {
     vintc_init(vcpu);
+    set_gmpeid(vcpu->id);
 }
 
 void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry)
