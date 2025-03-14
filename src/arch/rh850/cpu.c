@@ -10,6 +10,14 @@
 
 cpuid_t CPU_MASTER;
 
+#define BOOT_CTRL ((unsigned int*)0xFFFB2000)
+
+#pragma inline_asm snooze
+void snooze(void)
+{
+    SNOOZE
+}
+
 /* Perform architecture dependent cpu cores initializations */
 void cpu_arch_init(cpuid_t cpuid, paddr_t load_addr)
 {
@@ -18,14 +26,16 @@ void cpu_arch_init(cpuid_t cpuid, paddr_t load_addr)
             if (c == cpuid) {
                 continue;
             }
-            WARNING("waking CPU %d not implemented", c);
+            /* We don't have MPU setup yet so it's safe to use direct pointers */
+            volatile unsigned int *bootcrl = BOOT_CTRL;
+            (*bootcrl) |= (1 << cpuid);
         }
     }
 }
 
 unsigned long cpu_id_to_mpidr(cpuid_t id)
 {
-    return 0;
+    return id;
 }
 
 inline struct cpu* cpu(void)
@@ -35,10 +45,11 @@ inline struct cpu* cpu(void)
 
 void cpu_arch_standby()
 {
-    ERROR("returned from standby wake up");
+    snooze();
 }
 
 void cpu_arch_powerdown()
 {
+    snooze();
     ERROR("returned from powerdown wake up");
 }
