@@ -191,6 +191,7 @@ VM_ENTRY .macro
 
 
 .extern _abort
+.extern _interrupts_handle
 
 _guest_exception:
     VM_EXIT
@@ -202,10 +203,13 @@ _host_exception:
 	br	_host_exception
 
 _Interrupt_EI:
-	br	_Interrupt_EI
+    VM_EXIT
+    br	_interrupts_handle, lp
+    VM_ENTRY
 
 
     .public _vcpu_arch_entry
 _vcpu_arch_entry:
+    VM_ENTRY
 vcpu_arch_entry_1:
-	br	vcpu_arch_entry_1
+    br	vcpu_arch_entry_1

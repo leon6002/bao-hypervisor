@@ -23,11 +23,9 @@
 
 void cache_arch_enumerate(struct cache* dscrp) { }
 
-void cache_flush_range(vaddr_t base, size_t size) 
+void cache_flush_range(vaddr_t base, size_t size)
 {
     /* unsigned long lpn = (base & (1<<(11-1))) << 11; */
     /* set_ictagl(lpn | 1); */
     /* set_ictagh(base+size-1); */
 }
-
-

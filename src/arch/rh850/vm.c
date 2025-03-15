@@ -15,16 +15,13 @@
 #include <mem.h>
 #include <arch/vintc.h>
 
-void vm_arch_init(struct vm* vm, const struct vm_config* vm_config)
-{
-
-}
+void vm_arch_init(struct vm* vm, const struct vm_config* vm_config) { }
 
 void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm)
 {
     vintc_init(vcpu);
     set_gmpeid(vcpu->id);
-    set_gmspid(vm->id+1);
+    set_gmspid(vm->id + 1);
 }
 
 void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry)
@@ -35,7 +32,7 @@ void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry)
     struct vm* vm = vcpu->vm;
 
     set_gmpeid(vcpu->id);
-    set_gmspid(vm->id+1);
+    set_gmspid(vm->id + 1);
 }
 
 bool vcpu_arch_is_on(struct vcpu* vcpu)
