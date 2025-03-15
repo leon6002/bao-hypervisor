@@ -50,7 +50,8 @@ __start:
     ldsr r0, 9, 5 ; Set the size to MCS
 
     ;; individual protections per cpu TODO should it be otherwise?
-    ldsr r5, 12, 5 ; set MCI (one spmid per cpu)
+    ldsr r0, 12, 5 ; set MCI to 0
+    ldsr r0, 0, 1 ; set SPID host SPID 0
 
     ;; initialize mpu entries for bank 0 TODO use other banks?
     ldsr r0, 17, 5 ; set MPBK
