@@ -10,7 +10,7 @@
 
 typedef union {
     struct {
-        uint16_t ur : 1; // hyp att? 
+        uint16_t ur : 1; // hyp att?
         uint16_t uw : 1; // hyp att?
         uint16_t ux : 1; // hyp att?
         uint16_t sr : 1; // hyp att?
@@ -19,8 +19,8 @@ typedef union {
         uint16_t res1 : 1;
         uint16_t e : 1;
         uint16_t res2 : 6;
-        uint16_t rg;
-        uint16_t wg;
+        uint16_t rg : 1;
+        uint16_t wg : 1;
         uint16_t rmpid0: 1; // VM attributes?
         uint16_t rmpid1: 1; // VM attributes?
         uint16_t rmpid2: 1; // VM attributes?
@@ -42,18 +42,22 @@ typedef union {
 } mpat_flags_t;
 
 
-typedef unsigned long mem_flags_t;
+typedef mpat_flags_t mem_flags_t;
 
-#define PTE_FLAGS(at)     ((mem_flags_t)at)
+#define PTE_INVALID       ((mem_flags_t) { .e = 0 })
 
-#define PTE_INVALID       PTE_FLAGS(0)
+#define PTE_HYP_FLAGS     ((mem_flags_t) { .e = 1, .sr = 1, .sw = 1, .sx = 1 })
+#define PTE_HYP_DEV_FLAGS ((mem_flags_t) { .e = 1, .sr = 1, .sw = 1, .sx = 0 })
 
-#define PTE_HYP_FLAGS     PTE_FLAGS(0)
-#define PTE_HYP_DEV_FLAGS PTE_FLAGS(0)
-// TODO:ARMV8M - We are missing flags to distinguish flags for mem regions RX or RW
+/* TODO in the future we need to deal with IO permissions securely */
+#define PTE_VM_FLAGS      ((mem_flags_t) { .e = 1, .sr = 1, .sw = 1, .sx = 1, \
+        .ur = 1, .uw = 1, .ux = 1, \
+        .rg = 1, .wg = 1 })
 
-#define PTE_VM_FLAGS      PTE_FLAGS(0)
-#define PTE_VM_DEV_FLAGS  PTE_FLAGS(0)
+/* TODO in the future we need to deal with IO permissions securely */
+#define PTE_VM_DEV_FLAGS  ((mem_flags_t) { .e = 1, .sr = 1, .sw = 1, .sx = 0, \
+        .ur = 1, .uw = 1, .ux = 0, \
+        .rg = 1, .wg = 1 })
 
 #define MPU_ARCH_MAX_NUM_ENTRIES (32)
 

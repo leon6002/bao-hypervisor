@@ -832,6 +832,18 @@ static void set_gmpeid(unsigned long val)
     ldsr r6, 30, 9
 }
 
+#pragma inline_asm get_gmspid
+static unsigned long get_gmspid(void)
+{
+    stsr 16, r10, 9
+}
+
+#pragma inline_asm set_gmspid
+static void set_gmspid(unsigned long val)
+{
+    ldsr r6, 16, 9
+}
+
 
 #endif /* GENERATING_DEFS */
 #endif /* __ASSEMBLER__ */

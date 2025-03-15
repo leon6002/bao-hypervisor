@@ -9,12 +9,6 @@
 #include <arch/mpu.h>
 #include <arch/srs.h>
 
-struct mpu_temp {
-    /* TODO */
-    unsigned long rbar;
-    unsigned long rlar;
-} mpu_temp[8];
-
 static inline size_t mpu_num_entries(void)
 {
     unsigned long mpcfg = get_mpcfg();
@@ -39,7 +33,7 @@ static void mpu_entry_set(mpid_t mpid, struct mp_region* mpr)
     set_mpidx(mpid);
     set_mpla(mpr->base);
     set_mpua(lim);
-    set_mpat(mpr->mem_flags);
+    set_mpat(mpr->mem_flags.raw);
 }
 
 static void mpu_entry_clear(mpid_t mpid)
@@ -72,8 +66,7 @@ static mpid_t mpu_entry_allocate_guest(void)
         }
     }
 
-    // TODO hopefully this is enough to guarantee hypervisor entries come last
-    return mpu_num_entries() - reg_num;
+    return reg_num;
 }
 
 static mpid_t mpu_entry_allocate_hyp(void)
@@ -88,8 +81,7 @@ static mpid_t mpu_entry_allocate_hyp(void)
         }
     }
 
-    // TODO hopefully this is enough to guarantee hypervisor entries come last
-    return mpu_num_entries() - reg_num;
+    return reg_num;
 }
 
 bool mpu_add_region(struct mp_region* reg, bool locked)
@@ -113,8 +105,6 @@ bool mpu_add_region(struct mp_region* reg, bool locked)
         }
     }
 
-    /* mpu_read_and_save(); TODO what is this? */
-
     return !failed;
 }
 
@@ -133,7 +123,7 @@ static void mpu_entry_get_region(mpid_t mpid, struct mp_region* mpe)
     unsigned long base = get_mpla();
     unsigned long limit = get_mpua();
 
-    mpe->mem_flags = get_mpat();
+    mpe->mem_flags.raw = get_mpat();
     mpe->base = base;
     mpe->size = limit;
     mpe->as_sec = SEC_UNKNOWN;
@@ -173,13 +163,6 @@ bool mpu_remove_region(struct mp_region* reg)
             failed = false;
             mpu_entry_free(mpid);
         }
-
-        // TODO what is this
-        /* for (int i = 0; i < 8; i++) { */
-        /*     mpu_s->rnr = (uint32_t)i; */
-        /*     mpu_temp[i].rbar = mpu_s->rbar & MPU_RBAR_BASE_MSK; */
-        /*     mpu_temp[i].rlar = mpu_s->rlar | 0x1F; */
-        /* } */
     }
 
     return !failed;
@@ -202,8 +185,6 @@ bool mpu_update_region(struct mp_region* mpr)
             break;
         }
     }
-    // TODO:ARMV8M - what is this?
-    /* mpu_read_and_save(); */
 
     return !failed;
 }
