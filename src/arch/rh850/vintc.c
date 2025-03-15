@@ -13,133 +13,132 @@ extern volatile struct eint* eint_hw;
 extern volatile struct fenc* fenc_hw;
 extern volatile struct feinc* feinc_hw[PLAT_CPU_NUM];
 
-static void emulate_intc1_eic_access(struct emul_access *acc, size_t offset)
-{
+/* static void emulate_intc1_eic_access(struct emul_access *acc, size_t offset) */
+/* { */
+/*     size_t int_id = ALIGN(offset, 16)/16; */
 
-    size_t int_id = ALIGN(offset, 16)/16;
+/*     struct vcpu* vcpu = cpu()->vcpu; */
+/*     struct vm* vm = vcpu->vm; */
 
-    struct vcpu* vcpu = cpu()->vcpu;
-    struct vm* vm = vcpu->vm;
+/*     if(!vm_has_interrupt(vm, int_id)){ */
+/*         ERROR("VM tried to access unassigned interrupt"); */
+/*     } */
 
-    if(!vm_has_interrupt(vm, int_id)){
-        ERROR("VM tried to access unassigned interrupt");
-    }
+/*     if(acc->write){ */
+/*         unsigned long val = vcpu_readreg(vcpu, acc->reg); */
+/*         intc1_hw_pe[cpu()->id]->EIC[int_id] = val; */
+/* #warning "Unimplemented need to virtualize intc1 emulation peid" */
+/*     } else { */
+/*         unsigned int val = intc1_hw_pe[cpu()->id]->EIC[int_id]; */
+/*         vcpu_writereg(vcpu, acc->reg, val); */
+/* #warning "Unimplemented need to virtualize intc1 emulation peid" */
+/*     } */
+/* } */
 
-    if(acc->write){
-        unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        intc1_hw_pe[cpu()->id]->EIC[int_id] = val;
-#warning "Unimplemented need to virtualize intc1 emulation peid"
-    } else {
-        unsigned int val = intc1_hw_pe[cpu()->id]->EIC[int_id];
-        vcpu_writereg(vcpu, acc->reg, val);
-#warning "Unimplemented need to virtualize intc1 emulation peid"
-    }
-}
+/* static void emulate_intc1_imr_access(struct emul_access *acc, size_t offset) */
+/* { */
+/*     struct vcpu* vcpu = cpu()->vcpu; */
+/*     struct vm* vm = vcpu->vm; */
 
-static void emulate_intc1_imr_access(struct emul_access *acc, size_t offset)
-{
-    struct vcpu* vcpu = cpu()->vcpu;
-    struct vm* vm = vcpu->vm;
+/*     if(acc->write){ */
+/*         unsigned long val = vcpu_readreg(vcpu, acc->reg); */
 
-    if(acc->write){
-        unsigned long val = vcpu_readreg(vcpu, acc->reg);
+/*         for(unsigned int i = 0; i < 32; i++){ */
+/*             if(!vm_has_interrupt(vm, i)){ */
+/*                 continue; */
+/*             } */
+/*             unsigned int imr_bit = (i % 32); */
+/*             if((1UL << imr_bit) & val){ */
+/*                 intc1_hw_pe[cpu()->id]->IMR |= 1UL << imr_bit; */
+/*             } */
+/*         } */
+/*     } else { */
+/*         unsigned long val = 0; */
 
-        for(unsigned int i = 0; i < 32; i++){
-            if(!vm_has_interrupt(vm, i)){
-                continue;
-            }
-            unsigned int imr_bit = (i % 32);
-            if((1UL << imr_bit) & val){
-                intc1_hw_pe[cpu()->id]->IMR |= 1UL << imr_bit;
-            }
-        }
-    } else {
-        unsigned long val = 0;
-
-        for(unsigned int i = 0; i < 32; i++){
-            if(!vm_has_interrupt(vm, i)){
-                continue;
-            }
-            unsigned int imr_bit = (i % 32);
-            unsigned int imr_val = intc1_hw_pe[cpu()->id]->IMR;
-            if((1UL << imr_bit) & imr_val){
-                val |= (1UL << imr_bit);
-            }
-        }
-        vcpu_writereg(vcpu, acc->reg, val);
-    }
-}
-
-
-static void emulate_intc1_eeic_access(struct emul_access *acc, size_t offset)
-{
-    size_t int_id = ALIGN(offset, 32)/32;
-
-    struct vcpu* vcpu = cpu()->vcpu;
-    struct vm* vm = vcpu->vm;
-
-    if(!vm_has_interrupt(vm, int_id)){
-        ERROR("VM tried to access unassigned interrupt");
-    }
-
-    if(acc->write){
-        unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        intc1_hw_pe[cpu()->id]->EEIC[int_id] = val;
-#warning "Unimplemented need to virtualize intc1 emulation peid"
-    } else {
-        unsigned int val = intc1_hw_pe[cpu()->id]->EEIC[int_id];
-        vcpu_writereg(vcpu, acc->reg, val);
-#warning "Unimplemented need to virtualize intc1 emulation peid"
-    }
-}
+/*         for(unsigned int i = 0; i < 32; i++){ */
+/*             if(!vm_has_interrupt(vm, i)){ */
+/*                 continue; */
+/*             } */
+/*             unsigned int imr_bit = (i % 32); */
+/*             unsigned int imr_val = intc1_hw_pe[cpu()->id]->IMR; */
+/*             if((1UL << imr_bit) & imr_val){ */
+/*                 val |= (1UL << imr_bit); */
+/*             } */
+/*         } */
+/*         vcpu_writereg(vcpu, acc->reg, val); */
+/*     } */
+/* } */
 
 
-static void emulate_intc1_eibg_access(struct emul_access *acc, size_t offset)
-{
-    struct vcpu* vcpu = cpu()->vcpu;
+/* static void emulate_intc1_eeic_access(struct emul_access *acc, size_t offset) */
+/* { */
+/*     size_t int_id = ALIGN(offset, 32)/32; */
 
-    /* TODO  Check priority threshold ... */
+/*     struct vcpu* vcpu = cpu()->vcpu; */
+/*     struct vm* vm = vcpu->vm; */
 
-    if(acc->write){
-        unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        intc1_hw_pe[cpu()->id]->EIBG = val;
-    } else {
-        /* TODO access imr */
-        unsigned int val = intc1_hw_pe[cpu()->id]->EIBG;
-        vcpu_writereg(vcpu, acc->reg, val);
-    }
-}
+/*     if(!vm_has_interrupt(vm, int_id)){ */
+/*         ERROR("VM tried to access unassigned interrupt"); */
+/*     } */
 
-static bool vintc1_emul_handler(struct emul_access* acc)
-{
-    size_t acc_offset = acc->addr - platform.arch.intc.intc1_addr;
+/*     if(acc->write){ */
+/*         unsigned long val = vcpu_readreg(vcpu, acc->reg); */
+/*         intc1_hw_pe[cpu()->id]->EEIC[int_id] = val; */
+/* #warning "Unimplemented need to virtualize intc1 emulation peid" */
+/*     } else { */
+/*         unsigned int val = intc1_hw_pe[cpu()->id]->EEIC[int_id]; */
+/*         vcpu_writereg(vcpu, acc->reg, val); */
+/* #warning "Unimplemented need to virtualize intc1 emulation peid" */
+/*     } */
+/* } */
 
-    size_t intc1_eic_bot = offsetof(struct intc1, EIC);
-    size_t intc1_eic_top = sizeof(((struct intc1*)NULL)->EIC);
-    if(acc_offset >= intc1_eic_bot && acc_offset < intc1_eic_top){
-        emulate_intc1_eic_access(acc, acc_offset - intc1_eic_bot);
-    }
 
-    size_t intc1_imr_bot = offsetof(struct intc1, IMR);
-    size_t intc1_imr_top = sizeof(((struct intc1*)NULL)->IMR);
-    if(acc_offset >= intc1_imr_bot && acc_offset < intc1_imr_top){
-        emulate_intc1_imr_access(acc, acc_offset - intc1_imr_bot);
-    }
+/* static void emulate_intc1_eibg_access(struct emul_access *acc, size_t offset) */
+/* { */
+/*     struct vcpu* vcpu = cpu()->vcpu; */
 
-    size_t intc1_eeic_bot = offsetof(struct intc1, EEIC);
-    size_t intc1_eeic_top = sizeof(((struct intc1*)NULL)->EEIC);
-    if(acc_offset >= intc1_eeic_bot && acc_offset < intc1_eeic_top){
-        emulate_intc1_eeic_access(acc, acc_offset - intc1_eeic_bot);
-    }
+/*     /1* TODO  Check priority threshold ... *1/ */
 
-    size_t intc1_eibg_bot = offsetof(struct intc1, EIBG);
-    size_t intc1_eibg_top = sizeof(((struct intc1*)NULL)->EIBG);
-    if(acc_offset >= intc1_eibg_bot && acc_offset < intc1_eibg_top){
-        emulate_intc1_eibg_access(acc, acc_offset - intc1_eibg_bot);
-    }
+/*     if(acc->write){ */
+/*         unsigned long val = vcpu_readreg(vcpu, acc->reg); */
+/*         intc1_hw_pe[cpu()->id]->EIBG = val; */
+/*     } else { */
+/*         /1* TODO access imr *1/ */
+/*         unsigned int val = intc1_hw_pe[cpu()->id]->EIBG; */
+/*         vcpu_writereg(vcpu, acc->reg, val); */
+/*     } */
+/* } */
 
-    ERROR("%s not implemented", __func__);
-}
+/* static bool vintc1_emul_handler(struct emul_access* acc) */
+/* { */
+/*     size_t acc_offset = acc->addr - platform.arch.intc.intc1_addr; */
+
+/*     size_t intc1_eic_bot = offsetof(struct intc1, EIC); */
+/*     size_t intc1_eic_top = sizeof(((struct intc1*)NULL)->EIC); */
+/*     if(acc_offset >= intc1_eic_bot && acc_offset < intc1_eic_top){ */
+/*         emulate_intc1_eic_access(acc, acc_offset - intc1_eic_bot); */
+/*     } */
+
+/*     size_t intc1_imr_bot = offsetof(struct intc1, IMR); */
+/*     size_t intc1_imr_top = sizeof(((struct intc1*)NULL)->IMR); */
+/*     if(acc_offset >= intc1_imr_bot && acc_offset < intc1_imr_top){ */
+/*         emulate_intc1_imr_access(acc, acc_offset - intc1_imr_bot); */
+/*     } */
+
+/*     size_t intc1_eeic_bot = offsetof(struct intc1, EEIC); */
+/*     size_t intc1_eeic_top = sizeof(((struct intc1*)NULL)->EEIC); */
+/*     if(acc_offset >= intc1_eeic_bot && acc_offset < intc1_eeic_top){ */
+/*         emulate_intc1_eeic_access(acc, acc_offset - intc1_eeic_bot); */
+/*     } */
+
+/*     size_t intc1_eibg_bot = offsetof(struct intc1, EIBG); */
+/*     size_t intc1_eibg_top = sizeof(((struct intc1*)NULL)->EIBG); */
+/*     if(acc_offset >= intc1_eibg_bot && acc_offset < intc1_eibg_top){ */
+/*         emulate_intc1_eibg_access(acc, acc_offset - intc1_eibg_bot); */
+/*     } */
+
+/*     ERROR("%s not implemented", __func__); */
+/* } */
 
 static void emulate_intc2_eic_access(struct emul_access *acc, size_t offset)
 {
@@ -300,12 +299,12 @@ void vintc_init(struct vcpu* vcpu)
 {
     struct vm* vm = vcpu->vm;
 
-    vm->arch.intc1_emul = (struct emul_mem){
-        .va_base = platform.arch.intc.intc1_addr,
-        .size = ALIGN(sizeof(struct intc1), PAGE_SIZE),
-        .handler = vintc1_emul_handler,
-    };
-    vm_emul_add_mem(vm, &vm->arch.intc1_emul);
+    /* vm->arch.intc1_emul = (struct emul_mem){ */
+    /*     .va_base = platform.arch.intc.intc1_addr, */
+    /*     .size = ALIGN(sizeof(struct intc1), PAGE_SIZE), */
+    /*     .handler = vintc1_emul_handler, */
+    /* }; */
+    /* vm_emul_add_mem(vm, &vm->arch.intc1_emul); */
 
     vm->arch.intc2_emul = (struct emul_mem){
         .va_base = platform.arch.intc.intc2_addr,
