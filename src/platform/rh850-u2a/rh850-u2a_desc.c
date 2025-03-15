@@ -37,6 +37,8 @@ struct platform platform = {
                 0xFF9A3D00,
                 0xFF9A3E00,
             },
-        }
+        },
+
+        .ipir_addr = 0xFFFB9000,
     }
 };

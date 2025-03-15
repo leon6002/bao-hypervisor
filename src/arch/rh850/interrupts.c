@@ -13,6 +13,21 @@
 #include <vm.h>
 #include <fences.h>
 
+#define IPIR_CHANNEL_NUM 4
+#define IPI_IRQ_ID 0
+
+struct ipir {
+    struct {
+        volatile uint8_t IPI_ENS;       // Offset: 0x000 + 0x020 * n
+        volatile uint8_t IPI_FLGS;      // Offset: 0x004 + 0x020 * n
+        volatile uint8_t IPI_FCLRS;     // Offset: 0x008 + 0x020 * n
+        volatile uint8_t IPI_REQS;      // Offset: 0x010 + 0x020 * n
+        volatile uint8_t IPI_RCLRS;     // Offset: 0x014 + 0x020 * n
+    } channel[IPIR_CHANNEL_NUM];
+};
+
+struct ipir *ipir_hw;
+
 extern irq_handler_t interrupt_handlers[MAX_INTERRUPT_HANDLERS];
 
 void interrupts_arch_init()
@@ -59,10 +74,42 @@ void interrupts_arch_vm_assign(struct vm* vm, irqid_t int_id)
     intc_vm_assign(int_id, vm->id);
 }
 
-void interrupts_arch_ipi_send(cpuid_t cpu_target, irqid_t ipi_id)
+void interrupts_arch_ipi_send(cpuid_t cpu_target)
 {
-    UNUSED_ARG(cpu_target);
-    UNUSED_ARG(ipi_id);
-    ERROR("not implemented");
-#warning interrupts_arch_ipi_send not implemented
+    ipir_hw->channel[0].IPI_REQS = (1 << cpu_target);
+}
+
+static void ipir_map_global_mmio()
+{
+    vaddr_t start_addr = platform.arch.ipir_addr;
+    size_t npages = NUM_PAGES(sizeof(struct ipir));
+
+    ipir_hw = mem_alloc_map_dev(&cpu()->as, SEC_HYP_GLOBAL, INVALID_VA, start_addr, npages);
+    if (ipir_hw == INVALID_VA) {
+        ERROR("maping ipir failed");
+    }
+}
+
+enum irq_res ipir_handle(irqid_t int_id)
+{
+    cpu_msg_handler();
+
+    cpuid_t from = ipir_hw->channel[IPI_IRQ_ID].IPI_FLGS;
+    ipir_hw->channel[IPI_IRQ_ID].IPI_FCLRS = ((1 << from)-1);
+}
+
+void interrupts_arch_ipi_init(void)
+{
+    if (cpu_is_master()) {
+        ipir_map_global_mmio();
+    }
+    /* TODO How to deal with interrupt being "shared" between cores */
+    interrupts_reserve(IPI_IRQ_ID, irq_handler_t handler);
+
+    ipir_hw->channel[IPI_IRQ_ID].IPI_ENS = ((1 << PLAT_CPU_NUM)-1);
+}
+
+void interrupts_arch_ipi_enable(void)
+{
+    interrupts_cpu_enable(IPI_IRQ_ID, true);
 }
