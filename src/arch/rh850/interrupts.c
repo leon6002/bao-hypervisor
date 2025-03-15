@@ -16,6 +16,8 @@
 #define IPIR_CHANNEL_NUM 4
 #define IPI_IRQ_ID 0
 
+irqid_t interrupts_ipi_id = IPI_IRQ_ID;
+
 struct ipir {
     struct {
         volatile uint8_t IPI_ENS;       // Offset: 0x000 + 0x020 * n
@@ -104,7 +106,7 @@ void interrupts_arch_ipi_init(void)
         ipir_map_global_mmio();
     }
     /* TODO How to deal with interrupt being "shared" between cores */
-    interrupts_reserve(IPI_IRQ_ID, irq_handler_t handler);
+    interrupts_reserve(IPI_IRQ_ID, ipir_handle);
 
     ipir_hw->channel[IPI_IRQ_ID].IPI_ENS = ((1 << PLAT_CPU_NUM)-1);
 }
