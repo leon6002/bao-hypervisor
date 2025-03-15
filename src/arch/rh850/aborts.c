@@ -4,39 +4,39 @@
 #include <arch/vm.h>
 
 // LEN (Bits 31-28)
-#define MEI_LEN_MASK     (0xFUL << 28)
-#define MEI_LEN_SHIFT    28
-#define MEI_GET_LEN(val) (((val) & MEI_LEN_MASK) >> MEI_LEN_SHIFT)
+#define MEI_LEN_MASK          (0xFUL << 28)
+#define MEI_LEN_SHIFT         28
+#define MEI_GET_LEN(val)      (((val) & MEI_LEN_MASK) >> MEI_LEN_SHIFT)
 #define MEI_SET_LEN(val, len) ((val) = ((val) & ~MEI_LEN_MASK) | (((len) & 0xF) << MEI_LEN_SHIFT))
 
 // REG (Bits 20-16)
-#define MEI_REG_MASK     (0x1F << 16)
-#define MEI_REG_SHIFT    16
-#define MEI_GET_REG(val) (((val) & MEI_REG_MASK) >> MEI_REG_SHIFT)
+#define MEI_REG_MASK          (0x1F << 16)
+#define MEI_REG_SHIFT         16
+#define MEI_GET_REG(val)      (((val) & MEI_REG_MASK) >> MEI_REG_SHIFT)
 #define MEI_SET_REG(val, reg) ((val) = ((val) & ~MEI_REG_MASK) | (((reg) & 0x1F) << MEI_REG_SHIFT))
 
 // DS (Bits 11-9)
-#define MEI_DS_MASK      (0x7 << 9)
-#define MEI_DS_SHIFT     9
-#define MEI_GET_DS(val)  (((val) & MEI_DS_MASK) >> MEI_DS_SHIFT)
-#define MEI_SET_DS(val, ds) ((val) = ((val) & ~MEI_DS_MASK) | (((ds) & 0x7) << MEI_DS_SHIFT))
+#define MEI_DS_MASK           (0x7 << 9)
+#define MEI_DS_SHIFT          9
+#define MEI_GET_DS(val)       (((val) & MEI_DS_MASK) >> MEI_DS_SHIFT)
+#define MEI_SET_DS(val, ds)   ((val) = ((val) & ~MEI_DS_MASK) | (((ds) & 0x7) << MEI_DS_SHIFT))
 
 // U (Bit 8)
-#define MEI_U_MASK       (1 << 8)
-#define MEI_GET_U(val)   (((val) & MEI_U_MASK) >> 8)
-#define MEI_SET_U(val, u) ((val) = ((val) & ~MEI_U_MASK) | (((u) & 0x1) << 8))
+#define MEI_U_MASK            (1 << 8)
+#define MEI_GET_U(val)        (((val) & MEI_U_MASK) >> 8)
+#define MEI_SET_U(val, u)     ((val) = ((val) & ~MEI_U_MASK) | (((u) & 0x1) << 8))
 
 // ITYPE (Bits 5-1)
-#define MEI_ITYPE_MASK   (0x1F << 1)
-#define MEI_ITYPE_SHIFT  1
-#define MEI_GET_ITYPE(val) (((val) & MEI_ITYPE_MASK) >> MEI_ITYPE_SHIFT)
-#define MEI_SET_ITYPE(val, itype) ((val) = ((val) & ~MEI_ITYPE_MASK) | (((itype) & 0x1F) << MEI_ITYPE_SHIFT))
+#define MEI_ITYPE_MASK        (0x1F << 1)
+#define MEI_ITYPE_SHIFT       1
+#define MEI_GET_ITYPE(val)    (((val) & MEI_ITYPE_MASK) >> MEI_ITYPE_SHIFT)
+#define MEI_SET_ITYPE(val, itype) \
+    ((val) = ((val) & ~MEI_ITYPE_MASK) | (((itype) & 0x1F) << MEI_ITYPE_SHIFT))
 
 // RW (Bit 0)
-#define MEI_RW_MASK      (1 << 0)
-#define MEI_GET_RW(val)  ((val) & MEI_RW_MASK)
+#define MEI_RW_MASK         (1 << 0)
+#define MEI_GET_RW(val)     ((val) & MEI_RW_MASK)
 #define MEI_SET_RW(val, rw) ((val) = ((val) & ~MEI_RW_MASK) | ((rw) & 0x1))
-
 
 static void data_abort()
 {
@@ -78,7 +78,6 @@ void abort()
 {
     unsigned long cause = get_eiic();
 
-
     switch (cause) {
         case 0x01:
             WARNING("Exception: RESET - Reset input\n");
@@ -100,7 +99,8 @@ void abort()
             data_abort();
             break;
         case 0x95:
-            WARNING("Exception: MDP - Memory protection exception (interrupt table reference method)\n");
+            WARNING("Exception: MDP - Memory protection exception (interrupt table reference "
+                    "method)\n");
             break;
 
         case 0x80:
@@ -118,7 +118,8 @@ void abort()
             break;
 
         case 0x1D:
-            WARNING("Exception: SYSERR - System error (error prior to register bank restoration)\n");
+            WARNING("Exception: SYSERR - System error (error prior to register bank "
+                    "restoration)\n");
             break;
 
         case 0xC0:

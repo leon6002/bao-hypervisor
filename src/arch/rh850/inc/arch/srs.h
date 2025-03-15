@@ -844,7 +844,6 @@ static void set_gmspid(unsigned long val)
     ldsr r6, 16, 9
 }
 
-
 #endif /* GENERATING_DEFS */
 #endif /* __ASSEMBLER__ */
 

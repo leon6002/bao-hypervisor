@@ -14,21 +14,21 @@
 #include <fences.h>
 
 #define IPIR_CHANNEL_NUM 4
-#define IPI_IRQ_ID 0
+#define IPI_IRQ_ID       0
 
 irqid_t interrupts_ipi_id = IPI_IRQ_ID;
 
 struct ipir {
     struct {
-        volatile uint8_t IPI_ENS;       // Offset: 0x000 + 0x020 * n
-        volatile uint8_t IPI_FLGS;      // Offset: 0x004 + 0x020 * n
-        volatile uint8_t IPI_FCLRS;     // Offset: 0x008 + 0x020 * n
-        volatile uint8_t IPI_REQS;      // Offset: 0x010 + 0x020 * n
-        volatile uint8_t IPI_RCLRS;     // Offset: 0x014 + 0x020 * n
+        volatile uint8_t IPI_ENS;   // Offset: 0x000 + 0x020 * n
+        volatile uint8_t IPI_FLGS;  // Offset: 0x004 + 0x020 * n
+        volatile uint8_t IPI_FCLRS; // Offset: 0x008 + 0x020 * n
+        volatile uint8_t IPI_REQS;  // Offset: 0x010 + 0x020 * n
+        volatile uint8_t IPI_RCLRS; // Offset: 0x014 + 0x020 * n
     } channel[IPIR_CHANNEL_NUM];
 };
 
-struct ipir *ipir_hw;
+struct ipir* ipir_hw;
 
 extern irq_handler_t interrupt_handlers[MAX_INTERRUPT_HANDLERS];
 
@@ -96,8 +96,9 @@ enum irq_res ipir_handle(irqid_t int_id)
 {
     cpu_msg_handler();
 
+    /* ipi clear */
     cpuid_t from = ipir_hw->channel[IPI_IRQ_ID].IPI_FLGS;
-    ipir_hw->channel[IPI_IRQ_ID].IPI_FCLRS = ((1 << from)-1);
+    ipir_hw->channel[IPI_IRQ_ID].IPI_FCLRS = ((1 << from) - 1);
 }
 
 void interrupts_arch_ipi_init(void)
@@ -108,7 +109,7 @@ void interrupts_arch_ipi_init(void)
     /* TODO How to deal with interrupt being "shared" between cores */
     interrupts_reserve(IPI_IRQ_ID, ipir_handle);
 
-    ipir_hw->channel[IPI_IRQ_ID].IPI_ENS = ((1 << PLAT_CPU_NUM)-1);
+    ipir_hw->channel[IPI_IRQ_ID].IPI_ENS = ((1 << PLAT_CPU_NUM) - 1);
 }
 
 void interrupts_arch_ipi_enable(void)
