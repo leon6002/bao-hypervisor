@@ -6,7 +6,7 @@
 #include <bitmap.h>
 #include <interrupts.h>
 
-extern volatile struct intc1* intc1_hw_pe[PLAT_CPU_NUM];
+extern volatile struct intc1* intc1_hw;
 extern volatile struct intc2* intc2_hw;
 extern volatile struct intif* intif_hw;
 extern volatile struct eint* eint_hw;
@@ -26,10 +26,10 @@ extern volatile struct feinc* feinc_hw[PLAT_CPU_NUM];
 
 /*     if(acc->write){ */
 /*         unsigned long val = vcpu_readreg(vcpu, acc->reg); */
-/*         intc1_hw_pe[cpu()->id]->EIC[int_id] = val; */
+/*         intc1_hw->EIC[int_id] = val; */
 /* #warning "Unimplemented need to virtualize intc1 emulation peid" */
 /*     } else { */
-/*         unsigned int val = intc1_hw_pe[cpu()->id]->EIC[int_id]; */
+/*         unsigned int val = intc1_hw->EIC[int_id]; */
 /*         vcpu_writereg(vcpu, acc->reg, val); */
 /* #warning "Unimplemented need to virtualize intc1 emulation peid" */
 /*     } */
@@ -49,7 +49,7 @@ extern volatile struct feinc* feinc_hw[PLAT_CPU_NUM];
 /*             } */
 /*             unsigned int imr_bit = (i % 32); */
 /*             if((1UL << imr_bit) & val){ */
-/*                 intc1_hw_pe[cpu()->id]->IMR |= 1UL << imr_bit; */
+/*                 intc1_hw->IMR |= 1UL << imr_bit; */
 /*             } */
 /*         } */
 /*     } else { */
@@ -60,7 +60,7 @@ extern volatile struct feinc* feinc_hw[PLAT_CPU_NUM];
 /*                 continue; */
 /*             } */
 /*             unsigned int imr_bit = (i % 32); */
-/*             unsigned int imr_val = intc1_hw_pe[cpu()->id]->IMR; */
+/*             unsigned int imr_val = intc1_hw->IMR; */
 /*             if((1UL << imr_bit) & imr_val){ */
 /*                 val |= (1UL << imr_bit); */
 /*             } */
@@ -82,10 +82,10 @@ extern volatile struct feinc* feinc_hw[PLAT_CPU_NUM];
 
 /*     if(acc->write){ */
 /*         unsigned long val = vcpu_readreg(vcpu, acc->reg); */
-/*         intc1_hw_pe[cpu()->id]->EEIC[int_id] = val; */
+/*         intc1_hw->EEIC[int_id] = val; */
 /* #warning "Unimplemented need to virtualize intc1 emulation peid" */
 /*     } else { */
-/*         unsigned int val = intc1_hw_pe[cpu()->id]->EEIC[int_id]; */
+/*         unsigned int val = intc1_hw->EEIC[int_id]; */
 /*         vcpu_writereg(vcpu, acc->reg, val); */
 /* #warning "Unimplemented need to virtualize intc1 emulation peid" */
 /*     } */
@@ -99,10 +99,10 @@ extern volatile struct feinc* feinc_hw[PLAT_CPU_NUM];
 
 /*     if(acc->write){ */
 /*         unsigned long val = vcpu_readreg(vcpu, acc->reg); */
-/*         intc1_hw_pe[cpu()->id]->EIBG = val; */
+/*         intc1_hw->EIBG = val; */
 /*     } else { */
 /*         /1* TODO access imr *1/ */
-/*         unsigned int val = intc1_hw_pe[cpu()->id]->EIBG; */
+/*         unsigned int val = intc1_hw->EIBG; */
 /*         vcpu_writereg(vcpu, acc->reg, val); */
 /*     } */
 /* } */

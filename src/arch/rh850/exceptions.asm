@@ -203,9 +203,10 @@ _host_exception:
 	br	_host_exception
 
 _Interrupt_EI:
-    VM_EXIT
-    br	_interrupts_handle, lp
-    VM_ENTRY
+    br _Interrupt_EI   
+    ;VM_EXIT
+    ; br	_interrupts_handle, lp
+    ;VM_ENTRY
 
 
     .public _vcpu_arch_entry

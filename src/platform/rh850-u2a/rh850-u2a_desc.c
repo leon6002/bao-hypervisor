@@ -9,7 +9,7 @@ irqid_t plat_ints[2048];
 
 struct platform platform = {
 
-    .cpu_num = 2,
+    .cpu_num = 4,
     .cpu_master_fixed = true,
     .cpu_master = 0,
 
@@ -21,7 +21,6 @@ struct platform platform = {
                 .size = 0x20000,
                 .perms = RWX,
             },
-
         },
 
     .arch = {

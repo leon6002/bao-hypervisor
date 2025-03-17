@@ -13,5 +13,5 @@
 
 #define PLAT_MAX_INTERRUPTS  767
 
-#define PLAT_MAX_MPU_REGIONS 8
+#define PLAT_MAX_MPU_REGIONS 32
 #endif
