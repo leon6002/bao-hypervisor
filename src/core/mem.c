@@ -499,10 +499,6 @@ struct ppages mem_alloc_ppages(colormap_t colors, size_t num_pages, bool aligned
     return pages;
 }
 
-/* use global variables instead the argument
- * rx_addr rw_addr
- */
-
 void mem_init(void)
 {
     mem_prot_init();

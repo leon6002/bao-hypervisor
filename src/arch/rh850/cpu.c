@@ -33,11 +33,6 @@ void cpu_arch_init(cpuid_t cpuid, paddr_t load_addr)
     }
 }
 
-unsigned long cpu_id_to_mpidr(cpuid_t id)
-{
-    return id;
-}
-
 inline struct cpu* cpu(void)
 {
     return (struct cpu*)get_ebase();
