@@ -13,6 +13,17 @@ extern volatile struct eint* eint_hw;
 extern volatile struct fenc* fenc_hw;
 extern volatile struct feinc* feinc_hw[PLAT_CPU_NUM];
 
+
+void vintc_inject(struct vcpu* vcpu, irqid_t int_id)
+{
+    struct vm* vm = vcpu->vm;
+
+    if (!vm_has_interrupt(vm, int_id)) {
+        ERROR("VM tried to access unassigned interrupt");
+    }
+    intc_set_pend(int_id, true);
+}
+
 /* static void emulate_intc1_eic_access(struct emul_access *acc, size_t offset) */
 /* { */
 /*     size_t int_id = ALIGN(offset, 16)/16; */

@@ -9,6 +9,7 @@
 #include <bao.h>
 #include <cpu.h>
 #include <arch/interrupts.h>
+#include <arch/vintc.h>
 #include <emul.h>
 #include <arch/vmpu.h>
 
@@ -85,16 +86,12 @@ void vcpu_arch_entry(void);
 
 static inline void vcpu_arch_inject_hw_irq(struct vcpu* vcpu, irqid_t id)
 {
-    (void)vcpu;
-    (void)id;
-    /* vintc_inject(vcpu, id); */
+    vintc_inject(vcpu, id);
 }
 
 static inline void vcpu_arch_inject_irq(struct vcpu* vcpu, irqid_t id)
 {
-    (void)vcpu;
-    (void)id;
-    /* vint_inject(vcpu, id); */
+    vintc_inject(vcpu, id);
 }
 
 #endif /* __ARCH_VM_H__ */
