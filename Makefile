@@ -250,7 +250,7 @@ $(ld_script_temp):
 	@echo " -list" >> $(ld_script_temp)
 	@echo " -nologo" >> $(ld_script_temp)
 	@echo ' -library="$(shell dirname $(shell dirname $(shell which $(cc))))/lib/v850e3v5/rhs8n.lib"' >> $(ld_script_temp)
-	@echo " -start=VECTAB,EINTTBL,.text,.const,.data,.ipi_cpumsg_handlers.const,.bss,.ipi_cpumsg_handlers_id.bss/0,.data.R,.ipi_cpumsg_handlers.const.R,.bss.R,.bss.R,.ipi_cpumsg_handlers_id.bss/ff000000" >> $(ld_script_temp)
+	@echo " -start=VECTAB,EINTTBL,.text,.const,.data,.ipi_cpumsg_handlers_id.data,.ipi_cpumsg_handlers.const,.bss/0,.data.R,.ipi_cpumsg_handlers_id.data.R,.ipi_cpumsg_handlers.const.R,.bss.R/ff000000" >> $(ld_script_temp)
 	@echo " -rom=.data*=.data.*R,.ipi_cpumsg_handlers*=.ipi_cpumsg_handlers*.R,.bss=.bss.R" >> $(ld_script_temp)
 
 ifneq ($(build_targets),)

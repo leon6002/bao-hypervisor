@@ -61,7 +61,7 @@ __start:
 
     ; copy non .text segments to ram
     mov #__s.data, r7
-    mov #__e.ipi_cpumsg_handlers.const, r6 ; need to copy until
+    mov #__s.bss, r6 ; need to copy until
     mov r7, r12
     sub r6, r12 ; r12 is size of data
     mov r12, r13 ; store for later
@@ -71,20 +71,8 @@ __start:
     jarl copy_data, lp
 
     ; clear .bss
-    ;; .bss size
-    mov #__s.bss, r12
-    mov #__e.ipi_cpumsg_handlers_id.bss, r11
-    sub r11, r12; r12 is .bss size
-
-    ;; .bss start
-    mov 0xff000000, r11 ; 0xff000000 is begining of data.R
-    add r13, r11 ; size of data + beginging of data.R, to get begining of .bss
-    mov r11, r14 ; store for later
-
-    ;; .bss end
-    add r11, r12 ; r12 becomes end of .bss
-    mov r12, r20 ; store for later
-    add 8, r12 ; TODO make sure we cover all .bss memory even we write zero a little bit after
+    mov #__s.bss.R, r11
+    mov #__e.bss.R, r12
 
     ;; clear from [r11] to [r12]
     jarl boot_clear, lp

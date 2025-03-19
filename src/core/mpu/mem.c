@@ -164,7 +164,7 @@ static void mem_init_boot_regions(void)
      *  - private cpu region
      */
 
-    extern uint8_t _image_start, _image_load_end, _image_noload_start, _image_end;
+    uint8_t _image_start, _image_load_end, _image_noload_start, _image_end;
 #warning "Check symbols are well defined"
     vaddr_t image_start = (vaddr_t)&_image_start;
     vaddr_t image_load_end = (vaddr_t)&_image_load_end;
@@ -267,7 +267,7 @@ static void mem_msg_handler(uint32_t event, uint64_t data)
 #pragma section.ipi_cpumsg_handlers
 cpu_msg_handler_t __cpumsg_handler_mem_msg_handler = mem_msg_handler;
 #pragma section.ipi_cpumsg_handlers_id
-volatile size_t MEM_PROT_SYNC;
+volatile size_t MEM_PROT_SYNC = ~0x0;
 #pragma section default
 
 static void mem_region_broadcast(struct addr_space* as, struct mp_region* mpr, uint32_t op,
