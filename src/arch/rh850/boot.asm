@@ -14,6 +14,7 @@
 
 
 .extern __s_data_R
+.extern _CPU_MASTER
 
 .public __load_addr
 __load_addr:
@@ -39,7 +40,9 @@ __start:
     ldsr r2, 4, 1 ; set INTBP (regID 4, selID 1)
 
     ; identify master cpu
-    ; TODO is this not done already on the platform description?
+    mov r0, r10 ; get value from CPU_MASTER_FIXED
+    mov #_CPU_MASTER, r20
+    st.w r10, 0[r20]
 
     ; disable memory protections
     mov r0, r2 ; MPM.MPE (and all else) disabled
@@ -58,6 +61,10 @@ __start:
     jarl clear_mpu, lp
 
     ; enable faults ?
+
+    ; check if current CPU is CPU_MASTER
+    cmp r5, r10
+    bne clear_cpu
 
     ;--------------------- Assuming execution from FLASH ---------------------;
     ; ; copy non .text segments to ram
@@ -99,6 +106,7 @@ __start:
 
     ;-------------------------------------------------------------------------;
 
+clear_cpu:
     ; set up this cpu's CPU Struct
     ;; r8 contains end of .bss / beginning of struct cpu
     ;; CPUx physical based address
