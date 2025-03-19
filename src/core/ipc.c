@@ -61,8 +61,50 @@ static void ipc_handler(uint32_t event, uint64_t data)
 #pragma section.ipi_cpumsg_handlers
 cpu_msg_handler_t __cpumsg_handler_ipc_handler = ipc_handler;
 #pragma section.ipi_cpumsg_handlers_id
-volatile size_t IPC_CPUMSG_ID;
+volatile size_t IPC_CPUMSG_ID = ~0x0;
 #pragma section default
+
+void notify_local_vms(unsigned long ipc_id, unsigned long shmem_id, unsigned long event_id)
+{
+    struct vcpu* vcpu = NULL;
+    list_foreach (cpu()->vcpu_list, node_t, node) {
+        struct vcpu* vcpu = CONTAINER_OF(struct vcpu, cpu_vcpu_list_node, node);
+        if(ipc_id >= vcpu->vm->ipc_num)
+            continue;
+        if(vcpu != cpu()->vpcu)
+            continue;
+
+        struct ipc* ipc = vcpu->vm->ipcs[i];
+        if(ipc->shmem_id == shmem_id){
+            if (event_id < ipc->interrupt_num) {
+                irqid_t irq_id = ipc->interrupts[event_id];
+                vcpu_inject_irq(vcpu, irq_id);
+            }
+        }
+    }
+}
+
+void notify_remote_vms(unsigned long ipc_id, unsigned long shmem_id, unsigned long event_id)
+{
+    cpumap_t ipc_cpu_masters = shmem->cpu_masters & ~cpu()->vcpu->vm->cpus;
+    union ipc_msg_data data = {
+        .shmem_id = (uint32_t)shmem_id,
+        .event_id = (uint32_t)event_id,
+    };
+    struct cpu_msg msg = { (uint32_t)IPC_CPUMSG_ID, IPC_NOTIFY, data.raw };
+
+    for (size_t i = 0; i < platform.cpu_num; i++) {
+        if (ipc_cpu_masters & (1ULL << i)) {
+            cpu_send_msg(i, &msg);
+        }
+    }
+}
+
+void process_ipc_request(unsigned long ipc_id, unsigned long shmem_id, unsigned long event_id);
+{
+    notify_local_vms(ipc_id, shmem_id, event_id);
+    notify_remote_vms(ipc_id, shmem_id, event_id);
+}
 
 long int ipc_hypercall(void)
 {
@@ -79,19 +121,10 @@ long int ipc_hypercall(void)
     bool valid_shmem = shmem != NULL;
 
     if (valid_ipc_obj && valid_shmem) {
-        cpumap_t ipc_cpu_masters = shmem->cpu_masters & ~cpu()->vcpu->vm->cpus;
+        unsigned long shmem_id = (uint32_t)cpu()->vcpu->vm->ipcs[ipc_id].shmem_id;
+        unsigned long event_id = (uint32_t)ipc_event;
 
-        union ipc_msg_data data = {
-            .shmem_id = (uint32_t)cpu()->vcpu->vm->ipcs[ipc_id].shmem_id,
-            .event_id = (uint32_t)ipc_event,
-        };
-        struct cpu_msg msg = { (uint32_t)IPC_CPUMSG_ID, IPC_NOTIFY, data.raw };
-
-        for (size_t i = 0; i < platform.cpu_num; i++) {
-            if (ipc_cpu_masters & (1ULL << i)) {
-                cpu_send_msg(i, &msg);
-            }
-        }
+        process_ipc_request(ipc_id, shmem_id, event_id);
 
     } else {
         ret = -HC_E_INVAL_ARGS;

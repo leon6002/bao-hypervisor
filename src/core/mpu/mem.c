@@ -262,7 +262,7 @@ static void mem_msg_handler(uint32_t event, uint64_t data)
 #pragma section.ipi_cpumsg_handlers
 cpu_msg_handler_t __cpumsg_handler_mem_msg_handler = mem_msg_handler;
 #pragma section.ipi_cpumsg_handlers_id
-volatile size_t MEM_PROT_SYNC;
+volatile size_t MEM_PROT_SYNC = ~0x0;
 #pragma section default
 
 static void mem_region_broadcast(struct addr_space* as, struct mp_region* mpr, uint32_t op,
