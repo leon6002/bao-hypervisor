@@ -35,7 +35,7 @@ void cpu_arch_init(cpuid_t cpuid, paddr_t load_addr)
 
 inline struct cpu* cpu(void)
 {
-    return (struct cpu*)get_ebase();
+    return (struct cpu*)get_fewr();
 }
 
 void cpu_arch_standby()
