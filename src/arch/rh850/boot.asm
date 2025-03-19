@@ -41,8 +41,6 @@ __start:
 
     ; identify master cpu
     mov r0, r10 ; get value from CPU_MASTER_FIXED
-    mov #_CPU_MASTER, r20
-    st.w r10, 0[r20]
 
     ; disable memory protections
     mov r0, r2 ; MPM.MPE (and all else) disabled
@@ -66,45 +64,38 @@ __start:
     cmp r5, r10
     bne clear_cpu
 
-    ;--------------------- Assuming execution from FLASH ---------------------;
-    ; ; copy non .text segments to ram
-    ; mov #__s.data, r20 ; start of the region
-    ; mov #__e.ipi_cpumsg_handlers.const, r21 ; end of the region
-    ; mov r21, r22 ; keep the end of the region in r21
-    ; sub r20, r22 ; r22 is size of the region
-    ; mov r22, r6 ; store data size for later
+    ; copy non .text segments to ram
+    mov #__s.data, r20
+    mov #__e.ipi_cpumsg_handlers.const, r21 ; need to copy until
+    mov r21, r22
+    sub r20, r22 ; r22 is size of data
+    mov r22, r6 ; store for later
 
-    ; mov 0xff000000, r23 ; TODO hopefully use the linker otherwise macro
-    ; ;; copy from [r20] to [r23] r22 bytes
-    ; jarl copy_data, lp
+    mov 0xfb000000, r23 ; TODO hopefully use the linker otherwise macro
+    ;; copy from [r20] to [r23] r22 bytes
+    jarl copy_data, lp
 
-    ; ; clear .bss
-    ; ;; .bss size
-    ; mov #__s.bss, r20
-    ; mov #__e.ipi_cpumsg_handlers_id.bss, r21
-    ; sub r20, r21; r21 is .bss size
+    ; clear .bss
+    ;; .bss size
+    mov #__s.bss, r20
+    mov #__e.bss, r21
+    sub r20, r21; r21 is .bss size
 
-    ; ;; .bss start
-    ; mov 0xff000000, r20 ; 0xff000000 is begining of data.R
-    ; add r6, r20 ; size of data + beginging of data.R = begining of .bss
-    ; mov r20, r7 ; store begining of .bss for later
+    ;; .bss start
+    mov 0xfb000000, r20 ; 0xfb000000 is begining of data.R
+    add r6, r20 ; size of data + beginging of data.R, to get begining of .bss
+    mov r20, r7 ; store for later
 
-    ; ;; .bss end
-    ; add r20, r21 ; r21 becomes end of .bss
-    ; mov r21, r8 ; store end of .bss for later
+    ;; .bss end
+    add r20, r21 ; r21 becomes end of .bss
+    mov r21, r8 ; store for later
     ; add 8, r21 ; TODO make sure we cover all .bss memory even we write zero a little bit after
 
-    ;---------------------- Assuming execution from RAM ----------------------;
-    mov #__s.bss, r20
-    mov #__e.ipi_cpumsg_handlers_id.bss, r21
-
-    ;; clear from [r20] to [r21]
+    ;; clear from [r11] to [r12]
     jarl boot_clear, lp
 
-    ; Set r8 with the end of .bss
-    mov #__e.ipi_cpumsg_handlers_id.bss, r8
-
-    ;-------------------------------------------------------------------------;
+    mov #_CPU_MASTER, r20
+    st.w r10, 0[r20]
 
 clear_cpu:
     ; set up this cpu's CPU Struct
@@ -114,6 +105,11 @@ clear_cpu:
     mov r5, r20 ; copy cpu_id to r20
     mulh r9, r20 ; r20 is cpu struct offset
     add r20, r8 ; end of .bss + cpu struct offset = r8 points to cpu
+    
+    ;; align CPU pointer to 64 bytes
+    ;; TODO: get granularity from .h
+    addi 64, r8, r8
+    andi 0x3F, r8, r8
 
     ;; clear CPUx struct
     mov r8, r20
@@ -134,17 +130,23 @@ clear_cpu:
     mov #_init, r5 ; set Text Pointer TODO what should be here?
     br _init
 
+; r20: start of region
+; r21: end of region
 boot_clear:
 boot_clear_1:
-    mov 0, r22
     cmp r21, r20
     bge boot_clear_exit
-    st.w r22, 0[r20]     ; Store 0 to clear memory
+    st.w r0, 0[r20]     ; Store 0 to clear memory
     addi 4, r20, r20
     br boot_clear_1
 boot_clear_exit:
     jmp [lp]
 
+
+; r20: start of the source region
+; r21: end of the source region
+; r22: size of the region
+; r23: start of the destination region
 copy_data:
 copy_data_1:
     ld.w 0[r20], r24
@@ -155,9 +157,9 @@ copy_data_1:
     bne copy_data_1
     jmp [lp]
 
+
 clear_mpu:
     mov r0, r20
-
 clear_mpu_1:
     cmp 32, r20  ; TODO # of mpu entries platform defined
     be clear_mpu_exit
@@ -170,7 +172,5 @@ clear_mpu_1:
 
     addi 1, r20, r20
     bne clear_mpu_1
-
 clear_mpu_exit:
     jmp [lp]
-
