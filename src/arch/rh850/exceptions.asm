@@ -55,8 +55,8 @@ _hyp_vector_table:
 	jr32	_host_exception ; FEINT
 
 .public _hyp_interrupt_table
+.align	512
 _hyp_interrupt_table:
-	.align	16
 	syncp
 	jr32	_Interrupt_EI ; INTn(priority0)
 
@@ -134,7 +134,7 @@ _hyp_interrupt_table:
 
 VM_EXIT .macro
     ldsr r31, 28, 0 ; use EIWR as scratchpad
-    stsr 3, r31, 1 ; get cpu* from EBASE
+    stsr 29, r31, 0 ; get cpu* from EBASE
     add 16, r31 ; CPU_VCPU_OFF
     ld.w [r31], r31 ; cpu.VCPU
     add 8, r31 ; VCPU_REGS_OFF
@@ -162,7 +162,7 @@ VM_EXIT .macro
 .endm
 
 VM_ENTRY .macro
-    stsr 3, r31, 1
+    stsr 29, r31, 0
     add 16, r31 ; CPU_VCPU_OFF
     ld.w [r31], r31 ; cpu.VCPU
     add 8, r31 ; VCPU_REGS_OFF

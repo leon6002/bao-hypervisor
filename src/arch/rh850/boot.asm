@@ -59,96 +59,110 @@ __start:
 
     ; enable faults ?
 
-    ; copy non .text segments to ram
-    mov #__s.data, r7
-    mov #__e.ipi_cpumsg_handlers.const, r6 ; need to copy until
-    mov r7, r12
-    sub r6, r12 ; r12 is size of data
-    mov r12, r13 ; store for later
+    ;--------------------- Assuming execution from FLASH ---------------------;
+    ; ; copy non .text segments to ram
+    ; mov #__s.data, r20 ; start of the region
+    ; mov #__e.ipi_cpumsg_handlers.const, r21 ; end of the region
+    ; mov r21, r22 ; keep the end of the region in r21
+    ; sub r20, r22 ; r22 is size of the region
+    ; mov r22, r6 ; store data size for later
 
-    mov 0xff000000, r11 ; TODO hopefully use the linker otherwise macro
-    ;; copy from [r7] to [r11] r12 bytes
-    jarl copy_data, lp
+    ; mov 0xff000000, r23 ; TODO hopefully use the linker otherwise macro
+    ; ;; copy from [r20] to [r23] r22 bytes
+    ; jarl copy_data, lp
 
-    ; clear .bss
-    ;; .bss size
-    mov #__s.bss, r12
-    mov #__e.ipi_cpumsg_handlers_id.bss, r11
-    sub r11, r12; r12 is .bss size
+    ; ; clear .bss
+    ; ;; .bss size
+    ; mov #__s.bss, r20
+    ; mov #__e.ipi_cpumsg_handlers_id.bss, r21
+    ; sub r20, r21; r21 is .bss size
 
-    ;; .bss start
-    mov 0xff000000, r11 ; 0xff000000 is begining of data.R
-    add r13, r11 ; size of data + beginging of data.R, to get begining of .bss
-    mov r11, r14 ; store for later
+    ; ;; .bss start
+    ; mov 0xff000000, r20 ; 0xff000000 is begining of data.R
+    ; add r6, r20 ; size of data + beginging of data.R = begining of .bss
+    ; mov r20, r7 ; store begining of .bss for later
 
-    ;; .bss end
-    add r11, r12 ; r12 becomes end of .bss
-    mov r12, r20 ; store for later
-    add 8, r12 ; TODO make sure we cover all .bss memory even we write zero a little bit after
+    ; ;; .bss end
+    ; add r20, r21 ; r21 becomes end of .bss
+    ; mov r21, r8 ; store end of .bss for later
+    ; add 8, r21 ; TODO make sure we cover all .bss memory even we write zero a little bit after
 
-    ;; clear from [r11] to [r12]
+    ;---------------------- Assuming execution from RAM ----------------------;
+    mov #__s.bss, r20
+    mov #__e.ipi_cpumsg_handlers_id.bss, r21
+
+    ;; clear from [r20] to [r21]
     jarl boot_clear, lp
+
+    ; Set r8 with the end of .bss
+    mov #__e.ipi_cpumsg_handlers_id.bss, r8
+
+    ;-------------------------------------------------------------------------;
 
     ; set up this cpu's CPU Struct
-    ;; r20 contains end of .bss / beginning of struct cpu
+    ;; r8 contains end of .bss / beginning of struct cpu
     ;; CPUx physical based address
-    mov 3768, r14 ; CPU_SIZE TODO value from .h
-    mov r5, r6 ; copy cpu_id to r6
-    mulh r14, r6 ; r6 is cpu struct offset
-    add r6, r20 ; end of .bss + cpu struct offset r20 points to cpu
+    mov 7352, r9 ; CPU_SIZE TODO value from .h
+    mov r5, r20 ; copy cpu_id to r20
+    mulh r9, r20 ; r20 is cpu struct offset
+    add r20, r8 ; end of .bss + cpu struct offset = r8 points to cpu
 
     ;; clear CPUx struct
-    mov r20, r11
-    mov r20, r12
-    add r14, r12
-    ;; clear from [r11] to [r12]
+    mov r8, r20
+    mov r8, r21
+    add r9, r21
+    ;; clear from [r20] to [r21]
     jarl boot_clear, lp
 
-    ldsr r20, 3, 1 ; use EBASE as CPU* pointer holder
+    ldsr r8, 29, 0 ; use FEWR as CPU* pointer holder
 
     ; Initialize stack pointer
-    mov 3768, r4 ; CPU_STACK_OFF TODO value from .h
-    add r10, r4
-    mov 4096, r5 ; CPU STACK SIZE TODO can it be smaller?
-    add r5, r4
-    mov r4, sp ; set sp
-    mov #_init, r5 ; set Text Pointer TODO what should be here?
+    mov 3256, r20 ; CPU_STACK_OFF TODO value from .h
+    add r8, r20 ; add stack offset to CPU pointer
+    mov 4096, r21 ; CPU STACK SIZE TODO can it be smaller?
+    add r21, r20
+    mov r20, sp ; set sp
 
+    mov #_init, r5 ; set Text Pointer TODO what should be here?
     br _init
 
 boot_clear:
-boot_clear_2:
-    mov 0, r8
-    cmp r11, r12
-    bge boot_clear_1
-    st.w r8, 0[r11]     ; Store 0 to clear memory
-    addi 4, r11, r11
-    br boot_clear_2
 boot_clear_1:
+    mov 0, r22
+    cmp r21, r20
+    bge boot_clear_exit
+    st.w r22, 0[r20]     ; Store 0 to clear memory
+    addi 4, r20, r20
+    br boot_clear_1
+boot_clear_exit:
     jmp [lp]
 
 copy_data:
 copy_data_1:
-    ld.w 0[r7], r8
-    st.w r8, 0[r11]
-    addi 4, r7, r7
-    addi 4, r11, r11
-    cmp r11, r12
+    ld.w 0[r20], r24
+    st.w r24, 0[r23]
+    addi 4, r20, r20
+    addi 4, r23, r23
+    cmp r20, r21
     bne copy_data_1
     jmp [lp]
 
 clear_mpu:
-    mov r0, r5
+    mov r0, r20
 
 clear_mpu_1:
-    ldsr r5, 16, 5 ; set MPIDX
+    cmp 32, r20  ; TODO # of mpu entries platform defined
+    be clear_mpu_exit
+
+    ldsr r20, 16, 5 ; set MPIDX
 
     ldsr r0, 20, 5 ; set MPLA
     ldsr r0, 21, 5 ; set MPUA
     ldsr r0, 22, 5 ; set MPAT
 
-    cmp 32, r5  ; TODO # of mpu entries platform defined
-    addi 1, r5, r5
+    addi 1, r20, r20
     bne clear_mpu_1
+
+clear_mpu_exit:
     jmp [lp]
 
