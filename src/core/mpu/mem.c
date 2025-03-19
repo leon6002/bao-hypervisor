@@ -164,7 +164,7 @@ static void mem_init_boot_regions(void)
      *  - private cpu region
      */
 
-    extern uint8_t _image_start, _image_load_end, _image_noload_start, _image_end;
+    uint8_t _image_start, _image_load_end, _image_noload_start, _image_end;
 #warning "Check symbols are well defined"
     vaddr_t image_start = (vaddr_t)&_image_start;
     vaddr_t image_load_end = (vaddr_t)&_image_load_end;
