@@ -135,7 +135,7 @@ static void remio_cpu_msg_handler(uint32_t event, uint64_t data);
 #pragma section.ipi_cpumsg_handlers
 cpu_msg_handler_t __cpumsg_handler_remio_cpu_msg_handler = remio_cpu_msg_handler;
 #pragma section.ipi_cpumsg_handlers_id
-volatile size_t REMIO_CPUMSG_ID;
+volatile size_t REMIO_CPUMSG_ID = ~0x0;
 #pragma section default
 
 /** Object pool to allocate Remote I/O devices */

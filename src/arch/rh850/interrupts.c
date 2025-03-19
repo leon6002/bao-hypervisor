@@ -86,13 +86,14 @@ static void ipir_map_global_mmio()
     vaddr_t start_addr = platform.arch.ipir_addr;
     size_t npages = NUM_PAGES(sizeof(struct ipir));
 
-    ipir_hw = mem_alloc_map_dev(&cpu()->as, SEC_HYP_GLOBAL, INVALID_VA, start_addr, npages);
-    if (ipir_hw == INVALID_VA) {
+    vaddr_t ipir_va = mem_alloc_map_dev(&cpu()->as, SEC_HYP_GLOBAL, INVALID_VA, start_addr, npages);
+    if (ipir_va == INVALID_VA) {
         ERROR("maping ipir failed");
     }
+    ipir_hw = (struct ipir*) ipir_va;
 }
 
-enum irq_res ipir_handle(irqid_t int_id)
+void ipir_handle(irqid_t int_id)
 {
     cpu_msg_handler();
 
