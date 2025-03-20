@@ -14,20 +14,14 @@
 #include <fences.h>
 #include <config.h>
 
-extern uint8_t _S_text;
-uint8_t* _image_start = &_S_text; /* TODO _S_boot */
+extern uint8_t* _image_start; /* TODO _S_boot */
+extern uint8_t* _image_load_end;
+extern uint8_t* _image_end;
 
-extern uint8_t _S_bss_R;
-uint8_t* _image_load_end = &_S_bss_R;
+uint8_t* _vm_image_start;
+uint8_t* _vm_image_end;
 
-extern uint8_t _E_bss_R;
-uint8_t* _image_end = &_E_bss_R;
-
-uint8_t* _vm_image_start = 0;
-uint8_t* _vm_image_end = 0;
-
-extern uint8_t _S_data_R;
-uint8_t* _data_vma_start = 0x00;        /* TODO */
+extern uint8_t* _data_vma_start;        /* TODO */
 
 extern uint32_t _load_addr, _data_addr; /* TODO from Assembly */
 
