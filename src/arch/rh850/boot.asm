@@ -26,22 +26,34 @@ __data_addr:
 
 ; Aren't these already declared in core/mem.c ?
 .public __image_start
+__image_start:
+    .db4 0x0
+
 .public __image_load_end
+__image_load_end:
+    .db4 0x0
+
 .public __image_noload_start
+__image_noload_start:
+    .db4 0x0
+
 .public __image_end
+__image_end:
+    .db4 0x0
+
+.public ipi_cpumsg_handlers
+ipi_cpumsg_handlers:
+    .db4 0x0
+
+.public ipi_cpumsg_handlers_id_start
+ipi_cpumsg_handlers_id_start:
+    .db4 0x0
+
+.public ipi_cpumsg_handlers_id_end
+ipi_cpumsg_handlers_id_end:
+    .db4 0x0
 ;--------------------------------------------------
 
-.public __S_text
-
-.public __E_bss_R
-.public __S_bss_R
-
-.public __S_ipi_cpumsg_handlers_const_R
-
-.public __E_ipi_cpumsg_handlers_id_data_R
-.public __S_ipi_cpumsg_handlers_id_data_R
-
-.public __S_data_R
 
 .section ".text", text
 .align	2
