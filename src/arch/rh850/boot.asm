@@ -24,36 +24,45 @@ __load_addr:
 __data_addr:
     .db4 0xFE000000
 
-; Aren't these already declared in core/mem.c ?
+; __s.VECTAB
 .public __image_start
 __image_start:
     .db4 0x0
 
+; __s.bss
 .public __image_load_end
 __image_load_end:
     .db4 0x0
 
+; __s.bss.R
 .public __image_noload_start
 __image_noload_start:
     .db4 0x0
 
+; __e.bss.R
 .public __image_end
 __image_end:
     .db4 0x0
 
-.public ipi_cpumsg_handlers
-ipi_cpumsg_handlers:
+; __s.ipi_cpumsg_handlers.const.R
+.public _ipi_cpumsg_handlers
+_ipi_cpumsg_handlers:
     .db4 0x0
 
-.public ipi_cpumsg_handlers_id_start
-ipi_cpumsg_handlers_id_start:
+; __s.ipi_cpumsg_handlers_id.data.R
+.public __ipi_cpumsg_handlers_id_start
+__ipi_cpumsg_handlers_id_start:
     .db4 0x0
 
-.public ipi_cpumsg_handlers_id_end
-ipi_cpumsg_handlers_id_end:
+; __e.ipi_cpumsg_handlers_id.data.R
+.public __ipi_cpumsg_handlers_id_end
+__ipi_cpumsg_handlers_id_end:
     .db4 0x0
-;--------------------------------------------------
 
+; __s.data.R
+.public __data_vma_start
+__data_vma_start:
+    .db4 0x0
 
 .section ".text", text
 .align	2
@@ -91,102 +100,92 @@ __start:
 
     ; enable faults ?
 
-    mov #__s.text, r20
-    mov #__S_text, r21
-    st.w r20, 0[r21]
-
-    ; save limits from non .text sections
-    ;; save .data start
-    mov #__S_data_R, r20
-    mov 0xfe000000, r21
-    st.w r21, 0[r20]
-
-    ;; calculate start of .ipi_cpumsg_handlers_id.data.R
-    mov #__s.data, r20
-    mov #__e.data, r21
-    sub r20, r21 ; r21 holds .data size
-    mov 0xfe000000, r20
-    add r20, r21 ; r21 is the end of .data.R = start of .ipi_cpumsg_handlers_id.data.R
-    mov r21, r22 ; save for next section
-    mov #__S_ipi_cpumsg_handlers_id_data_R, r20
-    st.w r21, 0[r20]
-
-    ;; calculate end of .ipi_cpumsg_handlers_id.data.R
-    mov #__s.ipi_cpumsg_handlers_id.data, r20
-    mov #__e.ipi_cpumsg_handlers_id.data, r21
-    sub r20, r21 ; r21 holds .ipi_cpumsg_handlers_id.data size
-    add r22, r21 ; r21 is the end of .ipi_cpumsg_handlers_id.data.R
-    mov r21, r22 ; save for next section
-    mov #__E_ipi_cpumsg_handlers_id_data_R, r20
-    st.w r21, 0[r20]
-    mov #__S_ipi_cpumsg_handlers_const_R, r20
-    st.w r21, 0[r20]
-
-    ; copy non .text segments to ram
-    mov #__s.data, r20
-    mov #__e.ipi_cpumsg_handlers.const, r21 ; need to copy until
-    mov r21, r22
-    sub r20, r22 ; r22 is size of data
-    mov r22, r6 ; store for later
-
-    ; check if current CPU is CPU_MASTER
-    cmp r5, r10
-    bne skip_copy_data
-
-    mov 0xfe000000, r23 ; TODO hopefully use the linker otherwise macro
-    ;; copy from [r20] to [r23] r22 bytes
-    jarl copy_data, lp
-
-skip_copy_data:
-    ; clear .bss
-    ;; .bss size
-    mov #__s.bss, r20
-    mov #__e.bss, r21
-    sub r20, r21; r21 is .bss size
-
-    ;; .bss start
-    mov 0xfe000000, r20 ; 0xfe000000 is begining of data.R
-    add r6, r20 ; size of data + beginging of data.R = begining of .bss.R
-    mov r20, r7 ; store for later
-    mov #__S_bss_R, r22
-    st.w r20, 0[r22]
-
-    ;; .bss end
-    add r20, r21 ; r21 becomes end of .bss
-    mov r21, r8 ; store for later
-    mov #__S_bss_R, r22
-    st.w r21, 0[r22]
- 
     ; check if current CPU is CPU_MASTER
     cmp r5, r10
     bne clear_cpu
 
+    ; calculate offset between flash and RAM
+    ;; we asume #__s.data < #__s.data.R
+    mov 0xfe000000, r20
+    mov #__s.data, r21
+    sub r21, r20
+    mov r20, r6 ; store offset
+    
+    ; copy non .text segments to ram
+    mov #__s.data, r20
+    mov #__e.ipi_cpumsg_handlers.const, r21 ; need to copy until
+    mov 0xfe000000, r22 ; TODO hopefully use the linker otherwise macro
+    ;; copy from [r20] until [r21] to [r22]
+    jarl copy_data, lp
+
+    ; clear .bss
+    ;; .bss start
+    mov #__s.bss, r20
+    add r6, r20 ; add offset
+    mov #__image_noload_start, r22
+    st.w r20, 0[r22]
+
+    ;; .bss end
+    mov #__e.bss, r21
+    add r6, r21 ; add offset
+    mov #__image_end, r22
+    st.w r21, 0[r22]
+
     ;; clear from [r20] to [r21]
     jarl boot_clear, lp
 
+    ; store CPU_MASTER
     mov #_CPU_MASTER, r20
     st.w r10, 0[r20]
 
+    ; save section boundaries
+    ;; sections within flash
+    mov #__sVECTAB, r20
+    mov #__image_start, r21
+    st.w r20, 0[r21]
+    mov #__s.bss, r20
+    mov #__image_load_end, r21
+    st.w r20, 0[r21]
+
+    ;; start of RAM
+    mov 0xfe000000, r20
+    mov #__data_vma_start, r21
+    st.w r20, 0[r21]
+
+    ;; sections within RAM
+    mov #__s.ipi_cpumsg_handlers_id.data, r20
+    add r6, r20 ; add offset
+    mov #__ipi_cpumsg_handlers_id_start, r21
+    st.w r20, 0[r21]
+    mov #__e.ipi_cpumsg_handlers_id.data, r20
+    add r6, r20 ; add offset
+    mov #__ipi_cpumsg_handlers_id_end, r21
+    st.w r20, 0[r21]
+    mov #_ipi_cpumsg_handlers, r21
+    st.w r20, 0[r21]
+
 clear_cpu:
     ; set up this cpu's CPU Struct
-    ;; r8 contains end of .bss / beginning of struct cpu
+    ;; .bss.R end
+    mov #__e.bss, r20
+    add r6, r20 ; r20 holds end of .bss.R
     ;; CPUx physical based address
-    mov 7352, r9 ; CPU_SIZE TODO value from .h
-    mov r5, r20 ; copy cpu_id to r20
-    mulh r9, r20 ; r20 is cpu struct offset
-    add r20, r8 ; end of .bss + cpu struct offset = r8 points to cpu
+    mov 7352, r7 ; CPU_SIZE TODO value from .h
+    mov r5, r21 ; copy cpu_id to r21
+    mulh r7, r21 ; r21 is cpu struct offset
+    add r21, r20 ; end of .bss + cpu struct offset = r20 points to cpu
     
     ;; align CPU pointer to 64 bytes
     ;; TODO: get granularity from .h
-    addi 64, r8, r8
-    mov 0x3F, r20
-    not r20, r20
-    and r20, r8
+    addi 64, r20, r20
+    mov 0x3F, r21
+    not r21, r21
+    and r21, r20 ; r20 holds the CPU pointer aligned to PAGE_SIZE
+    mov r20, r8
 
     ;; clear CPUx struct
-    mov r8, r20
-    mov r8, r21
-    add r9, r21
+    mov r20, r21
+    add r7, r21
     ;; clear from [r20] to [r21]
     jarl boot_clear, lp
 
@@ -219,14 +218,14 @@ boot_clear_exit:
 
 ; r20: start of the source region
 ; r21: end of the source region
-; r22: size of the region
-; r23: start of the destination region
+; r22: start of the destination region
+; uses r23
 copy_data:
 copy_data_1:
-    ld.w 0[r20], r24
-    st.w r24, 0[r23]
+    ld.w 0[r20], r23
+    st.w r23, 0[r22]
     addi 4, r20, r20
-    addi 4, r23, r23
+    addi 4, r22, r22
     cmp r20, r21
     bne copy_data_1
     jmp [lp]

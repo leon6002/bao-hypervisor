@@ -12,7 +12,7 @@
 static inline size_t mpu_num_entries(void)
 {
     unsigned long mpcfg = get_mpcfg();
-    size_t num = mpcfg & 0xf + 1;
+    size_t num = (mpcfg & 0x1f) + 1;
     return num;
 }
 
@@ -212,8 +212,8 @@ void mpu_arch_init(void)
 
     unsigned long mpcfg = get_mpcfg();
     // give all entries to the hypervisor
-    unsigned long hbe = (mpu_num_entries()) << 8;
-    mpcfg = (mpcfg & ~0x3F00) & hbe;
+    unsigned long hbe = 0;
+    mpcfg = (mpcfg & ~0x3F00) | hbe;
     set_mpcfg(mpcfg);
 }
 
