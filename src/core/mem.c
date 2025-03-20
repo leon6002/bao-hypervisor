@@ -17,11 +17,11 @@
 extern uint8_t _S_text;
 uint8_t* _image_start = &_S_text; /* TODO _S_boot */
 
-extern uint8_t _S_bss;
-uint8_t* _image_load_end = &_S_bss;
+extern uint8_t _S_bss_R;
+uint8_t* _image_load_end = &_S_bss_R;
 
-extern uint8_t _E_bss;
-uint8_t* _image_end = &_E_bss;
+extern uint8_t _E_bss_R;
+uint8_t* _image_end = &_E_bss_R;
 
 uint8_t* _vm_image_start = 0;
 uint8_t* _vm_image_end = 0;

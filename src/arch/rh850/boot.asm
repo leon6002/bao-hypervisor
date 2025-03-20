@@ -10,37 +10,56 @@
 
 
 .section ".data", data
-.align 2
-
+.align 4
 
 .extern __s_data_R
 .extern _CPU_MASTER
 
+; Global variables
 .public __load_addr
 __load_addr:
-    .db2 0x10
+    .db4 0x0
 
 .public __data_addr
 __data_addr:
-    .db2 0x10
+    .db4 0xFE000000
 
-.section	".text", text
+; Aren't these already declared in core/mem.c ?
+.public __image_start
+.public __image_load_end
+.public __image_noload_start
+.public __image_end
+;--------------------------------------------------
+
+.public __S_text
+
+.public __E_bss_R
+.public __S_bss_R
+
+.public __S_ipi_cpumsg_handlers_const_R
+
+.public __E_ipi_cpumsg_handlers_id_data_R
+.public __S_ipi_cpumsg_handlers_id_data_R
+
+.public __S_data_R
+
+.section ".text", text
 .align	2
     .public __start
 __start:
     di ; Disable interrupts
     ; Disable faults ?
 
+    ; get current CPU
     stsr 0, r5, 2 ; get PEID (regID 0, selID 2)
+    ; identify master cpu
+    mov r0, r10 ; TODO: get value from CPU_MASTER_FIXED
 
     mov #_hyp_vector_table, r2
     ldsr r2, 2, 1 ; set RBASE (regID 2, selID 1)
 
     mov #_hyp_interrupt_table, r2
     ldsr r2, 4, 1 ; set INTBP (regID 4, selID 1)
-
-    ; identify master cpu
-    mov r0, r10 ; get value from CPU_MASTER_FIXED
 
     ; disable memory protections
     mov r0, r2 ; MPM.MPE (and all else) disabled
@@ -60,9 +79,36 @@ __start:
 
     ; enable faults ?
 
-    ; check if current CPU is CPU_MASTER
-    cmp r5, r10
-    bne clear_cpu
+    mov #__s.text, r20
+    mov #__S_text, r21
+    st.w r20, 0[r21]
+
+    ; save limits from non .text sections
+    ;; save .data start
+    mov #__S_data_R, r20
+    mov 0xfe000000, r21
+    st.w r21, 0[r20]
+
+    ;; calculate start of .ipi_cpumsg_handlers_id.data.R
+    mov #__s.data, r20
+    mov #__e.data, r21
+    sub r20, r21 ; r21 holds .data size
+    mov 0xfe000000, r20
+    add r20, r21 ; r21 is the end of .data.R = start of .ipi_cpumsg_handlers_id.data.R
+    mov r21, r22 ; save for next section
+    mov #__S_ipi_cpumsg_handlers_id_data_R, r20
+    st.w r21, 0[r20]
+
+    ;; calculate end of .ipi_cpumsg_handlers_id.data.R
+    mov #__s.ipi_cpumsg_handlers_id.data, r20
+    mov #__e.ipi_cpumsg_handlers_id.data, r21
+    sub r20, r21 ; r21 holds .ipi_cpumsg_handlers_id.data size
+    add r22, r21 ; r21 is the end of .ipi_cpumsg_handlers_id.data.R
+    mov r21, r22 ; save for next section
+    mov #__E_ipi_cpumsg_handlers_id_data_R, r20
+    st.w r21, 0[r20]
+    mov #__S_ipi_cpumsg_handlers_const_R, r20
+    st.w r21, 0[r20]
 
     ; copy non .text segments to ram
     mov #__s.data, r20
@@ -71,10 +117,15 @@ __start:
     sub r20, r22 ; r22 is size of data
     mov r22, r6 ; store for later
 
-    mov 0xfb000000, r23 ; TODO hopefully use the linker otherwise macro
+    ; check if current CPU is CPU_MASTER
+    cmp r5, r10
+    bne skip_copy_data
+
+    mov 0xfe000000, r23 ; TODO hopefully use the linker otherwise macro
     ;; copy from [r20] to [r23] r22 bytes
     jarl copy_data, lp
 
+skip_copy_data:
     ; clear .bss
     ;; .bss size
     mov #__s.bss, r20
@@ -82,16 +133,23 @@ __start:
     sub r20, r21; r21 is .bss size
 
     ;; .bss start
-    mov 0xfb000000, r20 ; 0xfb000000 is begining of data.R
-    add r6, r20 ; size of data + beginging of data.R, to get begining of .bss
+    mov 0xfe000000, r20 ; 0xfe000000 is begining of data.R
+    add r6, r20 ; size of data + beginging of data.R = begining of .bss.R
     mov r20, r7 ; store for later
+    mov #__S_bss_R, r22
+    st.w r20, 0[r22]
 
     ;; .bss end
     add r20, r21 ; r21 becomes end of .bss
     mov r21, r8 ; store for later
-    ; add 8, r21 ; TODO make sure we cover all .bss memory even we write zero a little bit after
+    mov #__S_bss_R, r22
+    st.w r21, 0[r22]
+ 
+    ; check if current CPU is CPU_MASTER
+    cmp r5, r10
+    bne clear_cpu
 
-    ;; clear from [r11] to [r12]
+    ;; clear from [r20] to [r21]
     jarl boot_clear, lp
 
     mov #_CPU_MASTER, r20
@@ -109,7 +167,9 @@ clear_cpu:
     ;; align CPU pointer to 64 bytes
     ;; TODO: get granularity from .h
     addi 64, r8, r8
-    andi 0x3F, r8, r8
+    mov 0x3F, r20
+    not r20, r20
+    and r20, r8
 
     ;; clear CPUx struct
     mov r8, r20
@@ -127,7 +187,9 @@ clear_cpu:
     add r21, r20
     mov r20, sp ; set sp
 
-    mov #_init, r5 ; set Text Pointer TODO what should be here?
+    ; Set init arguments
+    mov r5, r6 ; copy CPU ID to r6
+    mov #_init, r5 ; set Text Pointer TODO what should be here?    
     br _init
 
 ; r20: start of region

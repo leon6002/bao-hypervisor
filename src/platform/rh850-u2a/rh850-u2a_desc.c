@@ -9,18 +9,23 @@ irqid_t plat_ints[2048];
 
 struct platform platform = {
 
-    .cpu_num = 4,
+    .cpu_num = 1,
     .cpu_master_fixed = true,
     .cpu_master = 0,
 
-    .region_num = 1,
+    .region_num = 2,
     .regions =
         (struct mem_region[]){
             {
-                .base = 0x30020000,
+                .base = 0x0,
+                .size = 0x20000,
+                .perms = RX,
+            },
+            {
+                .base = 0xfe000000,
                 .size = 0x20000,
                 .perms = RWX,
-            },
+            }
         },
 
     .arch = {
