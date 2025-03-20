@@ -187,6 +187,8 @@ static void vm_init_ipc(struct vm* vm, const struct vm_config* vm_config)
             WARNING("Trying to map region to smaller shared memory. Truncated");
         }
 
+        ipc->master = cpu()->id;
+
         spin_lock(&shmem->lock);
         shmem->cpu_masters |= (1UL << cpu()->id);
         spin_unlock(&shmem->lock);
