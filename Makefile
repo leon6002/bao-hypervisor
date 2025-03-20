@@ -33,7 +33,7 @@ HOST_CC:=gcc
 
 #Makefile arguments and default values
 DEBUG:=n
-OPTIMIZATIONS:=2
+OPTIMIZATIONS:=0
 CONFIG=
 PLATFORM=
 
@@ -214,7 +214,7 @@ HOST_CPPFLAGS+=$(addprefix -I, $(inc_dirs)) $(arch-cppflags) \
 
 ifeq ($(DEBUG), y)
 	debug_flags:=-g
-	OPTIMIZATIONS:=g
+	OPTIMIZATIONS:=0
 endif
 
 

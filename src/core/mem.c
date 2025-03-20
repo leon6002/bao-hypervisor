@@ -14,14 +14,15 @@
 #include <fences.h>
 #include <config.h>
 
-extern uint8_t* _image_start; /* TODO _S_boot */
-extern uint8_t* _image_load_end;
-extern uint8_t* _image_end;
+extern size_t* _image_start; /* TODO _S_boot */
+extern size_t* _image_load_end;
+extern size_t* _image_end;
 
-uint8_t* _vm_image_start;
-uint8_t* _vm_image_end;
+// TODO: extern
+size_t* _vm_image_start;
+size_t* _vm_image_end;
 
-extern uint8_t* _data_vma_start;        /* TODO */
+extern size_t* _data_vma_start;        /* TODO */
 
 extern uint32_t _load_addr, _data_addr; /* TODO from Assembly */
 
