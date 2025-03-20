@@ -24,14 +24,14 @@ OBJPOOL_ALLOC(msg_pool, struct cpu_msg_node, CPU_MSG_POOL_SIZE);
 
 struct cpu_synctoken cpu_glb_sync = { .ready = false };
 
-extern uint8_t _S_ipi_cpumsg_handlers_const;
-cpu_msg_handler_t* ipi_cpumsg_handlers = (cpu_msg_handler_t*)&_S_ipi_cpumsg_handlers_const;
+extern uint8_t _S_ipi_cpumsg_handlers_const_R;
+cpu_msg_handler_t* ipi_cpumsg_handlers = (cpu_msg_handler_t*)&_S_ipi_cpumsg_handlers_const_R;
 
-extern uint8_t _S_ipi_cpumsg_handlers_id_data;
-size_t _ipi_cpumsg_handlers_id_start = (size_t)&_S_ipi_cpumsg_handlers_id_data;
+extern uint8_t _S_ipi_cpumsg_handlers_id_data_R;
+size_t _ipi_cpumsg_handlers_id_start = (size_t)&_S_ipi_cpumsg_handlers_id_data_R;
 
-extern uint8_t _E_ipi_cpumsg_handlers_id_data;
-size_t _ipi_cpumsg_handlers_id_end = (size_t)&_E_ipi_cpumsg_handlers_id_data;
+extern uint8_t _E_ipi_cpumsg_handlers_id_data_R;
+size_t _ipi_cpumsg_handlers_id_end = (size_t)&_E_ipi_cpumsg_handlers_id_data_R;
 
 static size_t ipi_cpumsg_handler_num;
 
