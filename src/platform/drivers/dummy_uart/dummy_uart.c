@@ -8,7 +8,7 @@
 
 void uart_init(volatile struct dummy_hw* uart)
 {
-    uart->count = 0;
+   // uart->count = 0;
 }
 
 void uart_enable(volatile struct dummy_hw* uart)
@@ -18,6 +18,6 @@ void uart_enable(volatile struct dummy_hw* uart)
 
 void uart_putc(volatile struct dummy_hw* uart, int8_t c)
 {
-    uart->buf[uart->count % DUMMY_BUF_SIZE] = c;
-    uart->count++;
+   // uart->buf[uart->count % DUMMY_BUF_SIZE] = c;
+   // uart->count++;
 }

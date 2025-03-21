@@ -26,9 +26,9 @@ static inline void mpu_lock_entry(mpid_t mpid)
 //     return !!bitmap_get(cpu()->arch.mpu_hyp.locked, mpid);
 // }
 
-static void mpu_entry_set(mpid_t mpid, struct mp_region* mpr)
+static void mpu_entry_set(mpid_t mpid, struct mp_region *mpr)
 {
-    unsigned long lim = mpr->base + mpr->size - 1;
+    unsigned long lim = mpr->base + mpr->size - 4;
 
     set_mpidx(mpid);
     set_mpla(mpr->base);
@@ -84,16 +84,19 @@ static mpid_t mpu_entry_allocate_hyp(void)
     return reg_num;
 }
 
-bool mpu_add_region(struct mp_region* reg, bool locked)
+bool mpu_add_region(struct addr_space* as, struct mp_region *reg, bool locked)
 {
     bool failed = true;
 
     if (reg->size > 0) {
         mpid_t mpid = 0;
-        if (reg->as_sec == SEC_VM_ANY) {
-            mpu_entry_allocate_guest();
-        } else {
-            mpu_entry_allocate_hyp();
+        if (as->type == AS_VM)
+        {
+            mpid = mpu_entry_allocate_guest();
+        }
+        else
+        {
+            mpid = mpu_entry_allocate_hyp();
         }
 
         if (mpid != INVALID_MPID) {
@@ -116,7 +119,7 @@ bool mpu_add_region(struct mp_region* reg, bool locked)
 /*     return 1; */
 /* } */
 
-static void mpu_entry_get_region(mpid_t mpid, struct mp_region* mpe)
+static void mpu_entry_get_region(mpid_t mpid, struct mp_region *mpe)
 {
     set_mpidx(mpid);
 
@@ -125,21 +128,23 @@ static void mpu_entry_get_region(mpid_t mpid, struct mp_region* mpe)
 
     mpe->mem_flags.raw = get_mpat();
     mpe->base = base;
-    mpe->size = limit;
+    mpe->size = (limit - base) + 4;
     mpe->as_sec = SEC_UNKNOWN;
 }
 
-static mpid_t mpu_entry_get_region_id(struct mp_region* mpe)
+static mpid_t mpu_entry_get_region_id(struct mp_region *mpe)
 {
     mpid_t mpid = INVALID_MPID;
 
     for (mpid_t i = 0; i < (mpid_t)mpu_num_entries(); i++) {
-        struct mp_region mpe_cmp;
-        mpu_entry_get_region(i, &mpe_cmp);
+        if (bitmap_get(cpu()->arch.mpu_hyp.bitmap, i)) {
+            struct mp_region mpe_cmp;
+            mpu_entry_get_region(i, &mpe_cmp);
 
-        if (mpe_cmp.base == mpe->base && mpe_cmp.size == mpe->size) {
-            mpid = i;
-            break;
+            if (mpe_cmp.base == mpe->base && mpe_cmp.size == mpe->size) {
+                mpid = i;
+                break;
+            }
         }
     }
 
@@ -152,14 +157,16 @@ static inline void mpu_entry_free(mpid_t mpid)
     bitmap_clear(cpu()->arch.mpu_hyp.bitmap, mpid);
 }
 
-bool mpu_remove_region(struct mp_region* reg)
+bool mpu_remove_region(struct mp_region *reg)
 {
     bool failed = true;
 
-    if (reg->size > 0) {
+    if (reg->size > 0)
+    {
         mpid_t mpid = mpu_entry_get_region_id(reg);
 
-        if (mpid != INVALID_MPID) {
+        if (mpid != INVALID_MPID)
+        {
             failed = false;
             mpu_entry_free(mpid);
         }
@@ -168,18 +175,21 @@ bool mpu_remove_region(struct mp_region* reg)
     return !failed;
 }
 
-bool mpu_update_region(struct mp_region* mpr)
+bool mpu_update_region(struct mp_region *mpr)
 {
     bool failed = true;
 
-    for (mpid_t mpid = 0; mpid < (mpid_t)mpu_num_entries(); mpid++) {
-        if (bitmap_get(cpu()->arch.mpu_hyp.bitmap, mpid) == 0) {
+    for (mpid_t mpid = 0; mpid < (mpid_t)mpu_num_entries(); mpid++)
+    {
+        if (bitmap_get(cpu()->arch.mpu_hyp.bitmap, mpid) == 0)
+        {
             continue;
         }
         struct mp_region mpe_cmp;
         mpu_entry_get_region(mpid, &mpe_cmp);
 
-        if (mpe_cmp.base == mpr->base) {
+        if (mpe_cmp.base == mpr->base)
+        {
             mpu_entry_set(mpid, mpr);
             failed = false;
             break;
@@ -202,9 +212,11 @@ void mpu_arch_init(void)
 {
     bitmap_clear_consecutive(cpu()->arch.mpu_hyp.bitmap, 0, mpu_num_entries());
 
-    for (mpid_t mpid = 0; mpid < (mpid_t)mpu_num_entries(); mpid++) {
+    for (mpid_t mpid = 0; mpid < (mpid_t)mpu_num_entries(); mpid++)
+    {
         /* TODO No entry should be valid at this point... */
-        if (mpu_entry_valid(mpid)) {
+        if (mpu_entry_valid(mpid))
+        {
             bitmap_set(cpu()->arch.mpu_hyp.bitmap, mpid);
             bitmap_set(cpu()->arch.mpu_hyp.locked, mpid);
         }

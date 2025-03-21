@@ -149,20 +149,16 @@ void intc_set_enable(irqid_t int_id, bool en)
 {
     if (int_id < PRIVATE_IRQS_NUM) {
         if (en) {
-            EIC_SET_EIMKn(intc1_hw->EIC[int_id]);
-            EIC_SET_EITBn(intc1_hw->EIC[int_id]);
-        } else {
             EIC_CLR_EIMKn(intc1_hw->EIC[int_id]);
-            EIC_CLR_EITBn(intc1_hw->EIC[int_id]);
+        } else {
+            EIC_SET_EIMKn(intc1_hw->EIC[int_id]);
         }
     } else {
         irqid_t intc2_irq_id = int_id - PRIVATE_IRQS_NUM;
         if (en) {
-            EIC_SET_EIMKn(intc2_hw->EIC[intc2_irq_id]);
-            EIC_SET_EITBn(intc2_hw->EIC[intc2_irq_id]);
-        } else {
             EIC_CLR_EIMKn(intc2_hw->EIC[intc2_irq_id]);
-            EIC_CLR_EITBn(intc2_hw->EIC[intc2_irq_id]);
+        } else {
+            EIC_SET_EIMKn(intc2_hw->EIC[intc2_irq_id]);
         }
     }
 }
@@ -180,11 +176,12 @@ void intc_set_prio(irqid_t int_id, unsigned long prio)
 static void intc_map_local_mmio()
 {
     /* because we are mapping an alias this could be global mapping actually */
-    vaddr_t intc1_hw = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
+    vaddr_t intc1_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
         platform.arch.intc.intc1_addr, NUM_PAGES(sizeof(struct intc1)));
-    if (intc1_hw == INVALID_VA) {
+    if (intc1_ptr == INVALID_VA) {
         ERROR("maping intc1 failed");
     }
+    intc1_hw = (struct intc1*)intc1_ptr;
 
     vaddr_t feinc_ptr;
     feinc_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
@@ -198,8 +195,8 @@ static void intc_map_local_mmio()
 
 static void intc_map_global_mmio()
 {
-    vaddr_t global_start_addr = platform.arch.intc.intc2_addr;
-    vaddr_t global_end_addr = platform.arch.intc.fenc_addr + sizeof(struct fenc);
+    vaddr_t global_start_addr = platform.arch.intc.intif_addr;
+    vaddr_t global_end_addr = platform.arch.intc.intc2_addr + sizeof(struct intc2);
     size_t global_size = global_end_addr - global_start_addr;
     size_t global_npages = NUM_PAGES(global_size);
 
