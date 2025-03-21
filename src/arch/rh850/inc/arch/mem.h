@@ -45,8 +45,8 @@ typedef mpat_flags_t mem_flags_t;
 
 #define PTE_INVALID       ((mem_flags_t){ .e = 0 })
 
-#define PTE_HYP_FLAGS     ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1 })
-#define PTE_HYP_DEV_FLAGS ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 0 })
+#define PTE_HYP_FLAGS     ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1, .rg = 1, .wg = 1 })
+#define PTE_HYP_DEV_FLAGS ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 0, .rg = 1, .wg = 1 })
 
 /* TODO in the future we need to deal with IO permissions securely */
 #define PTE_VM_FLAGS \

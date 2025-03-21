@@ -23,7 +23,7 @@ struct platform platform = {
             },
             {
                 .base = 0xfe000000,
-                .size = 0x20000,
+                .size = 0x00020000,
                 .perms = RWX,
             }
         },

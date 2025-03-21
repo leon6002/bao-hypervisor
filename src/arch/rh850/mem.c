@@ -20,7 +20,7 @@ bool mpu_map(struct addr_space* as, struct mp_region* mpr, bool locked)
     UNUSED_ARG(as);
 
     /* Add region to MPU */
-    if (!mpu_add_region(mpr, locked)) {
+    if (!mpu_add_region(as, mpr, locked)) {
         ERROR("failed to register mpu entry");
     } else {
         failed = false;
@@ -69,7 +69,7 @@ void mpu_init(void)
     mpu_arch_init();
 }
 
-void mpu_enable()
+void mpu_enable(void)
 {
     mpu_arch_enable();
 }
