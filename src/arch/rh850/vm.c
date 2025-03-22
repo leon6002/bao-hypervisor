@@ -26,12 +26,13 @@ void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm)
 
 void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry)
 {
-    memset(&vcpu->regs, 0, sizeof(struct arch_regs));
-    set_eipc(entry);
-
     struct vm* vm = vcpu->vm;
+    memset(&vcpu->regs, 0, sizeof(struct arch_regs));
 
+    vcpu_writepc(vcpu, entry);
+    set_eipc(entry);
     set_gmpeid(vcpu->id);
+
     set_gmspid(vm->id + 1);
 }
 
