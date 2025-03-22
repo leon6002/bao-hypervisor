@@ -291,9 +291,11 @@ $(deps): | $(gens)
 ifneq ($(wildcard $(asm_defs_src)),)
 $(asm_defs_hdr): $(asm_defs_src)
 	@echo "Generating header	$(patsubst $(cur_dir)/%, %, $@)"
-	@$(HOST_CC) -S $(HOST_CPPFLAGS) -DGENERATING_DEFS $< -o - \
-		| awk '($$1 == "//#" || $$1 == "##" || $$1 == "@#")   \
-			{ gsub("#", "", $$3); gsub("\\$$", "", $$3); print "#define " $$2 " " $$3 }' > $@
+	@$(cc) -S $(CFLAGS) -lang=c99 -DGENERATING_DEFS $< -otmp ; \
+		  paste -d ' ' <(grep -E '^_(cpu|vcpu).*:' tmp | sed 's/:$$//') <(grep '\.dw' tmp | awk '{print $$2}') \
+		  | awk '{ printf "#define %-20s %s\n", $$1, $$2 }' \
+		  > $@ ; rm tmp
+
 
 $(asm_defs_hdr).d: $(asm_defs_src)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %,\
