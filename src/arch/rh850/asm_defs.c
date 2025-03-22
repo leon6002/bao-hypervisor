@@ -71,7 +71,6 @@ void asm_vcpu_arch_size()
     .equ VCPU_ARCH_SIZE, vcpu_arch_size
 }
 
-
 static void cpu_defines(void)
 {
     // DEFINE_SIZE(CPU_SIZE, struct cpu);

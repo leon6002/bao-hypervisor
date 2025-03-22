@@ -170,7 +170,7 @@ clear_cpu:
     mov #__e.bss, r20
     add r6, r20 ; r20 holds end of .bss.R
     ;; CPUx physical based address
-    mov 6272, r7 ; CPU_SIZE TODO value from .h
+    mov 0x1880, r7 ; CPU_SIZE TODO value from .h
     mov r5, r21 ; copy cpu_id to r21
     mulh r7, r21 ; r21 is cpu struct offset
     add r21, r20 ; end of .bss + cpu struct offset = r20 points to cpu
@@ -193,9 +193,9 @@ clear_cpu:
 
     ; Initialize stack pointer
     ; mov 3256, r20 ; CPU_STACK_OFF TODO value from .h
-    mov 2144, r20 ; CPU_STACK_OFF TODO value from .h
+    mov 0x860, r20 ; CPU_STACK_OFF TODO value from .h
     add r8, r20 ; add stack offset to CPU pointer
-    mov 4096, r21 ; CPU STACK SIZE TODO can it be smaller?
+    mov 0x1000, r21 ; CPU STACK SIZE TODO can it be smaller?
     add r21, r20
     mov r20, sp ; set sp
 
