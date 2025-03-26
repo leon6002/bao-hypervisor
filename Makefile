@@ -293,8 +293,8 @@ $(asm_defs_hdr): $(asm_defs_src)
 	@echo "Generating header	$(patsubst $(cur_dir)/%, %, $@)"
 	$(cc) -S $(CFLAGS) -lang=c99 -DGENERATING_DEFS $< -otmp ; \
 		  paste -d ' ' <(grep -E '^_[^asm].*:' tmp | sed 's/:$$//') <(grep '\.dw' tmp | awk '{print $$2}') \
-		  | awk '{ printf "#define %-20s %s\n", $$1, $$2 }' \
-		  > $@
+		  | awk '{ printf "#define %-20s %s\n", $$1, $$2 }' > $@ ; \
+		  rm -r tmp
 
 $(asm_defs_hdr).d: $(asm_defs_src)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %,\

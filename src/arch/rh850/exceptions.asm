@@ -54,9 +54,8 @@ _hyp_vector_table:
 	syncp
 	jr32	_host_exception ; FEINT
 
-.public _hyp_interrupt_table
-.align	512
-_hyp_interrupt_table:
+	; only used with direct vector method
+	.align	16
 	syncp
 	jr32	_Interrupt_EI ; INTn(priority0)
 
@@ -120,12 +119,13 @@ _hyp_interrupt_table:
 	syncp
 	jr32	_Interrupt_EI ; INTn(priority15)
 
+	; only used with table reference method
 	.section "EINTTBL", const ; External interrupt table
 	.align	512
 	.dw	#_Interrupt_EI ; INT0
 	.dw	#_Interrupt_EI ; INT1
 	.dw	#_Interrupt_EI ; INT2
-	.rept	512 - 3
+	.rept	2048 - 3
 	.dw	#_Interrupt_EI ; INTn
 	.endm
 

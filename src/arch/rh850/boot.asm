@@ -79,9 +79,6 @@ __start:
     mov #_hyp_vector_table, r2
     ldsr r2, 2, 1 ; set RBASE (regID 2, selID 1)
 
-    mov #_hyp_interrupt_table, r2
-    ldsr r2, 4, 1 ; set INTBP (regID 4, selID 1)
-
     ; disable memory protections
     mov r0, r2 ; MPM.MPE (and all else) disabled
     ldsr r2, 0, 5 ; set MPM
