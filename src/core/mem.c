@@ -228,7 +228,7 @@ static bool pp_reserve_cpus(paddr_t load_addr, struct page_pool* pool)
 
 static bool pp_reserve_hyp_data(struct page_pool* root_pool)
 {
-    size_t data_size = (size_t)(_image_end - _data_vma_start);
+    size_t data_size = ((size_t)_image_end) - ((size_t)_data_vma_start);
     size_t cpu_size = platform.cpu_num * mem_cpu_boot_alloc_size();
     paddr_t data_base_addr = (paddr_t)_data_vma_start;
     paddr_t cpu_base_addr = data_base_addr + data_size;
