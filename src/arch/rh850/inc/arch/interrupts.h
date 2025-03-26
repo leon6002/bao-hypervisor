@@ -9,7 +9,7 @@
 #include <bao.h>
 #include <plat/platform.h>
 
-#define ARCH_MAX_INTERRUPTS    496
+#define ARCH_MAX_INTERRUPTS    2048
 #define MAX_INTERRUPTS         PLAT_MAX_INTERRUPTS
 #define MAX_GUEST_INTERRUPTS   (MAX_INTERRUPTS)
 
