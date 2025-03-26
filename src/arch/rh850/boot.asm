@@ -22,7 +22,7 @@ __load_addr:
 
 .public __data_addr
 __data_addr:
-    .db4 0xFE000000
+    .db4 0xfe100000
 
 ; __s.VECTAB
 .public __image_start
@@ -103,7 +103,7 @@ __start:
 
     ; calculate offset between flash and RAM
     ;; we asume #__s.data < #__s.data.R
-    mov 0xfe000000, r20
+    mov 0xfe100000, r20
     mov #__s.data, r21
     sub r21, r20
     mov r20, r6 ; store offset
@@ -111,7 +111,7 @@ __start:
     ; copy non .text segments to ram
     mov #__s.data, r20
     mov #__e.ipi_cpumsg_handlers.const, r21 ; need to copy until
-    mov 0xfe000000, r22 ; TODO hopefully use the linker otherwise macro
+    mov 0xfe100000, r22 ; TODO hopefully use the linker otherwise macro
     ;; copy from [r20] until [r21] to [r22]
     jarl copy_data, lp
 
@@ -145,7 +145,7 @@ __start:
     st.w r20, 0[r21]
 
     ;; start of RAM
-    mov 0xfe000000, r20
+    mov 0xfe100000, r20
     mov #__data_vma_start, r21
     st.w r20, 0[r21]
 

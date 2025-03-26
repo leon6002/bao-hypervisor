@@ -22,7 +22,6 @@
 #ifndef __ASSEMBLER__
 
 void interrupts_arch_handle(void);
-void nvic_init_ipi(void);
 
 #endif
 
