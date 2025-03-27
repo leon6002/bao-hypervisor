@@ -25,7 +25,7 @@ struct platform platform = {
             // Code Flash (Bank B) -> Bao code
             {
                 .base = 0x400000,
-                .size = 0x40000,
+                .size = 0x040000,
                 .perms = RX,
             },
             // Local RAM (self) -> Guest stack
@@ -46,6 +46,12 @@ struct platform platform = {
                 .size = 0x80000,
                 .perms = RWX,
             },
+            // // Cluster2 RAM -> Guest Data
+            // {
+            //     .base = 0xfe400000,
+            //     .size = 0x100000,
+            //     .perms = RWX,
+            // },
             // Cluster3 RAM -> Guest retention RAM
             {
                 .base = 0xfe800000,

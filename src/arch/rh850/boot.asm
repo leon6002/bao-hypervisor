@@ -18,13 +18,13 @@
 ; Global variables
 .public __load_addr
 __load_addr:
-    .db4 0x0
+    .db4 0x400000
 
 .public __data_addr
 __data_addr:
     .db4 0xfe100000
 
-; __s.VECTAB
+; __sVECTAB
 .public __image_start
 __image_start:
     .db4 0x0
@@ -76,8 +76,12 @@ __start:
     ; identify master cpu
     mov r0, r10 ; TODO: get value from CPU_MASTER_FIXED
 
+    mov 0x8020, r2
+    ldsr r2, 5, 0 ; set PSW.EBV
+
     mov #_hyp_vector_table, r2
-    ldsr r2, 2, 1 ; set RBASE (regID 2, selID 1)
+    ori 0x2, r2, r2 ; select direct vector method
+    ldsr r2, 3, 1 ; set EBASE (regID 3, selID 1)
 
     ; disable memory protections
     mov r0, r2 ; MPM.MPE (and all else) disabled
@@ -196,6 +200,10 @@ clear_cpu:
     add r21, r20
     mov r20, sp ; set sp
 
+    ei ; Enable interrupts
+    mov 0x80000000, r2
+    ldsr r2, 18, 0 ; set EIPSW.GM
+    
     ; Set init arguments
     mov r5, r6 ; copy CPU ID to r6
     mov #_init, r5 ; set Text Pointer TODO what should be here?    
