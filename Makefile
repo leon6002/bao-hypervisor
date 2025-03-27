@@ -219,7 +219,7 @@ endif
 
 
 override CFLAGS+= -Xcommon=rh850 \
-	$(arch-cflags) $(platform-cflags) $(CPPFLAGS) -O$(OPTIMIZATIONS) $(debug_flags)
+	$(arch-cflags) $(platform-cflags) $(CPPFLAGS) $(debug_flags)
 
 override ASFLAGS+=$(CFLAGS) $(arch-asflags) $(platform-asflags)
 
@@ -250,7 +250,7 @@ $(ld_script_temp):
 	@echo " -list" >> $(ld_script_temp)
 	@echo " -nologo" >> $(ld_script_temp)
 	@echo ' -library="$(shell dirname $(shell dirname $(shell which $(cc))))/lib/v850e3v5/rhs8n.lib"' >> $(ld_script_temp)
-	@echo " -start=VECTAB,EINTTBL,.text,.const,.data,.ipi_cpumsg_handlers_id.data,.ipi_cpumsg_handlers.const,.bss/0,.data.R,.ipi_cpumsg_handlers_id.data.R,.ipi_cpumsg_handlers.const.R,.bss.R/fe100000" >> $(ld_script_temp)
+	@echo " -start=VECTAB,EINTTBL,.text,.const,.data,.ipi_cpumsg_handlers_id.data,.ipi_cpumsg_handlers.const,.bss/400000,.data.R,.ipi_cpumsg_handlers_id.data.R,.ipi_cpumsg_handlers.const.R,.bss.R/fe100000" >> $(ld_script_temp)
 	@echo " -rom=.data*=.data.*R,.ipi_cpumsg_handlers*=.ipi_cpumsg_handlers*.R,.bss=.bss.R" >> $(ld_script_temp)
 
 ifneq ($(build_targets),)
@@ -272,11 +272,11 @@ $(build_dir)/%.d : $(src_dir)/%.asm
 
 $(c_objs):
 	@echo "Compiling C source	$(patsubst $(cur_dir)/%, %, $<)"
-	@$(cc) $(CFLAGS) -lang=c99 -c $< -o$@
+	@$(cc) $(CFLAGS) -O$(OPTIMIZATIONS) -lang=c99 -c $< -o$@
 
 $(asm_objs):
 	@echo "Compiling Asm source	$(patsubst $(cur_dir)/%, %, $<)"
-	@$(cc) $(CFLAGS) -c $< -o$@
+	@$(cc) $(CFLAGS) -O$(OPTIMIZATIONS) -c $< -o$@
 
 %.bin: %.elf
 	@echo "generating binary	$(patsubst $(cur_dir)/%, %, $@)"
