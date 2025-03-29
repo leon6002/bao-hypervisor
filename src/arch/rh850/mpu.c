@@ -58,9 +58,8 @@ static mpid_t mpu_entry_allocate_guest(void)
             //
             // TODO add hyp mpu entry counter to prevent guest mpu entries from
             // spiling into hyp entries
-            unsigned long hbe = (mpu_num_entries() - reg_num) << 8;
-            mpcfg = (mpcfg & ~0x3F00) & hbe;
-            ;
+            unsigned long hbe = (reg_num + 1) << 8;
+            mpcfg = (mpcfg & ~0x3F00) | hbe;
             set_mpcfg(mpcfg);
             break;
         }

@@ -18,7 +18,7 @@
 ; Global variables
 .public __load_addr
 __load_addr:
-    .db4 0x400000
+    .db4 0x0
 
 .public __data_addr
 __data_addr:
@@ -178,7 +178,7 @@ clear_cpu:
     
     ;; align CPU pointer to 64 bytes
     ;; TODO: get granularity from .h
-    addi 64, r20, r20
+    addi 63, r20, r20
     mov 0x3F, r21
     not r21, r21
     and r21, r20 ; r20 holds the CPU pointer aligned to PAGE_SIZE
@@ -199,10 +199,6 @@ clear_cpu:
     mov 0x1000, r21 ; CPU STACK SIZE TODO can it be smaller?
     add r21, r20
     mov r20, sp ; set sp
-
-    ei ; Enable interrupts
-    mov 0x80000000, r2
-    ldsr r2, 18, 0 ; set EIPSW.GM
     
     ; Set init arguments
     mov r5, r6 ; copy CPU ID to r6

@@ -33,7 +33,7 @@ HOST_CC:=gcc
 
 #Makefile arguments and default values
 DEBUG:=n
-OPTIMIZATIONS:=0
+OPTIMIZATIONS:=default
 CONFIG=
 PLATFORM=
 
@@ -250,7 +250,7 @@ $(ld_script_temp):
 	@echo " -list" >> $(ld_script_temp)
 	@echo " -nologo" >> $(ld_script_temp)
 	@echo ' -library="$(shell dirname $(shell dirname $(shell which $(cc))))/lib/v850e3v5/rhs8n.lib"' >> $(ld_script_temp)
-	@echo " -start=VECTAB,EINTTBL,.text,.const,.data,.ipi_cpumsg_handlers_id.data,.ipi_cpumsg_handlers.const,.bss/400000,.data.R,.ipi_cpumsg_handlers_id.data.R,.ipi_cpumsg_handlers.const.R,.bss.R/fe100000" >> $(ld_script_temp)
+	@echo " -start=VECTAB,EINTTBL,.text,.const,.data,.ipi_cpumsg_handlers_id.data,.ipi_cpumsg_handlers.const,.bss/0,.data.R,.ipi_cpumsg_handlers_id.data.R,.ipi_cpumsg_handlers.const.R,.bss.R/fe100000" >> $(ld_script_temp)
 	@echo " -rom=.data*=.data.*R,.ipi_cpumsg_handlers*=.ipi_cpumsg_handlers*.R,.bss=.bss.R" >> $(ld_script_temp)
 
 ifneq ($(build_targets),)
@@ -291,7 +291,7 @@ $(deps): | $(gens)
 ifneq ($(wildcard $(asm_defs_src)),)
 $(asm_defs_hdr): $(asm_defs_src)
 	@echo "Generating header	$(patsubst $(cur_dir)/%, %, $@)"
-	$(cc) -S $(CFLAGS) -lang=c99 -DGENERATING_DEFS $< -otmp ; \
+	@$(cc) -S $(CFLAGS) -lang=c99 -DGENERATING_DEFS $< -otmp ; \
 		  paste -d ' ' <(grep -E '^_[^asm].*:' tmp | sed 's/:$$//') <(grep '\.dw' tmp | awk '{print $$2}') \
 		  | awk '{ printf "#define %-20s %s\n", $$1, $$2 }' > $@ ; \
 		  rm -r tmp
