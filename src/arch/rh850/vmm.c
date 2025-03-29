@@ -19,7 +19,7 @@ void vmm_arch_init(void)
     }
 
     /* set EIPSWH.GM */
-    set_eipsw(0x80000000);
+    set_eipswh(0x80000000);
     if (get_eipswh() != 0x80000000){
         ERROR("EIPSWH is not being written");
     }
