@@ -13,20 +13,14 @@ struct platform platform = {
     .cpu_master_fixed = true,
     .cpu_master = 0,
 
-    .region_num = 7,
+    .region_num = 8,
     .regions =
         (struct mem_region[]){
-            // Code Flash (Bank A) -> Guest code
+            // Cluster1 RAM -> Bao Data
             {
-                .base = 0x0,
-                .size = 0x40000,
-                .perms = RX,
-            },
-            // Code Flash (Bank B) -> Bao code
-            {
-                .base = 0x400000,
-                .size = 0x040000,
-                .perms = RX,
+                .base = 0xfe100000,
+                .size = 0x80000,
+                .perms = RWX,
             },
             // Local RAM (self) -> Guest stack
             {
@@ -40,18 +34,12 @@ struct platform platform = {
                 .size = 0x80000,
                 .perms = RWX,
             },
-            // Cluster1 RAM -> Bao Data
+            // Cluster2 RAM -> Guest Data
             {
-                .base = 0xfe100000,
-                .size = 0x80000,
+                .base = 0xfe400000,
+                .size = 0x10000,
                 .perms = RWX,
             },
-            // // Cluster2 RAM -> Guest Data
-            // {
-            //     .base = 0xfe400000,
-            //     .size = 0x100000,
-            //     .perms = RWX,
-            // },
             // Cluster3 RAM -> Guest retention RAM
             {
                 .base = 0xfe800000,
@@ -62,6 +50,18 @@ struct platform platform = {
             {
                 .base = 0xff320000,
                 .size = 0x55000,
+                .perms = RX,
+            },
+            // Code Flash (Bank A) -> Bao code
+            {
+                .base = 0x0,
+                .size = 0x10000,
+                .perms = RX,
+            },
+            // Code Flash (Bank B) -> Guest code
+            {
+                .base = 0x10000,
+                .size = 0x40000,
                 .perms = RX,
             }
         },
