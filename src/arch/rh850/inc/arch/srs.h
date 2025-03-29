@@ -650,7 +650,7 @@ static void set_mpid7(unsigned long val)
     ldsr r6, 31, 5
 }
 
-/* CACHE OPERAATION REGISTERS */
+/* CACHE OPERATION REGISTERS */
 #pragma inline_asm get_ictagl
 static unsigned long get_ictagl(void)
 {
@@ -820,18 +820,7 @@ static void set_dbgen(unsigned long val)
     ldsr r6, 0, 3
 }
 
-#pragma inline_asm get_gmpeid
-static unsigned long get_gmpeid(void)
-{
-    stsr 30, r10, 9
-}
-
-#pragma inline_asm set_gmpeid
-static void set_gmpeid(unsigned long val)
-{
-    ldsr r6, 30, 9
-}
-
+/* GUEST CONTEXT REGISTERS */
 #pragma inline_asm get_gmspid
 static unsigned long get_gmspid(void)
 {
@@ -842,6 +831,30 @@ static unsigned long get_gmspid(void)
 static void set_gmspid(unsigned long val)
 {
     ldsr r6, 16, 9
+}
+
+#pragma inline_asm get_gmmpm
+static unsigned long get_gmmpm(void)
+{
+    stsr 25, r10, 9
+}
+
+#pragma inline_asm set_gmmpm
+static void set_gmmpm(unsigned long val)
+{
+    ldsr r6, 25, 9
+}
+
+#pragma inline_asm get_gmpeid
+static unsigned long get_gmpeid(void)
+{
+    stsr 30, r10, 9
+}
+
+#pragma inline_asm set_gmpeid
+static void set_gmpeid(unsigned long val)
+{
+    ldsr r6, 30, 9
 }
 
 #endif /* GENERATING_DEFS */
