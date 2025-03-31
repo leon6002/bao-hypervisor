@@ -83,6 +83,10 @@ __start:
     ori 0x2, r2, r2 ; select direct vector method
     ldsr r2, 3, 1 ; set EBASE (regID 3, selID 1)
 
+    mov #_hyp_interrupt_table, r2
+    ldsr r2, 4, 1 ; set INTBP (regID 4, selID 1)
+
+
     ; disable memory protections
     mov r0, r2 ; MPM.MPE (and all else) disabled
     ldsr r2, 0, 5 ; set MPM
@@ -193,7 +197,6 @@ clear_cpu:
     ldsr r8, 29, 0 ; use FEWR as CPU* pointer holder
 
     ; Initialize stack pointer
-    ; mov 3256, r20 ; CPU_STACK_OFF TODO value from .h
     mov 0x860, r20 ; CPU_STACK_OFF TODO value from .h
     add r8, r20 ; add stack offset to CPU pointer
     mov 0x1000, r21 ; CPU STACK SIZE TODO can it be smaller?

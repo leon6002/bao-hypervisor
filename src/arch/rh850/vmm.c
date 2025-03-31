@@ -27,8 +27,16 @@ void vmm_arch_init(void)
     // TODO: set FEPSWH ?
 
     /* set GMMPM.GMPE */
-    set_gmmpm(0x4);
-    if (get_gmmpm() != 0x4){
+    set_gmmpm(0x0);
+    if (get_gmmpm() != 0x0){
         ERROR("GMMPM is not being written");
     }
+
+    /* clear guest-context exception registers */
+    set_gmeipc(0x0);
+    set_gmfepc(0x0);
+    set_gmmea(0x0);
+    set_gmmei(0x0);
+    set_gmeiic(0x0);
+    set_gmfeic(0x0);
 }

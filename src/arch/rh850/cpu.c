@@ -31,7 +31,15 @@ void cpu_arch_init(cpuid_t cpuid, paddr_t load_addr)
             (*bootcrl) |= (1 << c);
         }
     }
-}
+
+    /* clear exception registers */
+    set_eipc(0x0);
+    set_fepc(0x0);
+    set_mea(0x0);
+    set_mei(0x0);
+    set_eiic(0x0);
+    set_feic(0x0);
+};
 
 inline struct cpu* cpu(void)
 {

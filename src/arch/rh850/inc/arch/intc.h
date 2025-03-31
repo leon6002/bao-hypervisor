@@ -27,18 +27,19 @@ struct intc1 {
 #define INTC2_IMR_NUM ((uint32_t)((ARCH_MAX_INTERRUPTS + 0.5) / 32) - 1)
 #define INTC2_I2EIBG_OFF (0x1FE0)
 #define INTC2_EIBD_OFF (0x2000)
-#define PAD2_LEN (((INTC2_EIBD_OFF - INTC2_I2EIBG_OFF) - (PLAT_CPU_NUM * 4)))
+#define PAD3_LEN ((INTC2_EIBD_OFF - INTC2_I2EIBG_OFF) - (PLAT_CPU_NUM * 4) + 0x40)
 
 struct intc2 {
-    uint16_t EIC[INTC2_IRQ_NUM];    /* 0x0000 - 0x0FBF */
-    uint8_t  PAD0[64];              /* 0x0FC0 - 0x0FFF */
-    uint32_t IMR[INTC2_IMR_NUM];    /* 0x1000 - 0x10FB */
-    uint8_t  PAD1[3812];            /* 0x10FC - 0x1FDF */
+    uint8_t  PAD0[64];              /* 0x0000 - 0x003F */
+    uint16_t EIC[INTC2_IRQ_NUM];    /* 0x0040 - 0x0FFF */
+    uint8_t  PAD1[4];               /* 0x1000 - 0x1003 */
+    uint32_t IMR[INTC2_IMR_NUM];    /* 0x1004 - 0x10FF */
+    uint8_t  PAD2[3808];            /* 0x1100 - 0x1FDF */
     uint32_t I2EIBG[PLAT_CPU_NUM];  /* 0x1FE0 - (0x1FE0 + 4*cpu_num - 1) */
-    uint8_t  PAD2[PAD2_LEN];        /* (0x1FE0 + 4*cpu_num) - 0x1FFF */
-    uint32_t EIBD[INTC2_IRQ_NUM];   /* 0x2000 - 0x3F7F */
-    uint8_t  PAD3[128];             /* 0x3F80 - 0x3FFF */
-    uint32_t EEIC[INTC2_IRQ_NUM];   /* 0x4000 - 0x5F7F */
+    uint8_t  PAD3[PAD3_LEN];        /* (0x1FE0 + 4*cpu_num) - 0x203F */
+    uint32_t EIBD[INTC2_IRQ_NUM];   /* 0x2040 - 0x3FBF */
+    uint8_t  PAD4[128];             /* 0x3FC0 - 0x403F */
+    uint32_t EEIC[INTC2_IRQ_NUM];   /* 0x4040 - 0x5FBF */
 };
 
 struct intif {

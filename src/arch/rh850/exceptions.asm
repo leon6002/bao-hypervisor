@@ -119,8 +119,10 @@ _hyp_vector_table:
 	syncp
 	jr32	_Interrupt_EI ; INTn(priority15)
 
-	; only used with table reference method
-	.section "EINTTBL", const ; External interrupt table
+; only used with table reference method
+.section "EINTTBL", const ; External interrupt table
+.public _hyp_interrupt_table
+_hyp_interrupt_table:
 	.align	512
 	.dw	#_Interrupt_EI ; INT0
 	.dw	#_Interrupt_EI ; INT1
@@ -129,14 +131,15 @@ _hyp_vector_table:
 	.dw	#_Interrupt_EI ; INTn
 	.endm
 
-	.section ".text", text
+.section ".text", text
 	.align	2
 
 VM_EXIT .macro
+	; save program registers in vcpu struct
     ldsr r31, 28, 0 ; use EIWR as scratchpad
-    stsr 29, r31, 0 ; get cpu* from EBASE
+    stsr 29, r31, 0 ; get cpu* from FEWR
     add 8, r31 ; CPU_VCPU_OFF
-    ld.w [r31], r31 ; cpu.VCPU
+    ld.w [r31], r31 ; get cpu.VCPU*
     add 4, r31 ; VCPU_REGS_OFF
     st.dw r0,  0[r31]
     st.dw r2,  8[r31]
@@ -159,6 +162,14 @@ VM_EXIT .macro
     mov r31, r30
     stsr 28, r31, 0
     st.w r31, 124[r30]
+
+	; restore stack pointer
+	stsr 29, r20, 0 ; get cpu* from FEWR
+    mov 0x860, r21 ; CPU_STACK_OFF
+    add r21, r20 ; add stack offset to CPU pointer
+    mov 0x1000, r21 ; CPU STACK SIZE
+    add r21, r20 ; stack base + stack size
+    mov r20, sp ; set sp
 .endm
 
 VM_ENTRY .macro
@@ -194,22 +205,31 @@ VM_ENTRY .macro
 .extern _interrupts_handle
 
 _guest_exception:
-    VM_EXIT
-    jarl _abort, lp
-    VM_ENTRY
+    br _guest_exception   
+
+    ; VM_EXIT
+    ; jarl _abort, lp
+    ; VM_ENTRY
 
 
 _host_exception:
 	br	_host_exception
 
 _Interrupt_EI:
-    br _Interrupt_EI   
-    ;VM_EXIT
-    ; br	_interrupts_handle, lp
-    ;VM_ENTRY
+
+    VM_EXIT
+	
+	; copy int_id to r6
+	stsr 13, r6, 0 ; get int cause from EEIC
+	mov 0x7FF, r20
+	and r20, r6 ; mask EIINT source
+
+    jarl _interrupts_handle, lp
+
+    VM_ENTRY
 
 
-    .public _vcpu_arch_entry
+.public _vcpu_arch_entry
 _vcpu_arch_entry:
     VM_ENTRY
 vcpu_arch_entry_1:

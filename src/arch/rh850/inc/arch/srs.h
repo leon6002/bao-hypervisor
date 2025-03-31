@@ -821,6 +821,78 @@ static void set_dbgen(unsigned long val)
 }
 
 /* GUEST CONTEXT REGISTERS */
+#pragma inline_asm get_gmeipc
+static unsigned long get_gmeipc(void)
+{
+    stsr 0, r10, 9
+}
+
+#pragma inline_asm set_gmeipc
+static void set_gmeipc(unsigned long val)
+{
+    ldsr r6, 0, 9
+}
+
+#pragma inline_asm get_gmfepc
+static unsigned long get_gmfepc(void)
+{
+    stsr 2, r10, 9
+}
+
+#pragma inline_asm set_gmfepc
+static void set_gmfepc(unsigned long val)
+{
+    ldsr r6, 2, 9
+}
+
+#pragma inline_asm get_gmmea
+static unsigned long get_gmmea(void)
+{
+    stsr 6, r10, 9
+}
+
+#pragma inline_asm set_gmmea
+static void set_gmmea(unsigned long val)
+{
+    ldsr r6, 6, 9
+}
+
+#pragma inline_asm get_gmmei
+static unsigned long get_gmmei(void)
+{
+    stsr 8, r10, 9
+}
+
+#pragma inline_asm set_gmmei
+static void set_gmmei(unsigned long val)
+{
+    ldsr r6, 8, 9
+}
+
+#pragma inline_asm get_gmeiic
+static unsigned long get_gmeiic(void)
+{
+    stsr 13, r10, 9
+}
+
+#pragma inline_asm set_gmeiic
+static void set_gmeiic(unsigned long val)
+{
+    ldsr r6, 13, 9
+}
+
+#pragma inline_asm get_gmfeic
+static unsigned long get_gmfeic(void)
+{
+    stsr 14, r10, 9
+}
+
+#pragma inline_asm set_gmfeic
+static void set_gmfeic(unsigned long val)
+{
+    ldsr r6, 14, 9
+}
+
 #pragma inline_asm get_gmspid
 static unsigned long get_gmspid(void)
 {
