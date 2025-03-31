@@ -207,11 +207,11 @@ static void intc_map_global_mmio()
         ERROR("maping global interrupt controller region failed");
     }
 
-    intc2_hw = (void*)platform.arch.intc.intc2_addr;
-    intif_hw = (void*)platform.arch.intc.intif_addr;
-    eint_hw = (void*)platform.arch.intc.eint_addr;
-    fenc_hw = (void*)platform.arch.intc.fenc_addr;
-    feinc_hw[cpu()->id] = (void*)platform.arch.intc.feinc_addr[cpu()->id];
+    intc2_hw = (struct intc2*)platform.arch.intc.intc2_addr;
+    intif_hw = (struct intif*)platform.arch.intc.intif_addr;
+    eint_hw = (struct eint*)platform.arch.intc.eint_addr;
+    fenc_hw = (struct fenc*)platform.arch.intc.fenc_addr;
+    feinc_hw[cpu()->id] = (struct feinc*)platform.arch.intc.feinc_addr[cpu()->id];
 }
 
 void intc_map_mmio()
