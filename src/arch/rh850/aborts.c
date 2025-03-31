@@ -82,39 +82,9 @@ void abort()
         case 0x01:
             WARNING("Exception: RESET - Reset input\n");
             break;
-
-        case 0xE0:
-            WARNING("Exception: FENMI - FENMI interrupt\n");
-            break;
-
+            
         case 0x1C:
             WARNING("Exception: SYSERR - System error (context saving error)\n");
-            break;
-
-        case 0x90:
-            WARNING("Exception: MIP - Memory protection exception (execution privilege)\n");
-            break;
-        case 0x91:
-            WARNING("Exception: MDP - Memory protection exception (operand access)\n");
-            data_abort();
-            break;
-        case 0x95:
-            WARNING("Exception: MDP - Memory protection exception (interrupt table reference "
-                    "method)\n");
-            break;
-
-        case 0x80:
-        case 0x81:
-        case 0x82:
-            WARNING("Exception: UCPOP - Coprocessor unusable exception\n");
-            break;
-
-        case 0x60:
-            WARNING("Exception: RIE - Reserved instruction exception\n");
-            break;
-
-        case 0xA0:
-            WARNING("Exception: PIE - Privilege instruction exception\n");
             break;
 
         case 0x1D:
@@ -122,8 +92,8 @@ void abort()
                     "restoration)\n");
             break;
 
-        case 0xC0:
-            WARNING("Exception: MAE - Misalignment exception\n");
+        case 0x60:
+            WARNING("Exception: RIE - Reserved instruction exception\n");
             break;
 
         case 0x71:
@@ -132,6 +102,49 @@ void abort()
 
         case 0x75:
             WARNING("Exception: FXE - FXU exception (precise)\n");
+            break;
+
+        case 0x80:
+        case 0x81:
+        case 0x82:
+            WARNING("Exception: UCPOP - Coprocessor unusable exception\n");
+            break;
+
+        case 0x90:
+            WARNING("Exception: MIP - Memory protection exception due to instruction fetching\n");
+            break;
+        case 0x91:
+            WARNING("Exception: MDP - Memory protection exception due to operand access)\n");
+            data_abort();
+            break;
+        case 0x95:
+            WARNING("Exception: MDP - Memory protection exception (interrupt table reference "
+                    "method)\n");
+            break;
+        case 0x98:
+            WARNING("Exception: MIP - Guest memory protection exception due to instruction "
+                "fetching\n");
+            break;
+        case 0x99:
+            WARNING("Exception: MDP - Guest memory protection exception due to operand "
+                "access)\n");
+            data_abort();
+            break;
+        case 0x9D:
+            WARNING("Exception: MDP - Guest memory protection exception (interrupt table "
+                    "reference method)\n");
+            break;
+
+        case 0xA0:
+            WARNING("Exception: PIE - Privilege instruction exception\n");
+            break;
+
+        case 0xC0:
+            WARNING("Exception: MAE - Misalignment exception\n");
+            break;
+
+        case 0xE0:
+            WARNING("Exception: FENMI - FENMI interrupt\n");
             break;
 
         default:

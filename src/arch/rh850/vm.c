@@ -21,7 +21,11 @@ void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm)
 {
     vintc_init(vcpu);
     set_gmpeid(vcpu->id);
-    set_gmspid(vm->id + 1);
+    
+    /* set EIPSWH.GPID */
+    set_eipswh(get_eipswh() | (vm->id << 8));
+
+    // TODO: Need to set FEPSWH.GPID ?
 }
 
 void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry)
@@ -32,8 +36,6 @@ void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry)
     vcpu_writepc(vcpu, entry);
     set_eipc(entry);
     set_gmpeid(vcpu->id);
-
-    set_gmspid(vm->id + 1);
 }
 
 bool vcpu_arch_is_on(struct vcpu* vcpu)
