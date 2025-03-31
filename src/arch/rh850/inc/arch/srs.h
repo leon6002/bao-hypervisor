@@ -905,6 +905,18 @@ static void set_gmspid(unsigned long val)
     ldsr r6, 16, 9
 }
 
+#pragma inline_asm get_gmspidlist
+static unsigned long get_gmspidlist(void)
+{
+    stsr 17, r10, 9
+}
+
+#pragma inline_asm set_gmspidlist
+static void set_gmspidlist(unsigned long val)
+{
+    ldsr r6, 17, 9
+}
+
 #pragma inline_asm get_gmmpm
 static unsigned long get_gmmpm(void)
 {

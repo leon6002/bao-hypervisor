@@ -8,6 +8,9 @@
 
 #include <bao.h>
 
+#define HYP_SPID 0x0
+#define VM_SPID 0x1
+
 typedef union {
     struct {
         uint16_t ur : 1; // hyp att?
@@ -43,18 +46,19 @@ typedef union {
 
 typedef mpat_flags_t mem_flags_t;
 
-#define PTE_INVALID       ((mem_flags_t){ .e = 0 })
+#define PTE_INVALID         ((mem_flags_t){ .e = 0 })
 
-#define PTE_HYP_FLAGS     ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1, .rg = 1, .wg = 1 })
-#define PTE_HYP_DEV_FLAGS ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 0, .rg = 1, .wg = 1 })
+#define PTE_HYP_CODE_FLAGS  ((mem_flags_t){ .e = 1, .sr = 1, .sw = 0, .sx = 1, .rg = 1 })
+#define PTE_HYP_FLAGS       ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1, .rmpid0 = 1, .wmpid0 = 1 })
+#define PTE_HYP_DEV_FLAGS   ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 0, .rmpid0 = 1, .wmpid0 = 1 })
 
 /* TODO in the future we need to deal with IO permissions securely */
 #define PTE_VM_FLAGS \
-    ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1, .ur = 1, .uw = 1, .ux = 1, .rg = 1, .wg = 1 })
+    ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1, .ur = 1, .uw = 1, .ux = 1, .rmpid1 = 1, .wmpid1 = 1 })
 
 /* TODO in the future we need to deal with IO permissions securely */
 #define PTE_VM_DEV_FLAGS \
-    ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 0, .ur = 1, .uw = 1, .ux = 0, .rg = 1, .wg = 1 })
+    ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 0, .ur = 1, .uw = 1, .ux = 0, .rmpid1 = 1, .wmpid1 = 1 })
 
 #define MPU_ARCH_MAX_NUM_ENTRIES (32)
 

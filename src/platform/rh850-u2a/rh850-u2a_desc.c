@@ -37,7 +37,7 @@ struct platform platform = {
             // Cluster2 RAM -> Guest Data
             {
                 .base = 0xfe400000,
-                .size = 0x10000,
+                .size = 0x100000,
                 .perms = RWX,
             },
             // Cluster3 RAM -> Guest retention RAM

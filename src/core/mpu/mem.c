@@ -185,7 +185,7 @@ static void mem_init_boot_regions(void)
     mpr = (struct mp_region){
         .base = image_start,
         .size = ALIGN((size_t)(first_region_end - image_start), PAGE_SIZE),
-        .mem_flags = PTE_HYP_FLAGS,
+        .mem_flags = PTE_HYP_CODE_FLAGS,
         .as_sec = SEC_HYP_IMAGE,
     };
     mem_map(&cpu()->as, &mpr, false, true);

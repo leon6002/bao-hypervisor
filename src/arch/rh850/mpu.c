@@ -47,20 +47,21 @@ static void mpu_entry_clear(mpid_t mpid)
 static mpid_t mpu_entry_allocate_guest(void)
 {
     mpid_t reg_num = INVALID_MPID;
-    for (mpid_t i = 0; i < (mpid_t)mpu_num_entries(); i++) {
+    for (mpid_t i = (mpid_t)mpu_num_entries() - 1; i >= 0; i--) {
         if (bitmap_get(cpu()->arch.mpu_hyp.bitmap, i) == 0) {
             bitmap_set(cpu()->arch.mpu_hyp.bitmap, i);
             reg_num = i;
 
-            unsigned long mpcfg = get_mpcfg();
+            // // Update HBE
+            // unsigned long mpcfg = get_mpcfg();
 
-            // TODO right now hyp entries must be allocated first
-            //
-            // TODO add hyp mpu entry counter to prevent guest mpu entries from
-            // spiling into hyp entries
-            unsigned long hbe = (reg_num + 1) << 8;
-            mpcfg = (mpcfg & ~0x3F00) | hbe;
-            set_mpcfg(mpcfg);
+            // // TODO right now hyp entries must be allocated first
+            // //
+            // // TODO add hyp mpu entry counter to prevent guest mpu entries from
+            // // spiling into hyp entries
+            // unsigned long hbe = (reg_num + 1) << 8;
+            // mpcfg = (mpcfg & ~0x3F00) | hbe;
+            // set_mpcfg(mpcfg);
             break;
         }
     }
@@ -71,7 +72,7 @@ static mpid_t mpu_entry_allocate_guest(void)
 static mpid_t mpu_entry_allocate_hyp(void)
 {
     mpid_t reg_num = INVALID_MPID;
-    for (int i = (int)mpu_num_entries() - 1; i >= 0; i--) {
+    for (mpid_t i = (mpid_t)mpu_num_entries() - 1; i >= 0; i--) {
         if (bitmap_get(cpu()->arch.mpu_hyp.bitmap, i) == 0) {
             bitmap_set(cpu()->arch.mpu_hyp.bitmap, i);
             reg_num = i;
@@ -219,6 +220,12 @@ void mpu_arch_init(void)
             bitmap_set(cpu()->arch.mpu_hyp.bitmap, mpid);
             bitmap_set(cpu()->arch.mpu_hyp.locked, mpid);
         }
+
+        /* configure SPIDs */
+        // we assume MPIDn.SPID = 0 after reset for n = 2 to 7
+        set_mpid0(HYP_SPID);
+        set_mpid1(VM_SPID);
+        set_spid(HYP_SPID);
     }
 
     unsigned long mpcfg = get_mpcfg();

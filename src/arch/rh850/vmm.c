@@ -13,8 +13,8 @@ void vmm_arch_init(void)
     /* HVCFG.HVE is set after reset */
 
     /* set GMCFG.GMP, GMCFG.HMP and GMCFG.GSYSE */
-    set_gmcfg(0x13);
-    if (get_gmcfg() != 0x13){
+    set_gmcfg(0x12);
+    if (get_gmcfg() != 0x12){
         ERROR("GMCFG is not being written");
     }
 
@@ -24,13 +24,19 @@ void vmm_arch_init(void)
         ERROR("EIPSWH is not being written");
     }
 
-    // TODO: set FEPSWH ?
+    // TODO: set FEPSWH.GM ?
 
     /* set GMMPM.GMPE */
-    set_gmmpm(0x0);
-    if (get_gmmpm() != 0x0){
+    set_gmmpm(0x4);
+    if (get_gmmpm() != 0x4){
         ERROR("GMMPM is not being written");
     }
+
+    /* set GMSPIDLIST with available SPIDs not used by the hyp */
+    set_gmspidlist(0x0);
+
+    /* set GMSPID */
+    set_gmspid(VM_SPID);
 
     /* clear guest-context exception registers */
     set_gmeipc(0x0);

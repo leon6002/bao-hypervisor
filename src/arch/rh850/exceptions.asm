@@ -135,8 +135,13 @@ _hyp_interrupt_table:
 	.align	2
 
 VM_EXIT .macro
+
+	; set SPID to HYP_SPID
+	ldsr r31, 28, 0 ; use EIWR as scratchpad
+	mov 0x0, r31 ; HYP_SPID
+	ldsr r31, 0, 1
+
 	; save program registers in vcpu struct
-    ldsr r31, 28, 0 ; use EIWR as scratchpad
     stsr 29, r31, 0 ; get cpu* from FEWR
     add 8, r31 ; CPU_VCPU_OFF
     ld.w [r31], r31 ; get cpu.VCPU*
@@ -157,11 +162,17 @@ VM_EXIT .macro
     st.dw r26, 104[r31]
     st.dw r28, 112[r31]
     st.w r30, 120[r31]
-    ; TODO PC etc ?
 
     mov r31, r30
     stsr 28, r31, 0
     st.w r31, 124[r30]
+
+	; save PC
+	stsr 0, r20, 0
+	st.w r20, 128[r30]
+
+	; TODO: Need to save FEPC?
+	;		Need to set PSWH?
 
 	; restore stack pointer
 	stsr 29, r20, 0 ; get cpu* from FEWR
@@ -173,6 +184,7 @@ VM_EXIT .macro
 .endm
 
 VM_ENTRY .macro
+	; load vcpu registers from memory
     stsr 29, r31, 0
     add 8, r31 ; CPU_VCPU_OFF
     ld.w [r31], r31 ; cpu.VCPU
@@ -197,6 +209,17 @@ VM_ENTRY .macro
 
     ld.w 120[r31], r30
     ld.w 124[r31], r31
+
+	ldsr r31, 28, 0 ; use EIWR to save r31
+
+	; set SPID to VM_SPID
+	mov 0x1, r31 ; VM_SPID
+	ldsr r31, 0, 1
+
+	;; the two instruction below should not trigger any MIP exception, 
+	;; as all the hypervisor code belongs to an MPU entry with RG = 1.
+
+	stsr 28, r31, 0 ; restore r31
     eiret
 .endm
 
@@ -204,12 +227,11 @@ VM_ENTRY .macro
 .extern _abort
 .extern _interrupts_handle
 
-_guest_exception:
-    br _guest_exception   
+_guest_exception: 
 
-    ; VM_EXIT
-    ; jarl _abort, lp
-    ; VM_ENTRY
+    VM_EXIT
+    jarl _abort, lp
+    VM_ENTRY
 
 
 _host_exception:
