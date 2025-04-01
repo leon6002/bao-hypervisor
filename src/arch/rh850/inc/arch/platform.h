@@ -18,6 +18,8 @@ struct arch_platform {
         paddr_t fenc_addr;
         paddr_t feinc_addr[8];
     } intc;
+    
+    paddr_t bootctrl_addr;
 
     paddr_t ipir_addr;
 };

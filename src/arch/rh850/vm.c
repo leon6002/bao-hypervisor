@@ -15,11 +15,20 @@
 #include <mem.h>
 #include <arch/vintc.h>
 
-void vm_arch_init(struct vm* vm, const struct vm_config* vm_config) { }
+void vm_arch_init(struct vm* vm, const struct vm_config* vm_config)
+{
+    /* set EIPC with VM entry address */
+    set_eipc((unsigned long)(vm_config->entry));
+
+    /* set xxPSW.EBV */
+    set_eipsw(0x8000);
+    set_fepsw(0x8000);
+}
 
 void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm)
 {
     vintc_init(vcpu);
+    vbootctrl_init(vcpu);
     set_gmpeid(vcpu->id);
     
     /* set EIPSWH.GPID */
@@ -30,7 +39,6 @@ void vcpu_arch_init(struct vcpu* vcpu, struct vm* vm)
 
 void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry)
 {
-    struct vm* vm = vcpu->vm;
     memset(&vcpu->regs, 0, sizeof(struct arch_regs));
 
     vcpu_writepc(vcpu, entry);

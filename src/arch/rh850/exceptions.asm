@@ -134,6 +134,47 @@ _hyp_interrupt_table:
 .section ".text", text
 	.align	2
 
+; r30: vcpu register struct base address
+; uses r20
+save_srs:
+	stsr 5, r20, 0
+	andi 0x80, r20, r20 ; PSW.NP
+	cmp r0, r20
+	be save_ei
+	stsr 2, r20, 0 ; save FEPC
+	br save_srs_exit
+save_ei:
+	stsr 0, r20, 0 ; save EIPC
+save_srs_exit:
+	st.w r20, 128[r30]
+	jmp [lp]
+
+; r30: vcpu register struct base address
+; uses r20 and r21
+restore_srs:
+	ld.w 128[r30], r20 ; PC value
+	stsr 5, r21, 0
+	andi 0x80, r21, r21 ; PSW.NP (we assume it did not change)
+	cmp r0, r21
+	be restore_ei
+	ldsr r20, 2, 0 ; set FEPC
+	br restore_srs_exit
+restore_ei:
+	ldsr r20, 2, 0 ; set EIPC
+restore_srs_exit:
+	jmp [lp]
+
+select_xxret:
+	stsr 5, r31, 0
+	andi 0x80, r31, r31 ; PSW.NP
+	cmp r0, r31
+	be ei_ret
+	stsr 28, r31, 0
+    feret
+ei_ret:
+	stsr 28, r31, 0
+	eiret
+
 VM_EXIT .macro
 
 	; set SPID to HYP_SPID
@@ -168,11 +209,7 @@ VM_EXIT .macro
     st.w r31, 124[r30]
 
 	; save PC
-	stsr 0, r20, 0
-	st.w r20, 128[r30]
-
-	; TODO: Need to save FEPC?
-	;		Need to set PSWH?
+	jarl save_srs, lp
 
 	; restore stack pointer
 	stsr 29, r20, 0 ; get cpu* from FEWR
@@ -185,10 +222,15 @@ VM_EXIT .macro
 
 VM_ENTRY .macro
 	; load vcpu registers from memory
-    stsr 29, r31, 0
-    add 8, r31 ; CPU_VCPU_OFF
-    ld.w [r31], r31 ; cpu.VCPU
-    add 4, r31 ; VCPU_REGS_OFF
+    stsr 29, r30, 0
+    add 8, r30 ; CPU_VCPU_OFF
+    ld.w [r30], r30 ; cpu.VCPU
+    add 4, r30 ; VCPU_REGS_OFF
+
+	; restore PC
+	jarl restore_srs, lp
+	mov r30, r31
+
     ld.dw 0[r31], r0
     ld.dw 8[r31], r2
     ld.dw 16[r31], r4
@@ -204,23 +246,18 @@ VM_ENTRY .macro
     ld.dw 96[r31], r24
     ld.dw 104[r31], r26
     ld.dw 112[r31], r28
-    ld.w 128[r31], r30
-    ldsr r30, 0, 0 ; set EIPC
-
-    ld.w 120[r31], r30
-    ld.w 124[r31], r31
-
-	ldsr r31, 28, 0 ; use EIWR to save r31
+    ld.dw 120[r31], r30
 
 	; set SPID to VM_SPID
+	ldsr r31, 28, 0
 	mov 0x1, r31 ; VM_SPID
 	ldsr r31, 0, 1
 
-	;; the two instruction below should not trigger any MIP exception, 
+	;; the instructions below should not trigger any MIP exception, 
 	;; as all the hypervisor code belongs to an MPU entry with RG = 1.
 
-	stsr 28, r31, 0 ; restore r31
-    eiret
+	; select ret instruction
+	br select_xxret
 .endm
 
 

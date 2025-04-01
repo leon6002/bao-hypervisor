@@ -69,7 +69,6 @@ __data_vma_start:
     .public __start
 __start:
     di ; Disable interrupts
-    ; Disable faults ?
 
     ; get current CPU
     stsr 0, r5, 2 ; get PEID (regID 0, selID 2)
@@ -86,6 +85,11 @@ __start:
     mov #_hyp_interrupt_table, r2
     ldsr r2, 4, 1 ; set INTBP (regID 4, selID 1)
 
+    ; enable interrupt virtualization support
+    ;; recommended at CPU initialization after reset
+    mov 0xFFFC402F0, r20
+    mov 0x1, r21
+    st.w r21, 0[r20] ; IHVCFG.IHVE = 0x1
 
     ; disable memory protections
     mov r0, r2 ; MPM.MPE (and all else) disabled
@@ -205,7 +209,8 @@ clear_cpu:
     
     ; Set init arguments
     mov r5, r6 ; copy CPU ID to r6
-    mov #_init, r5 ; set Text Pointer TODO what should be here?    
+    mov #_init, r5
+
     br _init
 
 ; r20: start of region

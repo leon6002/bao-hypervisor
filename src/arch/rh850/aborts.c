@@ -76,7 +76,10 @@ static void data_abort()
 
 void abort()
 {
-    unsigned long cause = get_eiic();
+    unsigned long psw = get_psw();
+    unsigned long cause = (psw & (0x1UL << 7)) ? 
+                            (get_feic() & 0xFFFFUL) :
+                            (get_eiic() & 0xFFFFUL);
 
     switch (cause) {
         case 0x01:

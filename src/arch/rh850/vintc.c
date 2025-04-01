@@ -151,8 +151,8 @@ void vintc_inject(struct vcpu* vcpu, irqid_t int_id)
 
 static void emulate_intc2_eic_access(struct emul_access* acc, size_t offset)
 {
-    size_t eeic_idx = ALIGN(offset, 16) / 16;
-    irqid_t int_id = eeic_idx + 32;
+    size_t eic_idx = ALIGN(offset, 2) / 2;
+    irqid_t int_id = eic_idx + 32;
 
     struct vcpu* vcpu = cpu()->vcpu;
     struct vm* vm = vcpu->vm;
@@ -163,9 +163,9 @@ static void emulate_intc2_eic_access(struct emul_access* acc, size_t offset)
 
     if (acc->write) {
         unsigned long val = vcpu_readreg(vcpu, acc->reg);
-        intc2_hw->EIC[eeic_idx] = val;
+        intc2_hw->EIC[eic_idx] = val;
     } else {
-        unsigned int val = intc2_hw->EIC[eeic_idx];
+        unsigned int val = intc2_hw->EIC[eic_idx];
         vcpu_writereg(vcpu, acc->reg, val);
     }
 }
@@ -261,24 +261,28 @@ bool vintc2_emul_handler(struct emul_access* acc)
     size_t intc2_eic_top = sizeof(((struct intc2*)NULL)->EIC);
     if (acc_offset >= intc2_eic_bot && acc_offset < intc2_eic_top) {
         emulate_intc2_eic_access(acc, acc_offset - intc2_eic_bot);
+        return true;
     }
 
     size_t intc2_imr_bot = offsetof(struct intc2, IMR);
     size_t intc2_imr_top = sizeof(((struct intc2*)NULL)->IMR);
     if (acc_offset >= intc2_imr_bot && acc_offset < intc2_imr_top) {
         emulate_intc2_imr_access(acc, acc_offset - intc2_imr_bot);
+        return true;
     }
 
     size_t intc2_eibd_bot = offsetof(struct intc2, EIBD);
     size_t intc2_eibd_top = sizeof(((struct intc2*)NULL)->EIBD);
     if (acc_offset >= intc2_eibd_bot && acc_offset < intc2_eibd_top) {
         emulate_intc2_eibd_access(acc, acc_offset - intc2_eibd_bot);
+        return true;
     }
 
     size_t intc2_eeic_bot = offsetof(struct intc2, EEIC);
     size_t intc2_eeic_top = sizeof(((struct intc2*)NULL)->EEIC);
     if (acc_offset >= intc2_eeic_bot && acc_offset < intc2_eeic_top) {
         emulate_intc2_eeic_access(acc, acc_offset - intc2_eeic_bot);
+        return true;
     }
 
     ERROR("%s not implemented", __func__);
@@ -350,4 +354,37 @@ void vintc_init(struct vcpu* vcpu)
         .handler = vfeinc_emul_handler,
     };
     vm_emul_add_mem(vm, &vm->arch.feinc_emul);
+}
+
+// TODO
+bool vbootctrl_emul_handler(struct emul_access* acc)
+{
+    struct vcpu* vcpu = cpu()->vcpu;
+    struct vm* vm = vcpu->vm;
+    bool ret;
+
+    if (vm->cpu_num > 1)
+    {
+        // Multi-core guest: check if the cores it is trying 
+        //                   to start belongs to that VM
+        ret = true;
+    }
+    else {
+        // Single-core guest: ignore? signal error? 
+        ret = true;
+    }
+
+    return ret;
+}
+
+void vbootctrl_init(struct vcpu* vcpu)
+{
+    struct vm* vm = vcpu->vm;
+
+    vm->arch.bootctrl_emul = (struct emul_mem){
+        .va_base = platform.arch.bootctrl_addr,
+        .size = 0x10,
+        .handler = vbootctrl_emul_handler,
+    };
+    vm_emul_add_mem(vm, &vm->arch.bootctrl_emul);
 }

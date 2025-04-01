@@ -230,7 +230,4 @@ void intc_map_mmio()
 void intc_init()
 {
     intc_map_mmio();
-
-    // (mandatory) enable virtualization support
-    intc1_hw->IHVCFG = 1;
 }
