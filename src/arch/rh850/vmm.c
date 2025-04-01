@@ -24,7 +24,11 @@ void vmm_arch_init(void)
         ERROR("EIPSWH is not being written");
     }
 
-    // TODO: set FEPSWH.GM ?
+    /* set FEPSWH.GM */
+    set_fepswh(0x80000000);
+    if (get_fepswh() != 0x80000000){
+        ERROR("FEPSWH is not being written");
+    }
 
     /* set GMMPM.GMPE */
     set_gmmpm(0x4);

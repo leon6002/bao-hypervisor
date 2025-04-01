@@ -33,6 +33,8 @@ struct vm_arch {
     struct emul_mem eint_emul;
     struct emul_mem fenc_emul;
     struct emul_mem feinc_emul;
+    /* BOOTCTRL */
+    struct emul_mem bootctrl_emul;
 };
 
 struct vcpu_arch {

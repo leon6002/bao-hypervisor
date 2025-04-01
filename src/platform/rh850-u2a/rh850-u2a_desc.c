@@ -61,7 +61,7 @@ struct platform platform = {
             // Code Flash (Bank B) -> Guest code
             {
                 .base = 0x10000,
-                .size = 0x40000,
+                .size = 0x100000,
                 .perms = RX,
             }
         },
@@ -81,6 +81,7 @@ struct platform platform = {
             },
         },
 
-        .ipir_addr = 0xFFFB9000,
+        .bootctrl_addr = 0xFFFB2000,
+        .ipir_addr = 0xFFFB9000
     }
 };
