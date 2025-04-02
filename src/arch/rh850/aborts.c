@@ -61,8 +61,6 @@ static void data_abort()
         emul.reg_width = ds;
         emul.sign_ext = u;
 
-        // TODO: check if the access is aligned. If not, inject an exception in the vm
-
         if (handler(&emul)) {
             unsigned long pc_step = len;
             vcpu_writepc(cpu()->vcpu, vcpu_readpc(cpu()->vcpu) + pc_step);
