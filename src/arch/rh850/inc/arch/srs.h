@@ -845,6 +845,18 @@ static void set_gmfepc(unsigned long val)
     ldsr r6, 2, 9
 }
 
+#pragma inline_asm get_gmpsw
+static unsigned long get_gmpsw(void)
+{
+    stsr 5, r10, 9
+}
+
+#pragma inline_asm set_gmpsw
+static void set_gmpsw(unsigned long val)
+{
+    ldsr r6, 5, 9
+}
+
 #pragma inline_asm get_gmmea
 static unsigned long get_gmmea(void)
 {
