@@ -7,6 +7,7 @@
 #include <vmm.h>
 
 #include <arch/srs.h>
+#include <arch/fences.h>
 
 void vmm_arch_init(void)
 {
@@ -49,4 +50,16 @@ void vmm_arch_init(void)
     set_gmmei(0x0);
     set_gmeiic(0x0);
     set_gmfeic(0x0);
+}
+
+void vmm_enable_access_to_vm(void)
+{
+    set_mpid7(HYP_SPID);
+    fence_sync();
+}
+
+void vmm_disable_access_to_vm(void)
+{
+    set_mpid7(AUX_SPID);
+    fence_sync();
 }

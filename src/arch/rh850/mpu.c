@@ -220,12 +220,6 @@ void mpu_arch_init(void)
             bitmap_set(cpu()->arch.mpu_hyp.bitmap, mpid);
             bitmap_set(cpu()->arch.mpu_hyp.locked, mpid);
         }
-
-        /* configure SPIDs */
-        // we assume MPIDn.SPID = 0 after reset for n = 2 to 7
-        set_mpid0(HYP_SPID);
-        set_mpid1(VM_SPID);
-        set_spid(HYP_SPID);
     }
 
     unsigned long mpcfg = get_mpcfg();
@@ -233,6 +227,13 @@ void mpu_arch_init(void)
     unsigned long hbe = 0;
     mpcfg = (mpcfg & ~0x3F00) | hbe;
     set_mpcfg(mpcfg);
+
+    /* configure SPIDs */
+    // we assume MPIDn.SPID = 0 after reset for n = 2 to 7
+    set_mpid0(HYP_SPID);
+    set_mpid1(VM_SPID);
+    set_mpid7(AUX_SPID);
+    set_spid(HYP_SPID);
 }
 
 void mpu_arch_enable(void)
