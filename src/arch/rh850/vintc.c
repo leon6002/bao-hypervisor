@@ -6,6 +6,7 @@
 #include <bitmap.h>
 #include <interrupts.h>
 #include <arch/srs.h>
+#include <arch/fences.h>
 
 
 #define F8_OPCODE               (0x3EUL)
@@ -23,6 +24,10 @@
 #define BITIDX_SHIFT            (11)
 #define BITIDX_MASK             (0x7UL << BITIDX_SHIFT)
 #define GET_BITIDX (inst)       (((inst) & BITIDX_MASK) >> BITIDX_SHIFT)
+
+#define REGIDX_SHIFT            (11)
+#define REGIDX_MASK             (0x1FUL << REGIDX_SHIFT)
+#define GET_BITIDX (inst)       (((inst) & REGIDX_MASK) >> REGIDX_SHIFT)
 
 extern volatile struct intc1* intc1_hw;
 extern volatile struct intc2* intc2_hw;
@@ -174,7 +179,7 @@ static void emulate_intc2_eic_access(struct emul_access* acc, size_t offset, uin
     
     size_t eic_idx = ALIGN(offset, 2) / 2;
     irqid_t int_id = eic_idx + 32;
-    uint32_t addr_off = acc->addr % 4;
+    uint32_t addr_off = acc->addr & 0x1UL;
 
     if (!vm_has_interrupt(vm, int_id)) {
         ERROR("VM tried to access unassigned interrupt");
@@ -234,7 +239,7 @@ static void emulate_intc2_imr_access(struct emul_access* acc, size_t offset, uin
     struct vm* vm = vcpu->vm;
 
     size_t imr_idx = ALIGN(offset, 4) / 4;
-    uint32_t addr_off = acc->addr % 4;
+    uint32_t addr_off = acc->addr & 0x3UL;
     irqid_t first_imr_int = imr_idx * 32 + 32;
 
     /* bit manipulation instruction */
@@ -322,7 +327,7 @@ static void emulate_intc2_eibd_access(struct emul_access* acc, size_t offset, ui
     
     size_t eibd_idx = ALIGN(offset, 4) / 4;
     irqid_t int_id = eibd_idx + 32;
-    uint32_t addr_off = acc->addr % 4;
+    uint32_t addr_off = acc->addr & 0x3UL;
     uint32_t aux_mask = mask & 0xFFFF0000;
 
     if (!vm_has_interrupt(vm, int_id)) {
@@ -362,7 +367,8 @@ static void emulate_intc2_eibd_access(struct emul_access* acc, size_t offset, ui
         }
     }
     else if (acc->write) {
-        unsigned long val = vcpu_readreg(vcpu, acc->reg) & 0xFFFF0000;
+        unsigned long val = (vcpu_readreg(vcpu, acc->reg) & 0xFFFF0000) | 
+                                (intc2_hw->EIBD[eibd_idx] & ~0xFFFF0000);
         intc2_hw->EIBD[eibd_idx] = ((val & mask) << (addr_off * 8)) | 
                                     (intc2_hw->EIBD[eibd_idx] & ~(mask << (addr_off * 8)));
     }
@@ -383,9 +389,9 @@ static void emulate_intc2_eeic_access(struct emul_access* acc, size_t offset, ui
     struct vcpu* vcpu = cpu()->vcpu;
     struct vm* vm = vcpu->vm;
     
-    size_t eeic_idx = ALIGN(offset, 4) / 4;
+    size_t eeic_idx = ALIGN(offset, 2) / 2;
     size_t int_id = eeic_idx + 32;
-    uint32_t addr_off = acc->addr % 4;
+    uint32_t addr_off = acc->addr & 0x1UL;
 
     if (!vm_has_interrupt(vm, int_id)) {
         ERROR("VM tried to access unassigned interrupt");
@@ -447,19 +453,25 @@ bool vintc2_emul_handler(struct emul_access* acc)
     uint32_t mask = ((1U << (8 * (acc->reg_width + 1))) - 1) 
                         | ((acc->reg_width == 2) * 0xFF000000);
 
-    unsigned long* pc = (unsigned long*)vcpu_readpc(cpu()->vcpu);
-    unsigned long opcode = ((*pc & OPCODE_MASK) >> OPCODE_SHIFT);
-    unsigned long subopcode = ((*pc & SUBOPCODE_MASK) >> SUBOPCODE_SHIFT);
+    unsigned short* pc = (unsigned short*)(vcpu_readpc(cpu()->vcpu));
+    set_mpid7(HYP_SPID);
+    fence_sync();
+    unsigned long inst = (unsigned long)(*pc | (*(pc+1) << 16));
+    set_mpid7(AUX_SPID);
+    fence_sync();
+    unsigned long opcode = ((inst & OPCODE_MASK) >> OPCODE_SHIFT);
+    unsigned long subopcode = ((inst & SUBOPCODE_MASK) >> SUBOPCODE_SHIFT);
     unsigned long bit_op = 0;
 
-    /* bit manipulation instruction */
-    if ((opcode == F8_OPCODE) || (opcode == F9_OPCODE && subopcode == F9_SUBOPCODE)) {
-        mask = 1UL << (((acc->addr & 0x3UL) * 8) + ((*pc & BITIDX_MASK) >> BITIDX_SHIFT));
-
-        if (opcode == F8_OPCODE)
-            bit_op = ((*pc & 0xC000UL) >> 14) + 1;
-        else
-            bit_op = ((*pc & 0x60000UL) >> 17) + 1;
+    /* bit manipulation instruction */    
+    if (opcode == F8_OPCODE) {
+        mask = 1UL << ((inst & BITIDX_MASK) >> BITIDX_SHIFT);
+        bit_op = ((inst & 0xC000UL) >> 14) + 1;
+    }
+    else if (opcode == F9_OPCODE && subopcode == F9_SUBOPCODE) {
+        unsigned long bit_idx = vcpu_readreg(cpu()->vcpu, (inst & REGIDX_MASK) >> REGIDX_SHIFT);
+        mask = 1UL << (bit_idx & 0x7UL);
+        bit_op = ((inst & 0x60000UL) >> 17) + 1;
     }
 
     size_t intc2_eic_bot = offsetof(struct intc2, EIC);

@@ -59,7 +59,7 @@ static void data_abort()
         emul.write = rw ? true : false;
         emul.reg = reg;
         emul.reg_width = ds;
-        emul.sign_ext = u;
+        emul.sign_ext = ~u;
 
         if (handler(&emul)) {
             unsigned long pc_step = len;

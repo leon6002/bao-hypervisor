@@ -10,6 +10,7 @@
 
 #define HYP_SPID 0x0
 #define VM_SPID 0x1
+#define AUX_SPID 0x1F
 
 typedef union {
     struct {
@@ -54,7 +55,7 @@ typedef mpat_flags_t mem_flags_t;
 
 /* TODO in the future we need to deal with IO permissions securely */
 #define PTE_VM_FLAGS \
-    ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1, .ur = 1, .uw = 1, .ux = 1, .rmpid1 = 1, .wmpid1 = 1 })
+    ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1, .ur = 1, .uw = 1, .ux = 1, .rmpid1 = 1, .wmpid1 = 1, .rmpid7 = 1, .wmpid7 = 1 })
 
 /* TODO in the future we need to deal with IO permissions securely */
 #define PTE_VM_DEV_FLAGS \
