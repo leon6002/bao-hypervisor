@@ -19,6 +19,8 @@ void vmm_arch_init(void)
         ERROR("GMCFG is not being written");
     }
 
+    // TODO: set xxPSWH.GPID with the VM ID
+
     /* set EIPSWH.GM */
     set_eipswh(0x80000000);
     if (get_eipswh() != 0x80000000){

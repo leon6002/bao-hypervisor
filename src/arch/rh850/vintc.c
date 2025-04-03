@@ -334,6 +334,9 @@ static void emulate_intc2_eibd_access(struct emul_access* acc, size_t offset, ui
         ERROR("VM tried to access unassigned interrupt");
     }
 
+    // TODO: set EIBDn.GPID with VM ID
+    // TODO: set EIBDn.PEID with physical CPU ID where the VM is running.
+
     /* we use 0xFFFF0000 to mask access to virtualization configuration */
     /* bit manipulation instruction */
     if (bit_op != 0) {
@@ -389,9 +392,9 @@ static void emulate_intc2_eeic_access(struct emul_access* acc, size_t offset, ui
     struct vcpu* vcpu = cpu()->vcpu;
     struct vm* vm = vcpu->vm;
     
-    size_t eeic_idx = ALIGN(offset, 2) / 2;
+    size_t eeic_idx = ALIGN(offset, 4) / 4;
     size_t int_id = eeic_idx + 32;
-    uint32_t addr_off = acc->addr & 0x1UL;
+    uint32_t addr_off = acc->addr & 0x3UL;
 
     if (!vm_has_interrupt(vm, int_id)) {
         ERROR("VM tried to access unassigned interrupt");
