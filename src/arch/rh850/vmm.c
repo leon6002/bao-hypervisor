@@ -13,9 +13,9 @@ void vmm_arch_init(void)
 {
     /* HVCFG.HVE is set after reset */
 
-    /* set GMCFG.GMP, GMCFG.HMP and GMCFG.GSYSE */
-    set_gmcfg(0x12);
-    if (get_gmcfg() != 0x12){
+    /* set GMCFG.HMP, GMCFG.GSYSE, GMCFG */
+    set_gmcfg(0x30012);
+    if (get_gmcfg() != 0x30012){
         ERROR("GMCFG is not being written");
     }
 
