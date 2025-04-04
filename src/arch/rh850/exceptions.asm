@@ -184,7 +184,7 @@ VM_EXIT .macro
 
 	; save program registers in vcpu struct
     stsr 29, r31, 0 ; get cpu* from FEWR
-    add 8, r31 ; CPU_VCPU_OFF
+    addi 0x828, r31, r31 ; CPU_VCPU_OFF
     ld.w [r31], r31 ; get cpu.VCPU*
     add 4, r31 ; VCPU_REGS_OFF
     st.dw r0,  0[r31]
@@ -213,7 +213,7 @@ VM_EXIT .macro
 
 	; restore stack pointer
 	stsr 29, r20, 0 ; get cpu* from FEWR
-    mov 0x860, r21 ; CPU_STACK_OFF
+    mov 0x838, r21 ; CPU_STACK_OFF
     add r21, r20 ; add stack offset to CPU pointer
     mov 0x1000, r21 ; CPU STACK SIZE
     add r21, r20 ; stack base + stack size
@@ -223,7 +223,7 @@ VM_EXIT .macro
 VM_ENTRY .macro
 	; load vcpu registers from memory
     stsr 29, r30, 0
-    add 8, r30 ; CPU_VCPU_OFF
+    addi 0x828, r30, r30 ; CPU_VCPU_OFF
     ld.w [r30], r30 ; cpu.VCPU
     add 4, r30 ; VCPU_REGS_OFF
 
