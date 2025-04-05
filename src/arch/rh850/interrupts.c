@@ -21,10 +21,15 @@ irqid_t interrupts_ipi_id = IPI_IRQ_ID;
 struct ipir {
     struct {
         volatile uint8_t IPI_ENS;   // Offset: 0x000 + 0x020 * n
+        volatile uint8_t PAD0[3];
         volatile uint8_t IPI_FLGS;  // Offset: 0x004 + 0x020 * n
+        volatile uint8_t PAD1[3];
         volatile uint8_t IPI_FCLRS; // Offset: 0x008 + 0x020 * n
+        volatile uint8_t PAD2[7];
         volatile uint8_t IPI_REQS;  // Offset: 0x010 + 0x020 * n
+        volatile uint8_t PAD3[3];
         volatile uint8_t IPI_RCLRS; // Offset: 0x014 + 0x020 * n
+        volatile uint8_t PAD4[11];
     } channel[IPIR_CHANNEL_NUM];
 };
 
@@ -78,7 +83,10 @@ void interrupts_arch_vm_assign(struct vm* vm, irqid_t int_id)
 
 void interrupts_arch_ipi_send(cpuid_t cpu_target)
 {
-    ipir_hw->channel[0].IPI_REQS = (1 << cpu_target);
+    if (!(ipir_hw->channel[IPI_IRQ_ID].IPI_REQS & (1 << cpu_target)))
+        ipir_hw->channel[IPI_IRQ_ID].IPI_REQS = (1 << cpu_target);
+    else
+        ERROR("A previous request to PE%lu have not been accepted", cpu_target);
 }
 
 static void ipir_map_global_mmio()
