@@ -27,7 +27,7 @@
 
 #define REGIDX_SHIFT            (11)
 #define REGIDX_MASK             (0x1FUL << REGIDX_SHIFT)
-#define GET_BITIDX (inst)       (((inst) & REGIDX_MASK) >> REGIDX_SHIFT)
+#define GET_REGIDX (inst)       (((inst) & REGIDX_MASK) >> REGIDX_SHIFT)
 
 extern volatile struct intc1* intc1_hw;
 extern volatile struct intc2* intc2_hw;

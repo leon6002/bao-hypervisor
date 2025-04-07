@@ -75,6 +75,14 @@ __start:
     ; identify master cpu
     mov r0, r10 ; TODO: get value from CPU_MASTER_FIXED
 
+loop_3:
+    mov 3, r20
+    cmp r5, r20
+    be loop_3
+    mov 2, r20
+    cmp r5, r20
+    be loop_3
+
     mov 0x8020, r2
     ldsr r2, 5, 0 ; set PSW.EBV
 
@@ -84,12 +92,6 @@ __start:
 
     mov #_hyp_interrupt_table, r2
     ldsr r2, 4, 1 ; set INTBP (regID 4, selID 1)
-
-    ; enable interrupt virtualization support
-    ;; recommended at CPU initialization after reset
-    mov 0xFFFC402F0, r20
-    mov 0x1, r21
-    st.w r21, 0[r20] ; IHVCFG.IHVE = 0x1
 
     ; disable memory protections
     mov r0, r2 ; MPM.MPE (and all else) disabled
@@ -107,18 +109,24 @@ __start:
     ldsr r0, 17, 5 ; set MPBK
     jarl clear_mpu, lp
 
-    ; enable faults ?
-
-    ; check if current CPU is CPU_MASTER
-    cmp r5, r10
-    bne clear_cpu
-
     ; calculate offset between flash and RAM
     ;; we asume #__s.data < #__s.data.R
     mov 0xfe100000, r20
     mov #__s.data, r21
     sub r21, r20
     mov r20, r6 ; store offset
+
+    ; enable faults ?
+
+    ; check if current CPU is CPU_MASTER
+    cmp r5, r10
+    bne clear_cpu
+
+    ; enable interrupt virtualization support
+    ;; recommended at CPU initialization after reset
+    mov 0xFFFC402F0, r20
+    mov 0x1, r21
+    st.w r21, 0[r20] ; IHVCFG.IHVE = 0x1
     
     ; copy non .text segments to ram
     mov #__s.data, r20
@@ -174,7 +182,7 @@ __start:
     st.w r20, 0[r21]
 
 clear_cpu:
-    ; set up this cpu's CPU Struct
+    ; set up CPUn Struct
     ;; .bss.R end
     mov #__e.bss, r20
     add r6, r20 ; r20 holds end of .bss.R

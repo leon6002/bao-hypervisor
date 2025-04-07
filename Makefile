@@ -17,11 +17,11 @@ CC_IS_RHCC =	y
 # Setup toolchain macros
 
 
-cpp=		ccrh
-sstrip= 	$(CROSS_COMPILE)strip
-cc=		ccrh
-ld = 		rlink
-as=		asrh
+cpp=ccrh
+sstrip=$(CROSS_COMPILE)strip
+cc=ccrh
+ld=rlink
+as=asrh
 objcopy=	
 objdump=	
 readelf=	
@@ -259,16 +259,16 @@ endif
 
 $(ld_script_temp).d: $(ld_script)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %, $<)"
-	@$(HOST_CC) -x assembler-with-cpp  -MM -MT "$(ld_script_temp) $@" \
+	@$(HOST_CC) -DUSING_GCC -x assembler-with-cpp  -MM -MT "$(ld_script_temp) $@" \
 		$(addprefix -I, $(inc_dirs))  $< > $@
 
 $(build_dir)/%.d : $(src_dir)/%.c
 	@echo "Creating C dependency	 $(patsubst $(cur_dir)/%, %, $<)"
-	@$(HOST_CC) $(HOST_CPPFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@" $(CPPFLAGS) $< > $@
+	@$(HOST_CC) $(HOST_CPPFLAGS) -DUSING_GCC -MM -MG -MT "$(patsubst %.d, %.o, $@) $@" $(CPPFLAGS) $< > $@
 
 $(build_dir)/%.d : $(src_dir)/%.asm
 	@echo "Creating Asm dependency	$(patsubst $(cur_dir)/%, %, $<)"
-	@$(HOST_CC) $(HOST_CPPFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@" -x assembler-with-cpp $(CPPFLAGS) $< > $@
+	@$(HOST_CC) $(HOST_CPPFLAGS) -DUSING_GCC -MM -MG -MT "$(patsubst %.d, %.o, $@) $@" -x assembler-with-cpp $(CPPFLAGS) $< > $@
 
 $(c_objs):
 	@echo "Compiling C source	$(patsubst $(cur_dir)/%, %, $<)"
@@ -299,19 +299,19 @@ $(asm_defs_hdr): $(asm_defs_src)
 $(asm_defs_hdr).d: $(asm_defs_src)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %,\
 		 $(patsubst %.d,%, $@))"
-	@$(HOST_CC) -MM -MT $(HOST_CPPFLAGS) "$(patsubst %.d,%, $@)" $(addprefix -I, $(inc_dirs)) $< > $@
+	@$(HOST_CC) -DUSING_GCC -MM -MT $(HOST_CPPFLAGS) "$(patsubst %.d,%, $@)" $(addprefix -I, $(inc_dirs)) $< > $@
 endif
 
 $(config_dep): $(config_src)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %,\
 		 $(patsubst %.d,%, $@))"
-	@$(HOST_CC) $(HOST_CPPFLAGS) -MM -MG -MT "$(config_obj) $@" $(HOST_CPPFLAGS) $(filter %.c, $^) > $@
-	@$(HOST_CC) $(HOST_CPPFLAGS) -S $(config_src) -o - | grep ".incbin" | \
+	@$(HOST_CC) $(HOST_CPPFLAGS) -DUSING_GCC -MM -MG -MT "$(config_obj) $@" $(HOST_CPPFLAGS) $(filter %.c, $^) > $@
+	@$(HOST_CC) $(HOST_CPPFLAGS) -DUSING_GCC -S $(config_src) -o - | grep ".incbin" | \
 		awk '{ gsub("\"", "", $$2); print "$(config_obj): " $$2 }' >> $@
 
 $(config_def_generator): $(config_def_generator_src) $(config_src)
 	@echo "Compiling generator	$(patsubst $(cur_dir)/%, %, $@)"
-	@$(HOST_CC) $^ $(build_macros) $(HOST_CPPFLAGS) -DGENERATING_DEFS \
+	@$(HOST_CC) $^ $(build_macros) $(HOST_CPPFLAGS) -DGENERATING_DEFS -DUSING_GCC \
 		$(addprefix -I, $(inc_dirs)) -o $@
 
 $(config_defs): $(config_def_generator)
@@ -320,7 +320,7 @@ $(config_defs): $(config_def_generator)
 
 $(platform_def_generator): $(platform_def_generator_src) $(platform_description)
 	@echo "Compiling generator	$(patsubst $(cur_dir)/%, %, $@)"
-	@$(HOST_CC) $^ $(build_macros) $(HOST_CPPFLAGS) -DGENERATING_DEFS -D$(ARCH) \
+	@$(HOST_CC) $^ $(build_macros) $(HOST_CPPFLAGS) -DGENERATING_DEFS -DUSING_GCC -D$(ARCH) \
 		$(addprefix -I, $(inc_dirs)) -o $@
 
 $(platform_defs): $(platform_def_generator)
