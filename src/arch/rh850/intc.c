@@ -220,6 +220,8 @@ void intc_map_mmio()
     if (cpu_is_master()) {
         intc_map_global_mmio();
     }
+
+    cpu_sync_and_clear_msgs(&cpu_glb_sync);
 }
 
 /* TODO needed? */

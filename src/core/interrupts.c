@@ -53,6 +53,8 @@ void interrupts_init(void)
         interrupts_init_ipi();
     }
 
+    cpu_sync_and_clear_msgs(&cpu_glb_sync);
+
     interrupts_cpu_enable_ipi();
 }
 

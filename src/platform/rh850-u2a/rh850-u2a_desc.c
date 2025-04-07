@@ -9,7 +9,7 @@ irqid_t plat_ints[2048];
 
 struct platform platform = {
 
-    .cpu_num = 1,
+    .cpu_num = 2,
     .cpu_master_fixed = true,
     .cpu_master = 0,
 
@@ -68,20 +68,20 @@ struct platform platform = {
 
     .arch = {
         .intc = {
-            .intc1_addr = 0xFFFC0000,
+            .intc1_addr = 0xFFFC0000,   // mapped 1, mapped 0
             .intc2_addr = 0xFFF80000,
-            .intif_addr = 0xFF090000,
+            .intif_addr = 0xFF090000,   // mapped 0, mapped 1
             .eint_addr = 0xFFC00000,
             .fenc_addr = 0xFF9A3A00,
             .feinc_addr = {
-                0xFF9A3B00,
-                0xFF9A3C00,
+                0xFF9A3B00, // mapped 0
+                0xFF9A3C00, // mapped 1 
                 0xFF9A3D00,
                 0xFF9A3E00,
             },
         },
 
         .bootctrl_addr = 0xFFFB2000,
-        .ipir_addr = 0xFFFB9000
+        .ipir_addr = 0xFFFB9000 // mapped 0, mapped 1
     }
 };

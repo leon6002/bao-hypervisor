@@ -85,8 +85,6 @@ void interrupts_arch_ipi_send(cpuid_t cpu_target)
 {
     if (!(ipir_hw->channel[IPI_IRQ_ID].IPI_REQS & (1 << cpu_target)))
         ipir_hw->channel[IPI_IRQ_ID].IPI_REQS = (1 << cpu_target);
-    else
-        ERROR("A previous request to PE%lu have not been accepted", cpu_target);
 }
 
 static void ipir_map_global_mmio()
