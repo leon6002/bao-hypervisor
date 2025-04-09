@@ -77,6 +77,19 @@ uint32_t group_number[PLAT_NUM_PORT_GROUPS] = {
 };
 
 void plat_init(void) {
+
+    // map clock controller MMIO
+    vaddr_t clk_iso_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
+                            (paddr_t)(MCU_PLLE), NUM_PAGES(0x900UL));
+    if (clk_iso_ptr == INVALID_VA) {
+        ERROR("maping clock ISO area failed");
+    }
+    vaddr_t clk_awo_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
+                            (paddr_t)(MCU_MOSCE), NUM_PAGES(0x400UL));
+    if (clk_awo_ptr == INVALID_VA) {
+        ERROR("maping clock AWO area failed");
+    }
+
     // // Start main oscillator
     // (*(volatile uint32_t*)MCU_CLKKCPROT1) = MCU_CKSC_DISABLE_REG_PROTECT_VALUE;
     // (*(volatile uint32_t*)MCU_MOSCE) = MCU_MOSCE_ENABLE_TRIGGER;
@@ -96,8 +109,17 @@ void plat_init(void) {
     (*(volatile uint32_t*)MCU_CLKKCPROT1) = MCU_CKSC_DISABLE_REG_PROTECT_VALUE;
     (*(volatile uint32_t*)MCU_PLLSTPM) = 1UL;
     (*(volatile uint32_t*)MCU_MOSCSTPM) = 1UL;
-    (*(volatile uint32_t*)MCU_HSOSCSTPM) = 1UL;
     (*(volatile uint32_t*)MCU_CLKKCPROT1) = MCU_CKSC_ENABLE_REG_PROTECT_VALUE;
+
+    mem_unmap(&cpu()->as, (vaddr_t)(MCU_PLLE), NUM_PAGES(0x900UL), true);
+    mem_unmap(&cpu()->as, (vaddr_t)(MCU_MOSCE), NUM_PAGES(0x400UL), true);
+
+    // map port MMIO (PLAT_PORT_BASE)
+    vaddr_t port_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
+                            (paddr_t)(PLAT_PORT_BASE), NUM_PAGES(0x8000UL));
+    if (port_ptr == INVALID_VA) {
+        ERROR("maping port area failed");
+    }
 
     // Enable Write Port
     (*(volatile uint32_t*)MCU_PKCPROT) = PORT_PWE_ENABLE_WRITE;
@@ -112,9 +134,10 @@ void plat_init(void) {
         }
     }
 
-
     // Disable Write Port
     (*(volatile uint32_t*)MCU_PKCPROT) = PORT_PWE_ENABLE_WRITE;
     (*(volatile uint32_t*)MCU_PWE) = 0;
     (*(volatile uint32_t*)MCU_PKCPROT) = PORT_PWE_DISABLE_WRITE;
+
+    mem_unmap(&cpu()->as, (vaddr_t)(PLAT_PORT_BASE), NUM_PAGES(0x8000UL), true);
 }
