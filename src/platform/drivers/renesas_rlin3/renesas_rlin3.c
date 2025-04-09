@@ -7,9 +7,24 @@
 
 void uart_init(volatile struct renesas_rlin3* uart)
 {
+    // enable temporary access to MSRKCPROT and MSR_RLIN3 registers 
+    vaddr_t msrkcprot_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
+                            (paddr_t)(MSRKCPROT), 1);
+    if (msrkcprot_ptr == INVALID_VA) {
+        ERROR("maping MSRKCPROT register failed");
+    }
+    vaddr_t msr_rlin3_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
+                            (paddr_t)(MSR_RLIN3), 1);
+    if (msr_rlin3_ptr == INVALID_VA) {
+        ERROR("maping MSR_RLIN3 register failed");
+    }
+
     *((volatile uint32_t*) MSRKCPROT) = KCPROT_ENABLE;
     *((volatile uint32_t*) MSR_RLIN3) = 0;
     *((volatile uint32_t*) MSRKCPROT) = KCPROT_DISABLE;
+
+    mem_unmap(&cpu()->as, (vaddr_t)(MSRKCPROT), 1, true);
+    mem_unmap(&cpu()->as, (vaddr_t)(MSR_RLIN3), 1, true);
 
     // Set reset mode
     uart->RLN3nLCUC = 0;

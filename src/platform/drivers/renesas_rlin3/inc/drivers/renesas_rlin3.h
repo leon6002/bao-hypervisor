@@ -6,6 +6,8 @@
 #ifndef RENESAS_RLIN3_H
 #define RENESAS_RLIN3_H
 
+#include <cpu.h>
+#include <mem.h>
 #include <bao.h>
 
 #define RLIN3_LWBR_LPRS_16      (0x4 << 1)
