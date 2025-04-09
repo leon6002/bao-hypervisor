@@ -116,6 +116,11 @@ loop_3:
     sub r21, r20
     mov r20, r6 ; store offset
 
+    ; initialize local RAM
+    mov 0xFDE00000, r20
+    mov 0xFDE0FFFF, r21
+    jarl _ram_init, lp
+
     ; enable faults ?
 
     ; check if current CPU is CPU_MASTER
@@ -127,6 +132,23 @@ loop_3:
     mov 0xFFFC402F0, r20
     mov 0x1, r21
     st.w r21, 0[r20] ; IHVCFG.IHVE = 0x1
+
+    ; initialize cluster RAM
+    mov 0xFE000000, r20
+    mov 0xFE07FFFF, r21
+    jarl _ram_init, lp
+
+    mov 0xFE100000, r20
+    mov 0xFE17FFFF, r21
+    jarl _ram_init, lp
+
+    mov 0xFE400000, r20
+    mov 0xFE5FFFFF, r21
+    jarl _ram_init, lp
+
+    mov 0xFE800000, r20
+    mov 0xFE83FFFF, r21
+    jarl _ram_init, lp
     
     ; copy non .text segments to ram
     mov #__s.data, r20
@@ -220,6 +242,16 @@ clear_cpu:
     mov #_init, r5
 
     br _init
+
+_ram_init:
+    br _ram_init_2
+_ram_init_1:
+    st.w r0, 0[r20]
+    add 4, r20
+_ram_init_2:
+    cmp r20, r21
+    bh _ram_init_1
+    jmp [lp]
 
 ; r20: start of region
 ; r21: end of region
