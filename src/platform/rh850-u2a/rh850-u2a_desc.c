@@ -66,6 +66,10 @@ struct platform platform = {
             }
         },
 
+    .console = {
+        .base = 0xFFC7C100, // RLIN35
+    },
+
     .arch = {
         .intc = {
             .intc1_addr = 0xFFFC0000,   // mapped 1, mapped 0

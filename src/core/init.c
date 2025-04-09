@@ -7,6 +7,7 @@
 
 #include <cpu.h>
 #include <mem.h>
+#include <arch/plat.h>
 #include <interrupts.h>
 #include <console.h>
 #include <printk.h>
@@ -21,6 +22,8 @@ void init(cpuid_t cpu_id)
 
     cpu_init(cpu_id);
     mem_init();
+
+    plat_init();
 
     /* -------------------------------------------------------------- */
 

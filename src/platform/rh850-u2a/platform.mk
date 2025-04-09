@@ -4,7 +4,7 @@
 # Architecture definition
 ARCH:=rh850
 ARCH_PROFILE:=main
-drivers = dummy_uart
+drivers:=renesas_rlin3
 
 platform_description:=rh850-u2a_desc.c
 
