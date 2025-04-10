@@ -24,7 +24,7 @@ struct config config = {
         {
             .entry = 0x10000,
             .image = VM_IMAGE_LOADED(0x10000,0x10000,0x40000),
-            .cpu_affinity = 2,
+            .cpu_affinity = 1,
 
             .platform = {
                 .cpu_num = 1,

@@ -82,9 +82,6 @@ _loop_3:
     mov 2, r20
     cmp r5, r20
     be _loop_3
-    ; mov 1, r20
-    ; cmp r5, r20
-    ; be _loop_3
 
     mov 0x8020, r2
     ldsr r2, 5, 0 ; set PSW.EBV

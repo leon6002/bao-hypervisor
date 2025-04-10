@@ -12,8 +12,6 @@ cpuid_t CPU_MASTER;
 
 #define BOOT_CTRL ((unsigned int*)0xFFFB2000)
 
-extern unsigned int boot_ctrl;
-
 #pragma inline_asm snooze
 void snooze(void)
 {
@@ -37,9 +35,6 @@ void cpu_arch_init(cpuid_t cpuid, paddr_t load_addr)
             (*bootcrl) |= (1 << c);
         }
     }
-
-    (*bootcrl) = 0x3;
-    boot_ctrl = (*bootcrl);
 
     /* clear exception registers */
     set_eipc(0x0);
