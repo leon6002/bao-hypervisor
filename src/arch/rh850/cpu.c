@@ -55,13 +55,27 @@ inline struct cpu* cpu(void)
     return (struct cpu*)get_fewr();
 }
 
+#pragma inline_asm reset_stack_and_jump
+static void reset_stack_and_jump(void* stack_base, void* jmp_target)
+{
+    mov r6, sp
+    pushsp lp, lp
+    jarl [r7], lp
+    popsp lp, lp
+    jmp [lp]
+}
+
+
 void cpu_arch_standby()
 {
     snooze();
+    reset_stack_and_jump(&cpu()->stack[STACK_SIZE], cpu_standby_wakeup);
+    ERROR("returned from standby wake up");
 }
 
 void cpu_arch_powerdown()
 {
     snooze();
-    ERROR("CPU %d returned from powerdown wake up", cpu()->id);
+    reset_stack_and_jump(&cpu()->stack[STACK_SIZE], cpu_powerdown_wakeup);
+    ERROR("returned from powerdown wake up");
 }
