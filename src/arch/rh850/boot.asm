@@ -82,6 +82,9 @@ _loop_3:
     mov 2, r20
     cmp r5, r20
     be _loop_3
+    ; mov 1, r20
+    ; cmp r5, r20
+    ; be _loop_3
 
     mov 0x8020, r2
     ldsr r2, 5, 0 ; set PSW.EBV
@@ -125,7 +128,8 @@ _loop_3:
 
     ; check if current CPU is CPU_MASTER
     cmp r5, r10
-    bne _check_barrier
+    ; bne _check_barrier
+    bne _clear_cpu
 
     ; enable interrupt virtualization support
     ;; recommended at CPU initialization after reset
@@ -203,27 +207,27 @@ _loop_3:
     mov #_ipi_cpumsg_handlers, r21
     st.w r20, 0[r21]
 
-_check_barrier:
-    ; Initialize CPU barrier
-    ;; Write 0x3 to BR0EN
-    mov 0xFFFB8004, r20
-    mov 0x3, r21 ; TODO: create macro for BR0EN macro
-    st.b r21, 0[r20]
-    ; ;; Write 0x1 to BR0INIT
-    ; mov 0xFFFB8000, r20
-    ; mov 0x1, r21
-    ; st.b r21, 0[r20]
-    ; Write 0x1 to BR0CHKS
-    mov 0xFFFB8100, r20
-    mov 0x1, r21
-    st.b r21, 0[r20]
+; _check_barrier:
+;     ; Initialize CPU barrier
+;     ;; Write 0x3 to BR0EN
+;     mov 0xFFFB8004, r20
+;     mov 0x3, r21 ; TODO: create macro for BR0EN macro
+;     st.b r21, 0[r20]
+;     ; ;; Write 0x1 to BR0INIT
+;     ; mov 0xFFFB8000, r20
+;     ; mov 0x1, r21
+;     ; st.b r21, 0[r20]
+;     ;; Write 0x1 to BR0CHKS
+;     mov 0xFFFB8100, r20
+;     mov 0x1, r21
+;     st.b r21, 0[r20]
 
-_poll_barrier:
-    ; Poll BR0SYNCS
-    mov 0xFFFB8104, r20
-    ld.bu 0[r20], r21
-    cmp r0, r21
-    be _poll_barrier
+; _poll_barrier:
+;     ; Poll BR0SYNCS
+;     mov 0xFFFB8104, r20
+;     ld.bu 0[r20], r21
+;     cmp r0, r21
+;     be _poll_barrier
     
 _clear_cpu:
     ; set up CPUn Struct

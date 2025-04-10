@@ -139,6 +139,7 @@ void vmm_init()
         struct vm_config* vm_config = &config.vmlist[vm_id];
         struct vm* vm = vm_init(vm_alloc, vm_config, master, vm_id);
         cpu_sync_barrier(&vm->sync);
+        console_printk("%s, CPU ID: %d\n\r", __func__, cpu()->id);
         vcpu_run(cpu()->vcpu);
     } else {
         cpu_powerdown();

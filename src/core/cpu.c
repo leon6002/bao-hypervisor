@@ -40,21 +40,32 @@ void cpu_init(cpuid_t cpu_id)
     cpu()->handling_msgs = false;
     cpu()->interface = cpu_if(cpu()->id);
 
+    // console_printk("cpu_init_1\n\r");
+    
     cpu_arch_init(cpu_id, _load_addr);
 
+    // console_printk("cpu_init_2\n\r");
+    
     list_init(&cpu()->interface->event_list);
+    
+    // console_printk("cpu_init_3\n\r");
 
     if (cpu_is_master()) {
+        // console_printk("cpu_init_4\n\r");
         cpu_sync_init(&cpu_glb_sync, platform.cpu_num);
-
+        
         ipi_cpumsg_handler_num =
             (size_t)(_ipi_cpumsg_handlers_id_end - _ipi_cpumsg_handlers_id_start)/sizeof(size_t);
-        for (size_t i = 0; i < ipi_cpumsg_handler_num; i++) {
-            ((size_t*)_ipi_cpumsg_handlers_id_start)[i] = i;
+            for (size_t i = 0; i < ipi_cpumsg_handler_num; i++) {
+                ((size_t*)_ipi_cpumsg_handlers_id_start)[i] = i;
+            }
         }
-    }
+        
+        // console_printk("cpu_init_5\n\r");
+        
+        cpu_sync_barrier(&cpu_glb_sync);
 
-    cpu_sync_barrier(&cpu_glb_sync);
+        // console_printk("cpu_init_6\n\r");
 }
 
 void cpu_send_msg(cpuid_t trgtcpu, struct cpu_msg* msg)

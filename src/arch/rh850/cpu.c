@@ -12,6 +12,8 @@ cpuid_t CPU_MASTER;
 
 #define BOOT_CTRL ((unsigned int*)0xFFFB2000)
 
+extern unsigned int boot_ctrl;
+
 #pragma inline_asm snooze
 void snooze(void)
 {
@@ -21,6 +23,8 @@ void snooze(void)
 /* Perform architecture dependent cpu cores initializations */
 void cpu_arch_init(cpuid_t cpuid, paddr_t load_addr)
 {
+    volatile unsigned int* bootcrl = BOOT_CTRL;
+
     if (cpuid == CPU_MASTER) {
         for (size_t c = 0; c < platform.cpu_num; c++) {
             if (c == cpuid) {
@@ -29,10 +33,13 @@ void cpu_arch_init(cpuid_t cpuid, paddr_t load_addr)
 
             // TODO: Manual recommends 100us wait time between each core
             /* We don't have MPU setup yet so it's safe to use direct pointers */
-            volatile unsigned int* bootcrl = BOOT_CTRL;
+            // volatile unsigned int* bootcrl = BOOT_CTRL;
             (*bootcrl) |= (1 << c);
         }
     }
+
+    (*bootcrl) = 0x3;
+    boot_ctrl = (*bootcrl);
 
     /* clear exception registers */
     set_eipc(0x0);
@@ -56,5 +63,5 @@ void cpu_arch_standby()
 void cpu_arch_powerdown()
 {
     snooze();
-    ERROR("returned from powerdown wake up");
+    ERROR("CPU %d returned from powerdown wake up", cpu()->id);
 }
