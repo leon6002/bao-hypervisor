@@ -75,13 +75,13 @@ __start:
     ; identify master cpu
     mov r0, r10 ; TODO: get value from CPU_MASTER_FIXED
 
-loop_3:
+_loop_3:
     mov 3, r20
     cmp r5, r20
-    be loop_3
+    be _loop_3
     mov 2, r20
     cmp r5, r20
-    be loop_3
+    be _loop_3
 
     mov 0x8020, r2
     ldsr r2, 5, 0 ; set PSW.EBV
@@ -107,7 +107,7 @@ loop_3:
 
     ;; initialize mpu entries for bank 0 TODO use other banks?
     ldsr r0, 17, 5 ; set MPBK
-    jarl clear_mpu, lp
+    jarl _clear_mpu, lp
 
     ; calculate offset between flash and RAM
     ;; we asume #__s.data < #__s.data.R
@@ -125,7 +125,17 @@ loop_3:
 
     ; check if current CPU is CPU_MASTER
     cmp r5, r10
-    bne clear_cpu
+    bne _check_barrier
+    
+    ; Initialize CPU barrier
+    ;; Write 0x3 to BR0EN
+    mov 0xFFFB8004, r20
+    mov 0x3, r21
+    st.b r21, 0[r20]
+    ;; Write 0x1 to BR0INIT
+    mov 0xFFFB8000, r20
+    mov 0x1, r21
+    st.b r21, 0[r20]
 
     ; enable interrupt virtualization support
     ;; recommended at CPU initialization after reset
@@ -155,7 +165,7 @@ loop_3:
     mov #__e.ipi_cpumsg_handlers.const, r21 ; need to copy until
     mov 0xfe100000, r22 ; TODO hopefully use the linker otherwise macro
     ;; copy from [r20] until [r21] to [r22]
-    jarl copy_data, lp
+    jarl _copy_data, lp
 
     ; clear .bss
     ;; .bss start
@@ -171,7 +181,7 @@ loop_3:
     st.w r21, 0[r22]
 
     ;; clear from [r20] to [r21]
-    jarl boot_clear, lp
+    jarl _boot_clear, lp
 
     ; store CPU_MASTER
     mov #_CPU_MASTER, r20
@@ -203,7 +213,20 @@ loop_3:
     mov #_ipi_cpumsg_handlers, r21
     st.w r20, 0[r21]
 
-clear_cpu:
+_check_barrier:
+    ; Write 0x1 to BR0CHKS
+    mov 0xFFFB8100, r20
+    mov 0x1, r21
+    st.b r21, 0[r20]
+
+_poll_barrier:
+    ; Poll BR0SYNCS
+    mov 0xFFFB8104, r20
+    ld.bu 0[r20], r21
+    cmp r0, r21
+    be _poll_barrier
+    
+_clear_cpu:
     ; set up CPUn Struct
     ;; .bss.R end
     mov #__e.bss, r20
@@ -226,7 +249,7 @@ clear_cpu:
     mov r20, r21
     add r7, r21
     ;; clear from [r20] to [r21]
-    jarl boot_clear, lp
+    jarl _boot_clear, lp
 
     ldsr r8, 29, 0 ; use FEWR as CPU* pointer holder
 
@@ -243,6 +266,8 @@ clear_cpu:
 
     br _init
 
+; r20: start of region
+; r21: end of region
 _ram_init:
     br _ram_init_2
 _ram_init_1:
@@ -255,14 +280,14 @@ _ram_init_2:
 
 ; r20: start of region
 ; r21: end of region
-boot_clear:
-boot_clear_1:
+_boot_clear:
+_boot_clear_1:
     cmp r21, r20
-    bge boot_clear_exit
+    bge _boot_clear_exit
     st.w r0, 0[r20]     ; Store 0 to clear memory
     addi 4, r20, r20
-    br boot_clear_1
-boot_clear_exit:
+    br _boot_clear_1
+_boot_clear_exit:
     jmp [lp]
 
 
@@ -270,22 +295,22 @@ boot_clear_exit:
 ; r21: end of the source region
 ; r22: start of the destination region
 ; uses r23
-copy_data:
-copy_data_1:
+_copy_data:
+_copy_data_1:
     ld.w 0[r20], r23
     st.w r23, 0[r22]
     addi 4, r20, r20
     addi 4, r22, r22
     cmp r20, r21
-    bne copy_data_1
+    bne _copy_data_1
     jmp [lp]
 
 
-clear_mpu:
+_clear_mpu:
     mov r0, r20
-clear_mpu_1:
+_clear_mpu_1:
     cmp 32, r20  ; TODO # of mpu entries platform defined
-    be clear_mpu_exit
+    be _clear_mpu_exit
 
     ldsr r20, 16, 5 ; set MPIDX
 
@@ -294,6 +319,6 @@ clear_mpu_1:
     ldsr r0, 22, 5 ; set MPAT
 
     addi 1, r20, r20
-    bne clear_mpu_1
-clear_mpu_exit:
+    bne _clear_mpu_1
+_clear_mpu_exit:
     jmp [lp]

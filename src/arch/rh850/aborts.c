@@ -115,7 +115,7 @@ void abort()
             WARNING("Exception: MIP - Memory protection exception due to instruction fetching\n");
             break;
         case 0x91:
-            WARNING("Exception: MDP - Memory protection exception due to operand access)\n");
+            // WARNING("Exception: MDP - Memory protection exception due to operand access)\n");
             data_abort();
             break;
         case 0x95:
@@ -127,8 +127,8 @@ void abort()
                 "fetching\n");
             break;
         case 0x99:
-            WARNING("Exception: MDP - Guest memory protection exception due to operand "
-                "access)\n");
+            // WARNING("Exception: MDP - Guest memory protection exception due to operand "
+            //     "access)\n");
             data_abort();
             break;
         case 0x9D:

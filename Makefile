@@ -214,7 +214,7 @@ HOST_CPPFLAGS+=$(addprefix -I, $(inc_dirs)) $(arch-cppflags) \
 
 ifeq ($(DEBUG), y)
 	debug_flags:=-g
-	OPTIMIZATIONS:=default
+	OPTIMIZATIONS:=nothing
 endif
 
 
