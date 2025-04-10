@@ -126,16 +126,6 @@ _loop_3:
     ; check if current CPU is CPU_MASTER
     cmp r5, r10
     bne _check_barrier
-    
-    ; Initialize CPU barrier
-    ;; Write 0x3 to BR0EN
-    mov 0xFFFB8004, r20
-    mov 0x3, r21
-    st.b r21, 0[r20]
-    ;; Write 0x1 to BR0INIT
-    mov 0xFFFB8000, r20
-    mov 0x1, r21
-    st.b r21, 0[r20]
 
     ; enable interrupt virtualization support
     ;; recommended at CPU initialization after reset
@@ -214,6 +204,15 @@ _loop_3:
     st.w r20, 0[r21]
 
 _check_barrier:
+    ; Initialize CPU barrier
+    ;; Write 0x3 to BR0EN
+    mov 0xFFFB8004, r20
+    mov 0x3, r21 ; TODO: create macro for BR0EN macro
+    st.b r21, 0[r20]
+    ; ;; Write 0x1 to BR0INIT
+    ; mov 0xFFFB8000, r20
+    ; mov 0x1, r21
+    ; st.b r21, 0[r20]
     ; Write 0x1 to BR0CHKS
     mov 0xFFFB8100, r20
     mov 0x1, r21
