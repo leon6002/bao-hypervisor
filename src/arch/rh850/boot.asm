@@ -82,6 +82,9 @@ _loop_3:
     mov 2, r20
     cmp r5, r20
     be _loop_3
+    ; mov 1, r20
+    ; cmp r5, r20
+    ; be _loop_3
 
     mov 0x8020, r2
     ldsr r2, 5, 0 ; set PSW.EBV
@@ -168,6 +171,10 @@ _loop_3:
     ;; .bss end
     mov #__e.bss, r21
     add r6, r21 ; add offset
+    addi 63, r21, r21
+    mov 0x3f, r7
+    not r7, r7
+    and r7,  r21
     mov #__image_end, r22
     st.w r21, 0[r22]
 
@@ -230,20 +237,17 @@ _clear_cpu:
     ; set up CPUn Struct
     ;; .bss.R end
     mov #__e.bss, r20
-    add r6, r20 ; r20 holds end of .bss.R
-    ;; CPUx physical based address
-    mov 0x1838, r7 ; CPU_SIZE TODO value from .h
-    mov r5, r21 ; copy cpu_id to r21
-    mulh r7, r21 ; r21 is cpu struct offset
-    add r21, r20 ; end of .bss + cpu struct offset = r20 points to cpu
-    
-    ;; align CPU pointer to 64 bytes
-    ;; TODO: get granularity from .h
+    add r6, r20 
     addi 63, r20, r20
     mov 0x3F, r21
     not r21, r21
-    and r21, r20 ; r20 holds the CPU pointer aligned to PAGE_SIZE
-    mov r20, r8
+    and r21, r20 ; r20 holds end of .bss.R aligned to 64 bytes (PAGE_SIZE - TODO: try use macro)
+    ;; CPUx physical based address
+    mov 0x1840, r7 ; CPU_SIZE TODO value from .h (aligned to PAGE_SIZE)
+    mov r5, r21 ; copy cpu_id to r21
+    mulh r7, r21 ; r21 is cpu struct offset
+    add r21, r20 ; end of .bss + cpu struct offset = r20 points to cpu
+    mov r20, r8 ; r8 holds the CPU pointer aligned to PAGE_SIZE
 
     ;; clear CPUx struct
     mov r20, r21

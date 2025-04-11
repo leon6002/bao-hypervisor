@@ -15,10 +15,6 @@
 #include <vmm.h>
 #include <drivers/renesas_rlin3.h>
 
-/* It only works when declaring these two variables, but we still do not know why */
-unsigned int boot_ctrl;
-struct renesas_rlin3* uart;
-
 void init(cpuid_t cpu_id)
 {
 
