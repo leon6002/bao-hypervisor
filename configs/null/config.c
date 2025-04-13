@@ -23,7 +23,7 @@ struct config config = {
     .vmlist = (struct vm_config[]){ 
         {
             .entry = 0x10000,
-            .image = VM_IMAGE_LOADED(0x10000,0x10000,0x40000),
+            .image = VM_IMAGE_LOADED(0x10000,0x10000,0x100000),
             .cpu_affinity = 1,
 
             .platform = {
