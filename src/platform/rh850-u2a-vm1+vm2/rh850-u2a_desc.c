@@ -13,7 +13,7 @@ struct platform platform = {
     .cpu_master_fixed = true,
     .cpu_master = 0,
 
-    .region_num = 6,
+    .region_num = 7,
     .regions =
         (struct mem_region[]){
             // Bao Data
@@ -32,6 +32,12 @@ struct platform platform = {
             {
                 .base = 0xfe820000,
                 .size = 0x20000,
+                .perms = RWX,
+            },
+            // Shared memory
+            {
+                .base = 0xfe000000,
+                .size = 0x1000,
                 .perms = RWX,
             },
             // Bao code
