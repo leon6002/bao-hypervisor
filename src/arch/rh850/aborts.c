@@ -2,6 +2,7 @@
 #include <emul.h>
 #include <vm.h>
 #include <arch/vm.h>
+#include <hypercall.h>
 
 // LEN (Bits 31-28)
 #define MEI_LEN_MASK          (0xFUL << 28)
@@ -70,6 +71,12 @@ static void data_abort()
     } else {
         ERROR("no emulation handler for abort(0x%x at 0x%x)", addr, vcpu_readpc(cpu()->vcpu));
     }
+}
+
+static void hvtrap() {
+    unsigned long r6 = vcpu_readreg(cpu()->vcpu , 6);
+    long res = hypercall(r6);
+    vcpu_writereg(cpu()->vcpu, 6, res);
 }
 
 void abort()
@@ -156,7 +163,9 @@ void abort()
                 WARNING("EIINT - User interrupt");
             } else if (cause >= 0x10 && cause <= 0x1F) {
                 WARNING("SYSERR - System error (instruction fetch error)");
-            } else if (cause >= 0x8000 && cause <= 0x80FF) {
+            } else if (cause >= 0xf000 && cause <= 0xf01f) {
+                hvtrap();
+            }else if (cause >= 0x8000 && cause <= 0x80FF) {
                 WARNING("SYSCALL - System call");
             } else if (cause >= 0x31 && cause <= 0x3F) {
                 WARNING("FETRAP - FE level trap");

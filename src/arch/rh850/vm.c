@@ -44,6 +44,8 @@ void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry)
     vcpu_writepc(vcpu, entry);
     set_eipc(entry);
     set_gmpeid(vcpu->id);
+
+    vintc_vcpu_reset(vcpu);
 }
 
 bool vcpu_arch_is_on(struct vcpu* vcpu)
@@ -87,4 +89,9 @@ void vcpu_restore_state(struct vcpu* vcpu)
 void vcpu_save_state(struct vcpu* vcpu)
 {
     ERROR("%s not implemented", __func__);
+}
+
+bool vm_arch_reset(struct vm* vm)
+{
+    vintc_vm_reset(vm);
 }

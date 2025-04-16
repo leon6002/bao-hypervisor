@@ -10,6 +10,7 @@
 #include <config.h>
 #include <shmem.h>
 #include <objpool.h>
+#include <hypercall.h>
 
 static void vm_master_init(struct vm* vm, const struct vm_config* vm_config, vmid_t vm_id)
 {
@@ -423,4 +424,94 @@ void vcpu_run(struct vcpu* vcpu)
     } else {
         cpu_powerdown();
     }
+}
+
+
+static void vm_vcpu_reset(struct vm* vm)
+{
+    struct vcpu* vcpu = cpu()->vcpu;
+
+    if (vcpu->vm->id != vm->id) {
+        ERROR("Trying to reset vm not hosted in this cpu");
+    }
+
+    cpu_sync_and_clear_msgs(&vm->sync);
+
+    if (vm->master == cpu()->id) {
+        vm_arch_reset(vm);
+        for (size_t i = 0; i < vm->config->platform.region_num; i++) {
+            struct vm_mem_region* reg = &vm->config->platform.regions[i];
+            bool img_is_in_rgn = range_in_range(vm->config->image.base_addr, vm->config->image.size,
+                reg->base, reg->size);
+            if (img_is_in_rgn) {
+                vm_install_image(vm, reg);
+                break;
+            }
+        }
+    }
+
+    cpu_sync_barrier(&vcpu->vm->sync);
+
+    vcpu_arch_reset(vcpu, vm->config->entry);
+
+    vcpu_run(vcpu);
+}
+
+enum VM_EVENTS { VM_RESET };
+
+static void vm_msg_handler(uint32_t event, uint64_t data)
+{
+    UNUSED_ARG(data);
+
+    switch (event) {
+        case VM_RESET:
+            vm_vcpu_reset(cpu()->vcpu->vm);
+            break;
+        default:
+            break;
+    }
+}
+
+// CPU_MSG_HANDLER(vm_msg_handler, VM_IPI_ID)
+#pragma section.ipi_cpumsg_handlers
+cpu_msg_handler_t __cpumsg_handler_vm_msg_handler = vm_msg_handler;
+#pragma section.ipi_cpumsg_handlers_id
+volatile size_t VM_IPI_ID = ~0x0;
+#pragma section default
+
+
+bool vm_reset(struct vm* vm)
+{
+    bool res;
+
+    if (vm->config->image.inplace) {
+        res = false;
+    } else {
+        struct cpu_msg msg;
+        msg.handler = (uint32_t)VM_IPI_ID;
+        msg.event = VM_RESET;
+
+        vm_msg_broadcast(vm, &msg);
+
+        vm_vcpu_reset(vm);
+
+        res = true;
+    }
+
+    return res;
+}
+
+enum { VM_HC_RESET };
+
+long int vm_hypercall(void) {
+
+    long int res = HC_E_FAILURE;
+    
+    if (vcpu_readreg(cpu()->vcpu, HYPCALL_IN_ARG_REG(0)) == VM_HC_RESET) {
+        res = vm_reset(cpu()->vcpu->vm) ? -HC_E_SUCCESS : -HC_E_FAILURE;
+    } else {
+        res = -HC_E_INVAL_ARGS;
+    }
+
+    return res;
 }

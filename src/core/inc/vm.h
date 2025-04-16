@@ -183,5 +183,8 @@ unsigned long vcpu_readpc(struct vcpu* vcpu);
 void vcpu_writepc(struct vcpu* vcpu, unsigned long pc);
 void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry);
 bool vcpu_arch_is_on(struct vcpu* vcpu);
+bool vm_reset(struct vm* vm);
+bool vm_arch_reset(struct vm* vm);
+long int vm_hypercall(void);
 
 #endif /* __VM_H__ */

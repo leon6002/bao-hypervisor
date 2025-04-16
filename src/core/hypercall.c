@@ -16,6 +16,9 @@ long int hypercall(unsigned long id)
         case HC_REMIO:
             ret = remio_hypercall();
             break;
+        case HC_VM:
+            ret = vm_hypercall();
+            break;
         default:
             WARNING("Unknown hypercall id %d", id);
     }

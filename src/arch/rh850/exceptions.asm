@@ -10,7 +10,7 @@ _hyp_vector_table:
 	jr32	_guest_exception ; SYSERR ; Guest
 
 	.align	16
-	jr32	_host_exception ; (R.F.U)
+	jr32	_guest_exception ; HVTRAP; Guest
 
 	.align	16
 	jr32	_guest_exception ; FETRAP ; Guest?

@@ -608,3 +608,29 @@ void vbootctrl_init(struct vcpu* vcpu)
     };
     vm_emul_add_mem(vm, &vm->arch.bootctrl_emul);
 }
+
+void vintc_vcpu_reset(struct vcpu* vcpu) {
+    for (size_t i = 0; i < PRIVATE_IRQS_NUM; i++) {
+        if (vm_has_interrupt(vcpu->vm, i)) {
+            intc_set_trgt(i, vcpu->phys_id);
+            intc_set_enable(i, false);
+            intc_set_prio(i, 0);
+            // intc_set_act(i, false);
+            intc_set_pend(i, false);
+        }
+    }
+}
+
+void vintc_vm_reset(struct vm* vm) {
+    if (vm->master == cpu()->id) {
+        for (size_t i = PRIVATE_IRQS_NUM; i < MAX_INTERRUPTS; i++) {
+            if (vm_has_interrupt(vm, i)) {
+                intc_set_trgt(i, cpu()->id);
+                intc_set_enable(i, false);
+                intc_set_prio(i, 0);
+                // intc_set_act(i, false);
+                intc_set_pend(i, false);
+            }
+        }
+    }
+}
