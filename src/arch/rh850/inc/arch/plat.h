@@ -10,6 +10,19 @@
 #include <cpu.h>
 #include <platform.h>
 
+// Module Standby
+#define MSRKCPROT       (0xFF981710UL)
+#define KCPROT_ENABLE   (0xA5A5A501UL)
+#define KCPROT_DISABLE  (0xA5A5A500UL)
+
+#define MSR_BASE        (0xFF981000UL)
+#define MSR_SIZE        (0x200UL)
+
+#define MSR_RSCFD       (0xFF981000UL)
+#define MSR_RLIN3       (0xFF981060UL)
+#define MSR_TAUD        (0xFF981130UL)
+#define MSR_OSTM        (0xFF981180UL)
+
 // Clock controller
 #define MCU_CKSC_DISABLE_REG_PROTECT_VALUE (0xA5A5A501UL)
 #define MCU_CKSC_ENABLE_REG_PROTECT_VALUE (0xA5A5A500UL)

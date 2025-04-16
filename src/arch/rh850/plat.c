@@ -15,12 +15,12 @@
 uint16_t port_reg_val[PLAT_NUM_PORT_REGS][PLAT_NUM_PORT_GROUPS] = {
                 /*|   G2   |   G3   |   G4   |   G5   |   G6   |   G10   |  G17  |   G20  |   G21  |   G22  |   G24   |*/
     /* PMC */     { 0x7830U, 0x003CU, 0x1BC0U, 0x0004U, 0x9B40U, 0x3F18U, 0x0000U, 0x66C8U, 0x00E0U, 0x001FU, 0x0000U },
-    /* PM */      { 0x8CD3U, 0xFFEBU, 0x3A5FU, 0xFFEBU, 0xEE2FU, 0xF39CU, 0xFFDCU, 0xB9A7U, 0xFF1FU, 0xFFE2U, 0xFFFFU },
+    /* PM */      { 0x8CD3U, 0xFFEBU, 0x2A5FU, 0xFFEBU, 0xEE2FU, 0xF39CU, 0xFFDCU, 0xB9A7U, 0xFF1FU, 0xFFE2U, 0xFFFFU },
     /* PIPC */    { 0x2000U, 0x0000U, 0x0000U, 0x0004U, 0x0000U, 0x0400U, 0x0000U, 0x0008U, 0x00E0U, 0x0001U, 0x0000U },
     /* PIBC */    { 0x0001U, 0x0040U, 0x2003U, 0x0040U, 0x0020U, 0x0000U, 0x0000U, 0x0100U, 0x0000U, 0x0000U, 0x0000U },
-    /* PFC */     { 0x0000U, 0x0034U, 0x0340U, 0x0000U, 0x1340U, 0x2118U, 0x0000U, 0x66C8U, 0x00E0U, 0x001FU, 0x0000U },
-    /* PFCE */    { 0x7830U, 0x0008U, 0x0000U, 0x0004U, 0x9B40U, 0x1E00U, 0x0000U, 0x0000U, 0x0000U, 0x0013U, 0x0000U },
-    /* PFCAE */   { 0x0010U, 0x0008U, 0x18C0U, 0x0000U, 0x8000U, 0x2100U, 0x0000U, 0x0000U, 0x00E0U, 0x000CU, 0x0000U },
+    /* PFC */     { 0x0000U, 0x0014U, 0x1B40U, 0x0000U, 0x1340U, 0x2118U, 0x0000U, 0x66C8U, 0x00E0U, 0x001FU, 0x0000U },
+    /* PFCE */    { 0x7830U, 0x0028U, 0x0800U, 0x0004U, 0x9B40U, 0x1E00U, 0x0000U, 0x0000U, 0x0000U, 0x0013U, 0x0000U },
+    /* PFCAE */   { 0x0010U, 0x0028U, 0x10C0U, 0x0000U, 0x8000U, 0x2100U, 0x0000U, 0x0000U, 0x00E0U, 0x000CU, 0x0000U },
     /* PU */      { 0x0000U, 0x0000U, 0x0200U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U },
     /* PD */      { 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U },
     /* PIS */     { 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U, 0x0000U },
@@ -81,6 +81,33 @@ void plat_init(void) {
 
     if (cpu_is_master()) {
 
+        /*** Module Standby Initialization ***/
+
+        // enable temporary access to MSRKCPROT register
+        vaddr_t msrkcprot_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
+                                                    (paddr_t)(MSRKCPROT), 1);
+        if (msrkcprot_ptr == INVALID_VA) {
+            ERROR("maping MSRKCPROT register failed");
+        }
+        // enable temporary access to MSR registers
+        vaddr_t msr_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
+                                            (paddr_t)(MSR_BASE), NUM_PAGES(MSR_SIZE));
+        if (msr_ptr == INVALID_VA) {
+            ERROR("maping MSR MMIO failed");
+        }
+
+        *((volatile uint32_t*) MSRKCPROT) = KCPROT_ENABLE;
+        *((volatile uint32_t*) MSR_RSCFD) = 0;
+        *((volatile uint32_t*) MSR_RLIN3) = 0;
+        *((volatile uint32_t*) MSR_TAUD) = 0;
+        *((volatile uint32_t*) MSR_OSTM) = 0;
+        *((volatile uint32_t*) MSRKCPROT) = KCPROT_DISABLE;
+
+        mem_unmap(&cpu()->as, (vaddr_t)(MSRKCPROT), 1, true);
+        mem_unmap(&cpu()->as, (vaddr_t)(MSR_BASE), NUM_PAGES(MSR_SIZE), true);
+
+        /*** MCU Clock Initialization ***/
+
         // map clock controller MMIO
         vaddr_t clk_iso_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
                                 (paddr_t)(MCU_PLLE), NUM_PAGES(0x900UL));
@@ -116,6 +143,8 @@ void plat_init(void) {
 
         mem_unmap(&cpu()->as, (vaddr_t)(MCU_PLLE), NUM_PAGES(0x900UL), true);
         mem_unmap(&cpu()->as, (vaddr_t)(MCU_MOSCE), NUM_PAGES(0x400UL), true);
+
+        /*** IO Ports Initialization ***/
 
         // map port MMIO (PLAT_PORT_BASE)
         vaddr_t port_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,

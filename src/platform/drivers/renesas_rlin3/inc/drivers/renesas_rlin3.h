@@ -24,11 +24,6 @@
 #define RLN3_LMD_UART_MODE      (0x1)
 #define RLN3_LCUC_LIN_CANC      (0x1)
 
-#define KCPROT_ENABLE          0xA5A5A501UL
-#define KCPROT_DISABLE         0xA5A5A500UL
-#define MSRKCPROT              0xFF981710UL 
-#define MSR_RLIN3              0xFF981060UL 
-
 struct renesas_rlin3 {
     uint8_t pad0[1];                // 0x0
     volatile uint8_t RLN3nLWBR;     // 0x1
