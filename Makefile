@@ -11,23 +11,27 @@ define current_directory
 $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 endef
 
-CC_IS_RHCC =	y
+# Check cross compiler
+ifneq ($(findstring clang,$(CROSS_COMPILE)),)
+CC_IS_CLANG =	y
+else
+CC_IS_GCC =	y
+endif
+
+$(info Current directory: $(CROSS_COMPILE))
+
 
 
 # Setup toolchain macros
-
-
-cpp=ccrh
-sstrip=$(CROSS_COMPILE)strip
-cc=ccrh
-ld=rlink
-as=asrh
-objcopy=	
-objdump=	
-readelf=	
-size=		
-
-
+cpp=		$(CROSS_COMPILE)cpp
+sstrip= 	$(CROSS_COMPILE)strip
+cc=			$(CROSS_COMPILE)gcc
+ld = 		$(CROSS_COMPILE)ld
+as=			$(CROSS_COMPILE)as
+objcopy=	$(CROSS_COMPILE)objcopy
+objdump=	$(CROSS_COMPILE)objdump
+readelf=	$(CROSS_COMPILE)readelf
+size=		$(CROSS_COMPILE)size
 
 HOST_CC:=gcc
 
@@ -217,8 +221,32 @@ ifeq ($(DEBUG), y)
 	OPTIMIZATIONS:=nothing
 endif
 
+ifeq ($(CC_IS_GCC),y)
+	cflags_warns:= \
+		-Wint-conversion -Wbuiltin-declaration-mismatch \
+		-Wcomments  -Wdiscarded-qualifiers \
+		-Wimplicit-fallthrough \
+		-Wswitch-unreachable -Wreturn-local-addr  \
+		-Wshift-count-negative  -Wuninitialized \
+		-Wunused -Wunused-local-typedefs  -Wunused-parameter \
+		-Wunused-result -Wvla \
+		-Wconversion -Wsign-conversion \
+		-Wmissing-prototypes -Wmissing-declarations  \
+		-Wswitch-default -Wshadow -Wshadow=global \
+		-Wcast-qual -Wunused-macros \
+		-Wstrict-prototypes -Wunused-but-set-variable
 
-override CFLAGS+= -Xcommon=rh850 \
+	override CFLAGS+=-Wno-unused-command-line-argument \
+		-pedantic -pedantic-errors
+	override LDFLAGS+=--no-check-sections
+else ifeq ($(CC_IS_CLANG), y)
+	override CFLAGS+=-Wno-unused-command-line-argument --target=$(clang_arch_target)
+	override CPPFLAGS+=--target=$(clang_arch_target) -ffreestanding
+	override LDFLAGS+=--no-check-sections
+endif
+
+override CFLAGS+=-O$(OPTIMIZATIONS) -Wall -Werror -Wextra $(cflags_warns) \
+	-ffreestanding -std=c11 -fno-pic \
 	$(arch-cflags) $(platform-cflags) $(CPPFLAGS) $(debug_flags)
 
 override ASFLAGS+=$(CFLAGS) $(arch-asflags) $(platform-asflags)
