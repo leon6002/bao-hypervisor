@@ -19,9 +19,7 @@ struct arch_platform {
         paddr_t feinc_addr[8];
     } intc;
 
-    paddr_t bootctrl_addr;
-
     paddr_t ipir_addr;
 };
 
-#endif /* __ARCH_PLATFORM_H__ */
+#endif /* __ARCH_PLATFORM_H */

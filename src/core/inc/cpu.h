@@ -11,32 +11,14 @@
 
 #include <spinlock.h>
 #include <mem.h>
-#include <circular_queue.h>
+#include <list.h>
+#include <timer.h>
 
 #ifndef __ASSEMBLER__
 
-struct cpu_msg {
-    uint32_t handler;
-    uint32_t event;
-    uint64_t data;
-};
-
-/*
- * Default keeps struct cpuif within a single 4K page:
- *   253 * sizeof(struct cpu_msg) + sizeof(struct circular_queue)
- *   = 253 * 16 + 48 = 4096 bytes
- *
- * Override on platforms with tighter memory constraints or that need a
- * deeper queue, e.g. -DIPI_MAX_EVENTS=64.
- */
-#define IPI_MAX_EVENTS_DEFAULT (253)
-#ifndef IPI_MAX_EVENTS
-#define IPI_MAX_EVENTS IPI_MAX_EVENTS_DEFAULT
-#endif
-
 struct cpuif {
-    CQ_DEFINE(struct cpu_msg, msgs, IPI_MAX_EVENTS);
-} __attribute__((aligned(PAGE_SIZE)));
+    struct list event_list;
+};
 
 struct vcpu;
 
@@ -45,26 +27,46 @@ struct cpu {
 
     bool handling_msgs;
 
-    struct addr_space as;
+    struct vcpu* vcpu;      // current vcpu
+    struct vcpu* next_vcpu; // next scheduled vcpu
+    struct list vcpu_list;
 
-    struct vcpu* vcpu;
+    struct list timer_event_list;
+
+    struct {
+        struct timer_event timer_event;
+    } sched;
 
     struct cpu_arch arch;
 
+    struct addr_space as;
+
     struct cpuif* interface;
 
-    uint8_t stack[STACK_SIZE] __attribute__((aligned(PAGE_SIZE)));
-
-} __attribute__((aligned(PAGE_SIZE)));
+    uint8_t stack[STACK_SIZE];
+};
+struct cpu_msg {
+    uint32_t handler;
+    uint32_t event;
+    uint64_t data;
+};
 
 void cpu_send_msg(cpuid_t cpu, struct cpu_msg* msg);
 
-typedef void (*cpu_msg_handler_t)(uint32_t event, uint64_t data);
+typedef void (*const cpu_msg_handler_t)(uint32_t event, uint64_t data);
+
+#ifdef CC_IS_RHCC
+#define CPU_MSG_HANDLER(handler, handler_id)                           \
+    __attribute__((section(".ipi_cpumsg_handlers"),                    \
+        used)) cpu_msg_handler_t __cpumsg_handler_##handler = handler; \
+    __attribute__((section(".ipi_cpumsg_handlers_id"), used)) volatile const size_t handler_id;
+#else
 
 #define CPU_MSG_HANDLER(handler, handler_id)                           \
     __attribute__((section(".ipi_cpumsg_handlers"),                    \
         used)) cpu_msg_handler_t __cpumsg_handler_##handler = handler; \
     __attribute__((section(".ipi_cpumsg_handlers_id"), used)) volatile const size_t handler_id;
+#endif
 
 struct cpu_synctoken {
     spinlock_t lock;
@@ -85,9 +87,13 @@ void cpu_powerdown(void);
 void cpu_standby_wakeup(void);
 void cpu_powerdown_wakeup(void);
 
+void cpu_add_vcpu(struct vcpu* vcpu);
+struct vcpu* cpu_get_vcpu_by_vmid(vmid_t vmid);
+
 void cpu_arch_init(cpuid_t cpu_id, paddr_t load_addr);
 void cpu_arch_standby(void);
 void cpu_arch_powerdown(void);
+void cpu_arch_park(void);
 
 extern struct cpuif cpu_interfaces[];
 static inline struct cpuif* cpu_if(cpuid_t cpu_id)

@@ -175,7 +175,7 @@ extern struct vgic_reg_handler_info ispendr_info;
 extern struct vgic_reg_handler_info isactiver_info;
 extern struct vgic_reg_handler_info icenabler_info;
 extern struct vgic_reg_handler_info icpendr_info;
-extern struct vgic_reg_handler_info icactiver_info;
+extern struct vgic_reg_handler_info iactiver_info;
 extern struct vgic_reg_handler_info icfgr_info;
 extern struct vgic_reg_handler_info ipriorityr_info;
 extern struct vgic_reg_handler_info razwi_info;
@@ -241,7 +241,7 @@ static bool vgicr_emul_handler(struct emul_access* acc)
             handler_info = &ispendr_info;
             break;
         case GICR_REG_OFF(ISACTIVER0):
-            handler_info = &isactiver_info;
+            handler_info = &iactiver_info;
             break;
         case GICR_REG_OFF(ICENABLER0):
             handler_info = &icenabler_info;
@@ -250,7 +250,7 @@ static bool vgicr_emul_handler(struct emul_access* acc)
             handler_info = &icpendr_info;
             break;
         case GICR_REG_OFF(ICACTIVER0):
-            handler_info = &icactiver_info;
+            handler_info = &icfgr_info;
             break;
         case GICR_REG_OFF(ICFGR0):
         case GICR_REG_OFF(ICFGR1):
@@ -276,7 +276,7 @@ static bool vgicr_emul_handler(struct emul_access* acc)
         struct vcpu* vcpu =
             vgicr_id == cpu()->vcpu->id ? cpu()->vcpu : vm_get_vcpu(cpu()->vcpu->vm, vgicr_id);
         spin_lock(&vcpu->arch.vgic_priv.vgicr.lock);
-        handler_info->reg_access(acc, handler_info, VGIC_GICR_ACCESS, vgicr_id);
+        handler_info->reg_access(acc, handler_info, true, vgicr_id);
         spin_unlock(&vcpu->arch.vgic_priv.vgicr.lock);
         return true;
     } else {
@@ -324,17 +324,15 @@ void vgic_init(struct vm* vm, const struct vgic_dscrp* vgic_dscrp)
     vm->arch.vgicd.CTLR = 0;
     size_t vtyper_itln = vgic_get_itln(vgic_dscrp);
     vm->arch.vgicd.int_num = 32 * (vtyper_itln + 1);
-    vm->arch.vgicd.TYPER = (uint32_t)(((vtyper_itln << GICD_TYPER_ITLN_OFF) & GICD_TYPER_ITLN_MSK) |
+    vm->arch.vgicd.TYPER = ((vtyper_itln << GICD_TYPER_ITLN_OFF) & GICD_TYPER_ITLN_MSK) |
         (((vm->cpu_num - 1) << GICD_TYPER_CPUNUM_OFF) & GICD_TYPER_CPUNUM_MSK) |
-        (((10 - 1) << GICD_TYPER_IDBITS_OFF) & GICD_TYPER_IDBITS_MSK));
+        (((10 - 1) << GICD_TYPER_IDBITS_OFF) & GICD_TYPER_IDBITS_MSK);
     vm->arch.vgicd.IIDR = gicd->IIDR;
-    vm->arch.vgicd.lock = SPINLOCK_INITVAL;
 
     size_t vgic_int_size = vm->arch.vgicd.int_num * sizeof(struct vgic_int);
-    vm->arch.vgicd.interrupts =
-        mem_alloc_page(NUM_PAGES(vgic_int_size), SEC_HYP_VM, MEM_ALIGN_NOT_REQ);
+    vm->arch.vgicd.interrupts = mem_alloc_page(NUM_PAGES(vgic_int_size), SEC_HYP_VM, false);
     if (vm->arch.vgicd.interrupts == NULL) {
-        ERROR("failed to alloc vgic\n");
+        ERROR("failed to alloc vgic");
     }
 
     for (irqid_t i = 0; i < vm->arch.vgicd.int_num; i++) {
@@ -364,7 +362,6 @@ void vgic_init(struct vm* vm, const struct vgic_dscrp* vgic_dscrp)
         vcpu->arch.vgic_priv.vgicr.TYPER = typer;
 
         vcpu->arch.vgic_priv.vgicr.IIDR = gicr[cpu()->id].IIDR;
-        vcpu->arch.vgic_priv.vgicr.lock = SPINLOCK_INITVAL;
     }
 
     vm->arch.vgicr_emul = (struct emul_mem){ .va_base = vgic_dscrp->gicr_addr,

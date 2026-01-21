@@ -7,9 +7,11 @@
 #define __ARCH_VM_H__
 
 #include <bao.h>
-#include <interrupts.h>
+#include <cpu.h>
+#include <arch/interrupts.h>
+#include <arch/vintc.h>
 #include <emul.h>
-#include <vintc.h>
+#include <arch/vmpu.h>
 
 #define MAX_OF_GP_REGS (sizeof(union gp_regs) / sizeof(unsigned long))
 
@@ -19,7 +21,8 @@ struct intc_dscrp {
 };
 
 struct arch_vm_platform {
-    unsigned long dummy;
+    /* interrupt controller */
+    struct intc_dscrp vir;
 };
 
 struct vm_arch {
@@ -30,13 +33,11 @@ struct vm_arch {
     struct emul_mem eint_emul;
     struct emul_mem fenc_emul;
     struct emul_mem feinc_emul;
-    struct emul_mem ipir_emul;
-    /* BOOTCTRL */
-    struct emul_mem bootctrl_emul;
 };
 
 struct vcpu_arch {
-    bool started;
+    vcpuid_t vcpuid;
+    struct vmpu vmpu;
 };
 
 struct arch_regs {

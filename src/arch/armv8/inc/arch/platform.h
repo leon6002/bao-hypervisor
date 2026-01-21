@@ -32,17 +32,12 @@ struct arch_platform {
 
     struct {
         paddr_t base_addr;
-        uint32_t fixed_freq;
     } generic_timer;
 
     struct clusters {
         size_t num;
         size_t* core_num;
     } clusters;
-
-    struct mpidr_table {
-        unsigned long* table;
-    } mpidr_table;
 };
 
 struct platform;

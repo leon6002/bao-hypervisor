@@ -15,6 +15,12 @@ typedef struct {
 
 static const spinlock_t SPINLOCK_INITVAL = { 0, 0 };
 
+static inline void spinlock_init(spinlock_t* lock)
+{
+    lock->ticket = 0;
+    lock->next = 0;
+}
+
 static inline void spin_lock(spinlock_t* lock)
 {
     uint32_t const INCR = 1;

@@ -21,8 +21,6 @@ struct platform {
     size_t region_num;
     struct mem_region* regions;
 
-    size_t mmio_region_num;
-    struct mem_region* mmio_regions;
     struct {
         paddr_t base;
     } console;
@@ -33,10 +31,5 @@ struct platform {
 };
 
 extern struct platform platform;
-
-void platform_init(void);
-void platform_default_init(void);
-void platform_config_init(void);
-void plat_cpu_init(cpuid_t cpuid, paddr_t load_addr);
 
 #endif /* __PLATFORM_H__ */

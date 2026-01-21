@@ -145,7 +145,7 @@ static void vplic_ipi_handler(uint32_t event, uint64_t data)
             vplic_update_hart_line(cpu()->vcpu, (size_t)data);
             break;
         default:
-            WARNING("Unknown VPLIC IPI event\n");
+            WARNING("Unknown VPLIC IPI event");
             break;
     }
 }
@@ -387,6 +387,5 @@ void vplic_init(struct vm* vm, const union vm_irqc_dscrp* vm_irqc_dscrp)
 
         /* assumes 2 contexts per hart */
         vm->arch.vplic.cntxt_num = vm->cpu_num * 2;
-        vm->arch.vplic.lock = SPINLOCK_INITVAL;
     }
 }

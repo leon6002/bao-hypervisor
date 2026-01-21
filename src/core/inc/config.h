@@ -10,7 +10,6 @@
 #include <platform.h>
 #include <vm.h>
 #include <config_defs.h>
-#include <shmem.h>
 
 #ifndef GENERATING_DEFS
 // clang-format wont correctly recognize the syntax of assembly strings interleaved with
@@ -75,13 +74,17 @@ struct vm_config {
         bool separately_loaded;
         /* Dont copy the image */
         bool inplace;
-
-        /* This field is used for book keeping only, don't fill it in in the configuration file */
-        bool reserved;
     } image;
 
     /* Entry point address in VM's address space */
     vaddr_t entry;
+
+    /**
+     * If this option is set all vCPUs of this VM will have exclusive access to the assigned CPUs.
+     * That is, they will not share the CPU with others vCPUs and thus will never be preempted.
+     */
+    bool cpu_exclusivity;
+
     /**
      * A bitmap signaling the preferred physical cpus assigned to the VM. If this value is each
      * mutual exclusive for all the VMs, this field allows to direcly assign specific physical cpus
@@ -114,15 +117,6 @@ extern struct config {
         bool relocate;
         paddr_t base_addr;
 
-        /**
-         * Only meaningful for non-unified platforms. In such platforms, the hypervisor expects a
-         * base address for data memory and will default to the first RWX region defined in the
-         * target platform's description. If the user wishes to relocate it to another address,
-         * they must set data_relocate to true and provide the new base address.
-         */
-        bool data_relocate;
-        paddr_t data_addr;
-
         /* Hypervisor colors */
         colormap_t colors;
     } hyp;
@@ -139,7 +133,7 @@ extern struct config {
 
 } config;
 
-void config_init(void);
-void config_mem_prot_init(void);
+void config_init(paddr_t load_addr);
+void config_mem_prot_init(paddr_t load_addr);
 
 #endif /* __CONFIG_H__ */

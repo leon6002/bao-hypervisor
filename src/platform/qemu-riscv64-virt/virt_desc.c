@@ -6,7 +6,7 @@
 #include <platform.h>
 #include <interrupts.h>
 
-#if defined(RV32)
+#if RV32
 // We use only 1 GiB for the rv32, due to limitations on how the physical memory must
 // be identity mapped by the hypervisor and the fact that the hypervisor reserves for
 // itsel the upper GB of the 4GB address space.
@@ -28,16 +28,17 @@ struct platform platform = {
     },
 
     .arch = {
-
 #if (IRQC == PLIC)
         .irqc.plic.base = 0xc000000,
-#else
+#elif (IRQC == APLIC)
+        .irqc.aia.aplic.base = 0xd000000,
+#elif (IRQC == AIA)
         .irqc.aia.aplic.base = 0xd000000,
         .irqc.aia.imsic.base = 0x28000000,
         .irqc.aia.imsic.num_msis = 255,
-        .irqc.aia.imsic.num_guest_files = 1,
+#else
+#error "unknown IRQC type " IRQC
 #endif
-
 #if (IPIC == IPIC_ACLINT)
         .aclint_sswi.base = 0x2f00000,
 #endif

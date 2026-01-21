@@ -51,19 +51,14 @@ struct vcpu_arch {
     struct vgic_priv vgic_priv;
     struct list vgic_spilled;
     struct psci_ctx psci_ctx;
-
-#ifdef MEM_PROT_MPU
-    unsigned long mpu_entry_mask;
-#endif
 };
 
 struct vcpu* vm_get_vcpu_by_mpidr(struct vm* vm, unsigned long mpidr);
 void vcpu_arch_entry(void);
 
 bool vcpu_arch_profile_on(struct vcpu* vcpu);
+void vcpu_arch_profile_init(struct vcpu* vcpu, struct vm* vm);
 void vcpu_subarch_reset(struct vcpu* vcpu);
-
-void vm_arch_profile_init(struct vm* vm);
 
 static inline void vcpu_arch_inject_hw_irq(struct vcpu* vcpu, irqid_t id)
 {

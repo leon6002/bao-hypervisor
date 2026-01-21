@@ -148,17 +148,15 @@ void vgic_init(struct vm* vm, const struct vgic_dscrp* vgic_dscrp)
     vm->arch.vgicd.TYPER = ((vtyper_itln << GICD_TYPER_ITLN_OFF) & GICD_TYPER_ITLN_MSK) |
         (((vm->cpu_num - 1) << GICD_TYPER_CPUNUM_OFF) & GICD_TYPER_CPUNUM_MSK);
     vm->arch.vgicd.IIDR = gicd->IIDR;
-    vm->arch.vgicd.lock = SPINLOCK_INITVAL;
 
     size_t n = NUM_PAGES(sizeof(struct gicc_hw));
     mem_alloc_map_dev(&vm->as, SEC_VM_ANY, (vaddr_t)vgic_dscrp->gicc_addr,
         (vaddr_t)platform.arch.gic.gicv_addr, n);
 
     size_t vgic_int_size = vm->arch.vgicd.int_num * sizeof(struct vgic_int);
-    vm->arch.vgicd.interrupts =
-        mem_alloc_page(NUM_PAGES(vgic_int_size), SEC_HYP_VM, MEM_ALIGN_NOT_REQ);
+    vm->arch.vgicd.interrupts = mem_alloc_page(NUM_PAGES(vgic_int_size), SEC_HYP_VM, false);
     if (vm->arch.vgicd.interrupts == NULL) {
-        ERROR("failed to alloc vgic\n");
+        ERROR("failed to alloc vgic");
     }
 
     for (irqid_t i = 0; i < vm->arch.vgicd.int_num; i++) {

@@ -46,41 +46,101 @@
 .macro VM_EXIT
 
     push {r14}
-    sub sp, sp, #4 // we skip sp as this is accessed/updated directly on the banked sp
+    SAVE_SP
     push {r0-r12}
     SAVE_ELR_SPSR
 
-#ifdef MEM_PROT_MPU
-    mrc p15, 4, r0, c13, c0, 2  // Read HTPIDR (CPU base address)
-    ldr r0, [r0, #CPU_ARCH_PROFILE_MPU_MASK_OFF]
-    mcr p15, 4, r0, c6, c1, 1
-#endif /* MEM_PROT_MPU */
+.endm
+
+
+.macro SAVE_SP
+
+    mrs r14, SPSR_hyp
+    and r14, r14, #0x1F
+    
+    cmp r14, #SPSR_USR
+    beq 1f
+    cmp r14, #SPSR_IRQ
+    beq 2f
+    cmp r14, #SPSR_SVC
+    beq 3f
+    cmp r14, #SPSR_ABT
+    beq 4f
+    cmp r14, #SPSR_UND
+    beq 5f
+    
+    1:  //read_usr:
+        mrs r14,  sp_usr
+        push {r14}
+        b 6f
+    2:  //read_irq:
+        mrs r14,  sp_irq
+        push {r14}
+        b 6f
+    3:  //read_hvc:
+        mrs r14,  sp_svc
+        push {r14}
+        b 6f
+    4:  //read_abt:
+        mrs r14,  sp_abt
+        push {r14}
+        b 6f
+    5:  //read_und:
+        mrs r14,  sp_und
+        push {r14}
+    6:
+
+.endm
+
+.macro LOAD_SP
+
+    mrs r14, SPSR_hyp
+    and r14, r14, #0x1F
+    
+    cmp r14, #SPSR_USR
+    beq 1f
+    cmp r14, #SPSR_IRQ
+    beq 2f
+    cmp r14, #SPSR_SVC
+    beq 3f
+    cmp r14, #SPSR_ABT
+    beq 4f
+    cmp r14, #SPSR_UND
+    beq 5f
+    
+    1:  
+        pop {r14}
+        msr sp_usr, r14
+        b 6f
+    2:
+        pop {r14}
+        msr sp_irq, r14
+        b 6f
+    3:
+        pop {r14}
+        msr sp_svc, r14
+        b 6f
+    4:
+        pop {r14}
+        msr sp_abt, r14
+        b 6f
+    5:
+        pop {r14}
+        msr sp_und, r14
+    6:
 
 .endm
 
 .macro VM_ENTRY
 
     mrc p15, 4, r0, c13, c0, 2  // Read HTPIDR (CPU base address)
-
-#ifdef MEM_PROT_MPU
-    ldr r1, [r0, #CPU_VCPU_OFF]
-    ldr r1, [r1, #VCPU_ARCH_MASK_OFF]
-
-    mov r2, #CPU_ARCH_PROFILE_MPU_LOCKED_OFF
-    add r2, r2, r0
-    ldr r2, [r2]
-
-    orr r1, r1, r2
-    mcr p15, 4, r1, c6, c1, 1
-#endif /* MEM_PROT_MPU */
-
     ldr r0, [r0, #CPU_VCPU_OFF]
     add r0, r0, #VCPU_REGS_OFF
     mov sp, r0
 
     LOAD_ELR_SPSR
     pop {r0-r12}
-    add sp, sp, #4 // we skip sp as this is accessed/updated directly on the banked sp
+    LOAD_SP
     pop {r14}
     
     eret

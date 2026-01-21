@@ -8,7 +8,6 @@
 
 #include <bao.h>
 #include <list.h>
-#include <arch/emul.h>
 
 struct emul_access {
     vaddr_t addr;
@@ -19,7 +18,6 @@ struct emul_access {
     unsigned long reg_high;
     bool multi_reg;
     size_t reg_width;
-    struct emul_access_arch arch;
 };
 
 typedef bool (*emul_handler_t)(struct emul_access*);

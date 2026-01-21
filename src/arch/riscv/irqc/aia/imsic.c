@@ -15,10 +15,11 @@ BITMAP_ALLOC(msi_reserved, IMSIC_MAX_INTERRUPTS);
 
 static inline size_t imsic_eie_index(irqid_t int_id)
 {
-    size_t index = int_id / 32U;
+    size_t index = int_id / __riscv_xlen;
+    bool index_is_odd = (index & 1) != 0;
 
-    if (__riscv_xlen == 64) {
-        index &= ~1UL;
+    if ((__riscv_xlen == 64) && index_is_odd) {
+        index -= 1;
     }
 
     return index;
@@ -45,7 +46,7 @@ void imsic_init(void)
 
     /** Map the interrupt files */
     imsic[cpu()->id] = (void*)mem_alloc_map_dev(&cpu()->as, SEC_HYP_GLOBAL, INVALID_VA,
-        platform.arch.irqc.aia.imsic.base + (cpu()->id * PLAT_IMSIC_HART_SIZE),
+        platform.arch.irqc.aia.imsic.base + (cpu()->id * PAGE_SIZE * IMSIC_NUM_FILES),
         NUM_PAGES(sizeof(struct imsic_global_hw)));
 }
 
@@ -58,7 +59,7 @@ void imsic_set_enbl(irqid_t intp_id)
 bool imsic_get_pend(irqid_t intp_id)
 {
     csrs_siselect_write(IMSIC_EIP + imsic_eie_index(intp_id));
-    return csrs_sireg_read() && (1ULL << imsic_eie_bit(intp_id));
+    return csrs_siselect_read() && (1ULL << imsic_eie_bit(intp_id));
 }
 
 void imsic_clr_pend(irqid_t intp_id)
@@ -67,13 +68,33 @@ void imsic_clr_pend(irqid_t intp_id)
     csrs_sireg_clear(1UL << imsic_eie_bit(intp_id));
 }
 
+/**
+ * For now we only support 1 guest file per hart.
+ * Should I remove the guest_file from the API?
+ */
+void imsic_inject_pend(size_t guest_file, irqid_t intp_id)
+{
+    UNUSED_ARG(guest_file);
+
+    csrs_vsiselect_write(IMSIC_EIP + imsic_eie_index(intp_id));
+    csrs_vsireg_clear(1UL << imsic_eie_bit(intp_id));
+}
+
+void imsic_send_msi(cpuid_t target_cpu, irqid_t ipi_id)
+{
+    imsic[target_cpu]->s_file.seteipnum_le = ipi_id;
+}
+
 void imsic_handle(void)
 {
-    /* Read STOPEI and write to it to claim the interrupt */
-    uint32_t intp_identity = (uint32_t)(csrs_stopei_swap(0) >> STOPEI_EEID);
+    uint32_t intp_identity = (uint32_t)(csrs_stopei_read() >> STOPEI_EEID);
 
     if (intp_identity != 0) {
-        interrupts_handle(intp_identity);
+        enum irq_res res = interrupts_handle(intp_identity);
+        if (res == HANDLED_BY_HYP) {
+            /* Write to STOPEI to clear the interrupt */
+            csrs_stopei_write(0);
+        }
     };
 }
 
@@ -84,7 +105,7 @@ irqid_t imsic_allocate_msi(void)
     irqid_t msi_id = INVALID_IRQID;
 
     spin_lock(&msi_alloc_lock);
-    ssize_t bit = bitmap_find_nth(msi_reserved, PLAT_IMSIC_MAX_INTERRUPTS, 1, 1, BITMAP_NOT_SET);
+    ssize_t bit = bitmap_find_nth(msi_reserved, PLAT_IMSIC_MAX_INTERRUPTS, 1, 0, 0);
     if (bit >= 0) {
         msi_id = (irqid_t)bit;
         bitmap_set(msi_reserved, msi_id);

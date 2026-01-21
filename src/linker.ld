@@ -23,7 +23,6 @@ SECTIONS
 	.text :  {
 		*(.text)
 	}
-
     . = ALIGN(PAGE_SIZE); /* start RO sections in separate page */
 
 	.rodata :  {
@@ -34,12 +33,11 @@ SECTIONS
 	_data_lma_start = .;
 
 #ifdef MEM_NON_UNIFIED
-	. = CONFIG_HYP_DATA_ADDR;	/* Changed location counter to VMA address */
+	. = PLAT_DATA_MEM;	/* Changed location counter to VMA address */
+	_data_vma_start = .;
 #endif
 
-	_data_vma_start = .;
-
-	.data : AT (_data_lma_start) {
+	.data : AT (_data_lma_start){
 		*(.data .data.*)
         PROVIDE(__global_pointer$ = . + 0x800);
 		*(.sdata .sdata.* .sdata2.*)
@@ -56,28 +54,12 @@ SECTIONS
         _ipi_cpumsg_handlers_id_end = .;
 	}
 
-    _data_vma_end = .;
-
-	.datanocopy : ALIGN(PAGE_SIZE) {
-		/**
-		 * This section holds data initialized and used during early stages of the boot that can't
-		 * be later rewritten during the copy of data sections from non-volatile memory
-		 */
-		*(.datanocopy)
-		/**
-		 * Ensure the loadable portion of the image (_image_load_end) is page-aligned by adding
-		 * padding if necessary.
-		 */
-	    . = ALIGN(PAGE_SIZE);
-	}
-
-	_image_load_end = .;
-
+    . = ALIGN(PAGE_SIZE);
+    _image_load_end = .;
 #ifdef MEM_NON_UNIFIED
 	/* Save the current location counter (VMA) and switch to LMA for .vm_images */
 	_vma_before_vm_images = .;
-	_data_lma_end =  ALIGN((_data_lma_start + (_data_vma_end - _data_vma_start)), PAGE_SIZE);
-    _image_load_end = ALIGN((_data_lma_start + (_image_load_end - _data_vma_start)), PAGE_SIZE);
+    _image_load_end = _data_lma_start + (_image_load_end - _data_vma_start);
 	. = _image_load_end;
 #endif
 
@@ -94,8 +76,9 @@ SECTIONS
 #endif
 
 	. = ALIGN(PAGE_SIZE);
-	_vm_image_end = ALIGN(_vm_image_start + SIZEOF(.vm_images), PAGE_SIZE);
+	_vm_image_end = _vm_image_start + SIZEOF(.vm_images);
     _image_noload_start = .;
+
     extra_allocated_phys_mem = _image_noload_start - _image_load_end;
 
 #ifdef MEM_PROT_MMU
@@ -109,7 +92,7 @@ SECTIONS
 
 	/* Only no load regions below */
 
-	.bss (NOLOAD) : {
+	.bss (NOLOAD) :  {
 		_bss_start = .;
 		*(.bss* .sbss*)
 		*(COMMON)
@@ -124,12 +107,7 @@ SECTIONS
 
 	. = ALIGN(PAGE_SIZE);
 	_image_end = ABSOLUTE(.);
-
-#ifdef MEM_PROT_MMU
 	_dmem_phys_beg = ABSOLUTE(.) + extra_allocated_phys_mem;
-#else
-	_dmem_phys_beg = ABSOLUTE(.);
-#endif
 
 	. = ALIGN(PAGE_SIZE);
 	_dmem_beg = ABSOLUTE(.);

@@ -25,7 +25,6 @@ struct arch_platform {
             struct {
                 paddr_t base;
                 size_t num_msis;
-                size_t num_guest_files;
             } imsic;
         } aia;
     } irqc;

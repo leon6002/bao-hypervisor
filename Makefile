@@ -11,51 +11,35 @@ define current_directory
 $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 endef
 
-# Check cross compiler
-ifneq ($(findstring clang,$(CROSS_COMPILE)),)
-CC_IS_CLANG =	y
-else
-CC_IS_GCC =	y
-endif
+CC_IS_RHCC =	y
+
 
 # Setup toolchain macros
 
-ifdef CC_IS_CLANG
-clang_version:=$(strip $(patsubst clang%, %, $(notdir $(CROSS_COMPILE))))
-clang_path:=$(dir $(wildcard $(abspath $(CROSS_COMPILE))))
-cpp=		$(clang_path)clang-cpp$(clang_version)
-sstrip= 	$(clang_path)llvm-strip$(clang_version)
-cc=			$(clang_path)clang$(clang_version)
-ld = 		$(clang_path)ld.lld$(clang_version)
-as=			$(clang_path)llvm-as$(clang_version)
-objcopy=	$(clang_path)llvm-objcopy$(clang_version)
-objdump=	$(clang_path)llvm-objdump$(clang_version)
-readelf=	$(clang_path)llvm-readelf$(clang_version)
-size=		$(clang_path)llvm-size$(clang_version)
-else
-cpp=		$(CROSS_COMPILE)cpp
+
+cpp=		ccrh
 sstrip= 	$(CROSS_COMPILE)strip
-cc=			$(CROSS_COMPILE)gcc
-ld = 		$(CROSS_COMPILE)ld
-as=			$(CROSS_COMPILE)as
-objcopy=	$(CROSS_COMPILE)objcopy
-objdump=	$(CROSS_COMPILE)objdump
-readelf=	$(CROSS_COMPILE)readelf
-size=		$(CROSS_COMPILE)size
-endif
+cc=		ccrh
+ld = 		rlink
+as=		asrh
+objcopy=	
+objdump=	
+readelf=	
+size=		
+
+
 
 HOST_CC:=gcc
 
 #Makefile arguments and default values
 DEBUG:=n
-OPTIMIZATIONS:=2
+OPTIMIZATIONS:=default
 CONFIG=
 PLATFORM=
 
 # Setup version
 
-version_str:= $(shell git describe --always --dirty --tag --match "v*\.*\.*")
-version:= baoversion_$(subst -,_,$(version_str))
+version:= baoversion_$(subst -,_,$(shell  git describe --always --dirty --tag --match "v*\.*\.*"))
 
 # Directories
 cur_dir:=$(current_directory)
@@ -69,8 +53,6 @@ CONFIG_REPO?=$(configs_dir)
 scripts_dir:=$(cur_dir)/scripts
 ci_dir:=$(cur_dir)/ci
 src_dirs:=
-
-all:
 
 -include $(ci_dir)/ci.mk
 
@@ -104,16 +86,11 @@ ifneq ($(MAKECMDGOALS), clean)
 endif
 
 # Check configuration exists and set configurtion sources based on it
-override CONFIG_REPO:=$(realpath $(CONFIG_REPO))
 config_dir:=$(CONFIG_REPO)
 config_src:=$(wildcard $(config_dir)/$(CONFIG).c)
 ifeq ($(config_src),)
-  undefine config_src
-  config_dir:=$(CONFIG_REPO)/$(CONFIG)
-  -include $(config_dir)/config.mk
-  ifeq ($(config_src),)
-    config_src:=$(wildcard $(config_dir)/config.c)
-  endif
+config_dir:=$(CONFIG_REPO)/$(CONFIG)
+config_src:=$(wildcard $(config_dir)/config.c)
 endif
 
 ifneq ($(build_targets),)
@@ -131,10 +108,10 @@ bin_dir:=$(cur_dir)/bin/$(PLATFORM)/$(CONFIG)
 directories:=$(build_dir) $(bin_dir)
 
 src_dirs+=$(cpu_arch_dir) $(lib_dir) $(core_dir) $(core_mem_prot_dir) \
-	$(platform_dir) $(addprefix $(drivers_dir)/, $(drivers)) $(config_dir)
+	$(platform_dir) $(addprefix $(drivers_dir)/, $(drivers))
 inc_dirs:=$(addsuffix /inc, $(src_dirs))
 
-build_dirs:=$(patsubst $(cur_dir)%, $(build_dir)%, $(src_dirs) $(inc_dirs))
+build_dirs:=$(patsubst $(src_dir)%, $(build_dir)%, $(src_dirs) $(inc_dirs))
 directories+=$(build_dirs)
 
 
@@ -149,9 +126,9 @@ ld_script_temp:= $(build_dir)/linker_temp.ld
 deps+=$(ld_script_temp).d
 
 asm_defs_src:=$(cpu_arch_dir)/asm_defs.c
-asm_defs_hdr:=$(patsubst $(cur_dir)%, $(build_dir)%, \
+asm_defs_hdr:=$(patsubst $(src_dir)%, $(build_dir)%, \
 	$(cpu_arch_dir))/inc/asm_defs.h
-inc_dirs+=$(patsubst $(cur_dir)%, $(build_dir)%, $(cpu_arch_dir))/inc
+inc_dirs+=$(patsubst $(src_dir)%, $(build_dir)%, $(cpu_arch_dir))/inc
 deps+=$(asm_defs_hdr).d
 
 gens:=
@@ -160,13 +137,13 @@ gens+=$(asm_defs_hdr)
 config_build_dir:=$(build_dir)/config
 platform_build_dir:=$(build_dir)/platform
 scripts_build_dir:=$(build_dir)/scripts
-directories+=$(config_build_dir) $(config_build_dir)/inc $(platform_build_dir) $(scripts_build_dir)
+directories+=$(config_build_dir) $(platform_build_dir) $(scripts_build_dir)
 
 config_def_generator_src:=$(scripts_dir)/config_defs_gen.c
 config_def_generator:=$(scripts_build_dir)/config_defs_gen
-config_defs:=$(config_build_dir)/inc/config_defs_gen.h
+config_defs:=$(config_build_dir)/config_defs_gen.h
 gens+=$(config_def_generator) $(config_defs)
-inc_dirs+=$(config_build_dir)/inc
+inc_dirs+=$(config_build_dir)
 
 platform_def_generator_src:=$(scripts_dir)/platform_defs_gen.c
 platform_arch_def_generator_src:=$(wildcard $(scripts_dir)/arch/$(ARCH)/platform_defs_gen.c)
@@ -180,9 +157,6 @@ inc_dirs+=$(platform_build_dir)
 # Setup list of objects for compilation
 -include $(addsuffix /objects.mk, $(src_dirs))
 
-## Force adding config source file to to config objects (later we remove duplicate if it is already there)
-config-objs-y+=$(patsubst $(config_dir)/%.c, %.o, $(config_src))
-
 objs-y:=
 objs-y+=$(addprefix $(cpu_arch_dir)/, $(cpu-objs-y))
 objs-y+=$(addprefix $(lib_dir)/, $(lib-objs-y))
@@ -191,32 +165,27 @@ objs-y+=$(addprefix $(platform_dir)/, $(boards-objs-y))
 objs-y+=$(addprefix $(drivers_dir)/, $(drivers-objs-y))
 
 c_src_files:=$(wildcard $(patsubst %.o,%.c, $(objs-y)))
-asm_src_files:=$(wildcard $(patsubst %.o,%.S, $(objs-y)))
+asm_src_files:=$(wildcard $(patsubst %.o,%.asm, $(objs-y)))
 c_hdr_files=$(shell cat $(deps) | grep -o "$(src_dir)/\S*\.h" | sort | uniq)
 
 deps+=$(patsubst %.o,%.d,$(objs-y))
-objs-y:=$(patsubst $(cur_dir)%, $(build_dir)%, $(objs-y))
 
-# Config objects already reside in config_build_dir so they must be added after
-# the cur_dir→build_dir remapping to avoid double-expanding the build path.
-# Absolute-path entries go under config_build_dir/external/ preserving the full path.
-config_rel_objs-y:=$(filter-out /%, $(config-objs-y))
-config_abs_objs-y:=$(filter /%, $(config-objs-y))
-deps+=$(patsubst %.o,%.d,$(addprefix $(config_build_dir)/, $(config_rel_objs-y)))
-deps+=$(patsubst %.o,%.d,$(addprefix $(config_build_dir)/external, $(config_abs_objs-y)))
-objs-y+=$(addprefix $(config_build_dir)/, $(config_rel_objs-y))
-objs-y+=$(addprefix $(config_build_dir)/external, $(config_abs_objs-y))
+c_objs:=$(patsubst %.c,%.o, $(c_src_files))
+c_objs:=$(patsubst $(src_dir)%, $(build_dir)%, $(c_objs))
 
-# Now we add all object files directories to the directories list so they can be
-# created later
-directories+=$(abspath $(dir $(objs-y)))
+asm_objs:=$(patsubst %.asm,%.o, $(asm_src_files))
+asm_objs:=$(patsubst $(src_dir)%, $(build_dir)%, $(asm_objs))
+
+objs-y:=$(patsubst $(src_dir)%, $(build_dir)%, $(objs-y))
+
+config_obj:=$(config_src:$(config_dir)/%.c=$(config_build_dir)/%.o)
+config_dep:=$(config_src:$(config_dir)/%.c=$(config_build_dir)/%.d)
+
+deps+=$(config_dep)
+objs-y+=$(config_obj)
+c_objs+=$(config_obj)
 
 
-# Make sure that are no duplicates in directories, deps and objs-y.
-# These variables should not be modified beyong this point.
-directories:=$(abspath $(sort $(directories)))
-deps:=$(abspath $(sort $(deps)))
-objs-y:=$(abspath $(sort $(objs-y)))
 
 # Toolchain flags
 
@@ -227,31 +196,17 @@ endif
 ifeq ($(arch_mem_prot),mpu)
 	build_macros+=-DMEM_PROT_MPU
 endif
-ifeq ($(plat_mem),non_unified)
-	ifeq ($(ARCH),aarch64)
-		$(error AArch64 with non_unified memory is not supported)
-	endif
+ifeq ($(arch_mem),non_unified)
 	build_macros+=-DMEM_NON_UNIFIED
 endif
-ifeq ($(phys_irqs_only),y)
-	build_macros+=-DPHYS_IRQS_ONLY
-endif
-ifeq ($(mmio_slave_side_prot),y)
-	build_macros+=-DMMIO_SLAVE_SIDE_PROT
-
-	ifneq ($(arch_mem_prot),mpu)
-		$(error mmio_slave_side_prot=y requires arch_mem_prot=mpu)
-	endif
+ifeq ($(plat_core_arch),single_core)
+	build_macros+=-DSINGLE_CORE
 endif
 
-ifeq ($(CC_IS_GCC),y)
-	build_macros+=-DCC_IS_GCC
-else ifeq ($(CC_IS_CLANG),y)
-	build_macros+=-DCC_IS_CLANG
-endif
+build_macros+=-DCC_IS_RHCC
 
 override CPPFLAGS+=$(addprefix -I, $(inc_dirs)) $(arch-cppflags) \
-	$(platform-cppflags) $(build_macros) -DBAO_VERSION=\"$(version_str)\"
+	$(platform-cppflags) $(build_macros)
 vpath:.=CPPFLAGS
 
 HOST_CPPFLAGS+=$(addprefix -I, $(inc_dirs)) $(arch-cppflags) \
@@ -259,36 +214,11 @@ HOST_CPPFLAGS+=$(addprefix -I, $(inc_dirs)) $(arch-cppflags) \
 
 ifeq ($(DEBUG), y)
 	debug_flags:=-g
-	OPTIMIZATIONS:=g
+	OPTIMIZATIONS:=default
 endif
 
 
-ifeq ($(CC_IS_GCC),y)
-	cflags_warns:= \
-		-Warith-conversion -Wbuiltin-declaration-mismatch \
-		-Wcomments  -Wdiscarded-qualifiers \
-		-Wimplicit-fallthrough \
-		-Wswitch-unreachable -Wreturn-local-addr  \
-		-Wshift-count-negative  -Wuninitialized \
-		-Wunused -Wunused-local-typedefs  -Wunused-parameter \
-		-Wunused-result -Wvla \
-		-Wconversion -Wsign-conversion \
-		-Wmissing-prototypes -Wmissing-declarations  \
-		-Wswitch-default -Wshadow -Wshadow=global \
-		-Wcast-qual -Wunused-macros \
-		-Wstrict-prototypes -Wunused-but-set-variable
-
-	override CFLAGS+=-Wno-unused-command-line-argument \
-		-pedantic -pedantic-errors
-	override LDFLAGS+=--no-check-sections
-else ifeq ($(CC_IS_CLANG), y)
-	override CFLAGS+=-Wno-unused-command-line-argument --target=$(clang_arch_target)
-	override CPPFLAGS+=--target=$(clang_arch_target) -ffreestanding
-	override LDFLAGS+=--no-check-sections
-endif
-
-override CFLAGS+=-O$(OPTIMIZATIONS) -Wall -Werror -Wextra $(cflags_warns) \
-	-ffreestanding -std=c11 -fno-pic -fno-pie \
+override CFLAGS+= -Xcommon=rh850 \
 	$(arch-cflags) $(platform-cflags) $(CPPFLAGS) $(debug_flags)
 
 override ASFLAGS+=$(CFLAGS) $(arch-asflags) $(platform-asflags)
@@ -296,7 +226,6 @@ override ASFLAGS+=$(CFLAGS) $(arch-asflags) $(platform-asflags)
 override LDFLAGS+=-build-id=none -nostdlib --fatal-warnings \
 	--defsym=$(version)=0 \
 	-z common-page-size=$(PAGE_SIZE) -z max-page-size=$(PAGE_SIZE) \
-	-no-pie \
 	$(arch-ldflags) $(platform-ldflags)
 
 ifneq ($(build_targets),)
@@ -304,110 +233,98 @@ ifneq ($(build_targets),)
 .PHONY: all
 all: $(targets-y)
 
-$(bin_dir)/$(PROJECT_NAME).elf: $(gens) $(objs-y) $(extra-objs-y) $(ld_script_temp)
-	@echo "Linking			$(patsubst $(cur_dir)/%,%, $@)"
-	@$(ld) $(LDFLAGS) -T$(ld_script_temp) $(objs-y) $(extra-objs-y) -o $@
-	@$(objdump) -S --wide $@ > $(basename $@).asm
-	@$(readelf) -a --wide $@ > $@.txt
+$(bin_dir)/$(PROJECT_NAME).elf: $(gens) $(objs-y) $(ld_script_temp)
+	@echo "Linking			$(patsubst $(cur_dir)/%, %, $@)"
+	@$(ld) -subcommand="$(ld_script_temp)" -form=absolute -output="$@"
 
 ifneq ($(DEBUG), y)
-	@echo "Striping		$(patsubst $(cur_dir)/%,%, $@)"
-	@$(sstrip) -s $@
+	@echo "Striping		$(patsubst $(cur_dir)/%, %, $@)"
 endif
 
 $(ld_script_temp):
-	@echo "Pre-processing		$(patsubst $(cur_dir)/%,%, $(ld_script))"
-	@$(cc) $(CFLAGS) -E $(addprefix -I, $(inc_dirs)) -x assembler-with-cpp  $(CPPFLAGS) \
-		$(ld_script) | grep -v '^\#' > $(ld_script_temp)
+	@echo "Pre-processing		$(patsubst $(cur_dir)/%, %, $(ld_script))"
+	@$(HOST_CC) $(HOST_CPPFLAGST) -E $(addprefix -I, $(inc_dirs)) -x \
+	assembler-with-cpp  $(HOST_CPPFLAGST) $(ld_script) | grep -v '^\#' > \
+	$(ld_script_temp).tmp.ld
+	@echo -e $(foreach obj,$(objs-y),-input="$(obj)\n") > $(ld_script_temp)
+	@echo " -list" >> $(ld_script_temp)
+	@echo " -nologo" >> $(ld_script_temp)
+	@echo ' -library="$(shell dirname $(shell dirname $(shell which $(cc))))/lib/v850e3v5/rhs8n.lib"' >> $(ld_script_temp)
+	@echo " -start=VECTAB,EINTTBL,.text,.const,.data,.ipi_cpumsg_handlers_id.data,.ipi_cpumsg_handlers.const,.bss/0,.data.R,.ipi_cpumsg_handlers_id.data.R,.ipi_cpumsg_handlers.const.R,.bss.R/fe100000" >> $(ld_script_temp)
+	@echo " -rom=.data*=.data.*R,.ipi_cpumsg_handlers*=.ipi_cpumsg_handlers*.R,.bss=.bss.R" >> $(ld_script_temp)
 
 ifneq ($(build_targets),)
 -include $(deps)
 endif
 
 $(ld_script_temp).d: $(ld_script)
-	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) -x assembler-with-cpp  -MM -MT "$(ld_script_temp) $@" \
+	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %, $<)"
+	@$(HOST_CC) -x assembler-with-cpp  -MM -MT "$(ld_script_temp) $@" \
 		$(addprefix -I, $(inc_dirs))  $< > $@
 
-$(build_dir)/%.d : $(cur_dir)/%.[c,S]
-	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
+$(build_dir)/%.d : $(src_dir)/%.c
+	@echo "Creating C dependency	 $(patsubst $(cur_dir)/%, %, $<)"
+	@$(HOST_CC) $(HOST_CPPFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@" $(CPPFLAGS) $< > $@
 
-# We need a specific rule for the config deps which has the exact same recipe as the generic
-# dep rule because the `config_dir` might be out-of-tree if CONFIG_REPO points to a foreign directory
-# and the pattern match must allow for it, given it might not match $(cur_dir)
-$(build_dir)/%.d : $(config_dir)/%.[c,S]
-	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
+$(build_dir)/%.d : $(src_dir)/%.asm
+	@echo "Creating Asm dependency	$(patsubst $(cur_dir)/%, %, $<)"
+	@$(HOST_CC) $(HOST_CPPFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@" -x assembler-with-cpp $(CPPFLAGS) $< > $@
 
-# Dep rule for config-objs-y routed directly into config_build_dir.
-# The stem maps directly to config_dir so out-of-tree sources are found correctly.
-$(config_build_dir)/%.d : $(config_dir)/%.[c,S]
-	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
+$(c_objs):
+	@echo "Compiling C source	$(patsubst $(cur_dir)/%, %, $<)"
+	@$(cc) $(CFLAGS) -O$(OPTIMIZATIONS) -lang=c99 -c $< -o$@
 
-# Dep rule for absolute-path config-objs-y, placed under config_build_dir/external/.
-# No slash after 'external' so the stem captures the full absolute source path.
-$(config_build_dir)/external%.d : %.[c,S]
-	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
-
-# We need to repeat the rule again to support fully out-of-tree sources (both from the root directory
-# and the CONFIG_REPO)
-$(build_dir)%.d : %.[c,S]
-	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
-
-$(objs-y):
-	@echo "Compiling source	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) $(CFLAGS) -c $< -o $@
+$(asm_objs):
+	@echo "Compiling Asm source	$(patsubst $(cur_dir)/%, %, $<)"
+	@$(cc) $(CFLAGS) -O$(OPTIMIZATIONS) -c $< -o$@
 
 %.bin: %.elf
-	@echo "Generating binary	$(patsubst $(cur_dir)/%,%, $@)"
-	@$(objcopy) -S -O binary $< $@
+	@echo "generating binary	$(patsubst $(cur_dir)/%, %, $@)"
+	@$(ld) -subcommand="$(ld_script_temp)" -form=binary -output="$@"
 
 $(deps): | $(gens)
 
 #Generate assembly macro definitions from arch/$(ARCH)/$(asm_defs_src) if such
 #	file exists
 
+
 ifneq ($(wildcard $(asm_defs_src)),)
 $(asm_defs_hdr): $(asm_defs_src)
-	@echo "Generating header	$(patsubst $(cur_dir)/%,%, $@)"
-	@$(cc) -S $(CFLAGS) -DGENERATING_DEFS $< -o - \
-		| awk '($$1 == "//#" || $$1 == "##" || $$1 == "@#")   \
-			{ gsub("#", "", $$3); print "#define " $$2 " " $$3 }' > $@
+	@echo "Generating header	$(patsubst $(cur_dir)/%, %, $@)"
+	@$(cc) -S $(CFLAGS) -lang=c99 -DGENERATING_DEFS $< -otmp ; \
+		  paste -d ' ' <(grep -E '^_[^asm].*:' tmp | sed 's/:$$//') <(grep '\.dw' tmp | awk '{print $$2}') \
+		  | awk '{ printf "#define %-20s %s\n", $$1, $$2 }' > $@ ; \
+		  rm -r tmp
 
 $(asm_defs_hdr).d: $(asm_defs_src)
-	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%,\
+	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %,\
 		 $(patsubst %.d,%, $@))"
-	@$(cc) -MM -MT $(CFLAGS) "$(patsubst %.d,%, $@)" $(addprefix -I, $(inc_dirs)) $< > $@
+	@$(HOST_CC) -MM -MT $(HOST_CPPFLAGS) "$(patsubst %.d,%, $@)" $(addprefix -I, $(inc_dirs)) $< > $@
 endif
 
-config_dep:=$(config_build_dir)/$(patsubst %.c,%.d,$(notdir $(config_src)))
 $(config_dep): $(config_src)
-	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%,\
+	@echo "Creating dependency	$(patsubst $(cur_dir)/%, %,\
 		 $(patsubst %.d,%, $@))"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@" $(CPPFLAGS) $(filter %.c, $^) > $@
-	@$(cc) $(CFLAGS) $(CPPFLAGS) -S $(config_src) -o - | grep ".incbin" | \
-		awk '{ gsub("\"", "", $$2); print "$(patsubst %.d, %.o, $@): " $$2 }' >> $@
+	@$(HOST_CC) $(HOST_CPPFLAGS) -MM -MG -MT "$(config_obj) $@" $(HOST_CPPFLAGS) $(filter %.c, $^) > $@
+	@$(HOST_CC) $(HOST_CPPFLAGS) -S $(config_src) -o - | grep ".incbin" | \
+		awk '{ gsub("\"", "", $$2); print "$(config_obj): " $$2 }' >> $@
 
 $(config_def_generator): $(config_def_generator_src) $(config_src)
-	@echo "Compiling generator	$(patsubst $(cur_dir)/%,%, $@)"
+	@echo "Compiling generator	$(patsubst $(cur_dir)/%, %, $@)"
 	@$(HOST_CC) $^ $(build_macros) $(HOST_CPPFLAGS) -DGENERATING_DEFS \
 		$(addprefix -I, $(inc_dirs)) -o $@
 
 $(config_defs): $(config_def_generator)
-	@echo "Generating header	$(patsubst $(cur_dir)/%,%, $@)"
+	@echo "Generating header	$(patsubst $(cur_dir)/%, %, $@)"
 	@$(config_def_generator) > $(config_defs)
 
 $(platform_def_generator): $(platform_def_generator_src) $(platform_description)
-	@echo "Compiling generator	$(patsubst $(cur_dir)/%,%, $@)"
+	@echo "Compiling generator	$(patsubst $(cur_dir)/%, %, $@)"
 	@$(HOST_CC) $^ $(build_macros) $(HOST_CPPFLAGS) -DGENERATING_DEFS -D$(ARCH) \
 		$(addprefix -I, $(inc_dirs)) -o $@
 
 $(platform_defs): $(platform_def_generator)
-	@echo "Generating header	$(patsubst $(cur_dir)/%,%, $@)"
+	@echo "Generating header	$(patsubst $(cur_dir)/%, %, $@)"
 	@$(platform_def_generator) > $(platform_defs)
 
 
@@ -418,7 +335,7 @@ $(platform_defs): $(platform_def_generator)
 $(objs-y) $(deps) $(targets-y) $(gens): | $$(@D)
 
 $(directories):
-	@echo "Creating directory	$(patsubst $(cur_dir)/%,%, $@)"
+	@echo "Creating directory	$(patsubst $(cur_dir)/%, %, $@)"
 	@mkdir -p $@
 
 endif

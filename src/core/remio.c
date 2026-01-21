@@ -131,7 +131,12 @@ struct list remio_device_list;
 static void remio_cpu_msg_handler(uint32_t event, uint64_t data);
 
 /** Associate the Remote I/O CPU message handler with a new Remote I/O CPU message ID */
-CPU_MSG_HANDLER(remio_cpu_msg_handler, REMIO_CPUMSG_ID)
+/* CPU_MSG_HANDLER(remio_cpu_msg_handler, REMIO_CPUMSG_ID) */
+#pragma section.ipi_cpumsg_handlers
+cpu_msg_handler_t __cpumsg_handler_remio_cpu_msg_handler = remio_cpu_msg_handler;
+#pragma section.ipi_cpumsg_handlers_id
+volatile size_t REMIO_CPUMSG_ID = ~0x0;
+#pragma section default
 
 /** Object pool to allocate Remote I/O devices */
 OBJPOOL_ALLOC(remio_device_pool, struct remio_device,
@@ -329,7 +334,7 @@ void remio_init(void)
                     (dev->bind_key == remio_device->config.frontend.bind_key &&
                         dev->type == REMIO_DEV_FRONTEND)) {
                     ERROR("Failed to link backend to the frontend, more than one %s was "
-                          "atributed to the Remote I/O device %d\n",
+                          "atributed to the Remote I/O device %d",
                         dev->type == REMIO_DEV_BACKEND ? "backend" : "frontend", dev->bind_key);
                 } else if ((dev->type == REMIO_DEV_BACKEND &&
                                dev->bind_key == remio_device->config.frontend.bind_key) ||
@@ -342,7 +347,7 @@ void remio_init(void)
             if (device == NULL) {
                 device = objpool_alloc(&remio_device_pool);
                 if (device == NULL) {
-                    ERROR("Failed creating Remote I/O device %d\n", dev->bind_key);
+                    ERROR("Failed creating Remote I/O device %d", dev->bind_key);
                 }
                 device->ready = false;
                 device->bind_key = dev->bind_key;
@@ -360,7 +365,7 @@ void remio_init(void)
                 device->config.frontend.shmem = dev->shmem;
                 device->config.frontend.ready = false;
             } else {
-                ERROR("Unknown Remote I/O device type\n");
+                ERROR("Unknown Remote I/O device type");
             }
             counter[dev->type]++;
         }
@@ -368,7 +373,7 @@ void remio_init(void)
 
     /** Check if there is a 1-to-1 mapping between a Remote I/O backend and Remote I/O frontend */
     if (counter[REMIO_DEV_FRONTEND] != counter[REMIO_DEV_BACKEND]) {
-        ERROR("There is no 1-to-1 mapping between a Remote I/O backend and Remote I/O frontend\n");
+        ERROR("There is no 1-to-1 mapping between a Remote I/O backend and Remote I/O frontend");
     }
 
     /** Check if the shared memory regions are correctly configured */
@@ -389,7 +394,7 @@ void remio_init(void)
             struct remio_dev* dev = &vm_config->platform.remio_devs[i];
             struct remio_device* device = remio_find_dev_by_bind_key(dev->bind_key);
             if (device == NULL) {
-                ERROR("Failed to find Remote I/O device %d\n", dev->bind_key);
+                ERROR("Failed to find Remote I/O device %d", dev->bind_key);
             }
             if (dev->type == REMIO_DEV_BACKEND) {
                 device->config.backend.vm_id = vm_id;
@@ -400,7 +405,7 @@ void remio_init(void)
                 device->config.frontend.interrupt = dev->interrupt;
                 device->config.frontend.cpu_id = (cpuid_t)-1;
             } else {
-                ERROR("Unknown Remote I/O device type\n");
+                ERROR("Unknown Remote I/O device type");
             }
         }
     }
@@ -613,14 +618,14 @@ static void remio_cpu_msg_handler(uint32_t event, uint64_t data)
         case REMIO_CPU_MSG_WRITE:
         case REMIO_CPU_MSG_READ:
             if (!remio_cpu_post_work(event, msg.remio_bind_key, msg.request_id)) {
-                ERROR("Failed to perform the post work after the completion of the I/O request\n");
+                ERROR("Failed to perform the post work after the completion of the I/O request");
             }
             break;
         case REMIO_CPU_MSG_NOTIFY:
             vcpu_inject_irq(cpu()->vcpu, msg.interrupt);
             break;
         default:
-            WARNING("Unknown Remote I/O CPU message event\n");
+            WARNING("Unknown Remote I/O CPU message event");
             break;
     }
 }

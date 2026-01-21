@@ -16,7 +16,7 @@
     add \rd, \rd, r1
 .endm
 
-.section .datanocopy
+.data
 .balign 4
 /**
  * barrier is used to minimal synchronization in boot - other cores wait for bsp to set it.
@@ -54,8 +54,6 @@ _reset_handler:
      * Get base image load address.
      */
     adr r1, _el2_entry
-    get_phys_addr r3, r4, img_addr
-    str r1, [r3] // store image load address in img_addr
 
     /**
      * Linearize cpu id according to the number of clusters and processors per cluster. We are only
@@ -108,7 +106,7 @@ _reset_handler:
  * which later will turn on all the others. Therefore, there is no concurrency when setting
  * CPU_MASTER and no atomic operations are needed.
  */
- .pushsection .datanocopy
+ .pushsection .data
 _master_set:
     .4byte 0
 .popsection
@@ -154,19 +152,6 @@ _set_master_cpu:
     /* If this is the cpu master, clear bss */
     cmp r9, #0
     bne 1f
-
-#ifdef MEM_NON_UNIFIED
-    /* Copy data from RX to RWX */
-    ldr r7, =_data_lma_start        // LMA start
-    ldr r11, =_data_vma_start       // VMA start
-    ldr r12, =_data_lma_end         // LMA end
-    bl copy_data
-
-    ldr r1, =_data_vma_start
-    ldr r3, =data_addr
-    str r1, [r3] // store image load address in img_addr
-#endif
-
     ldr r11, =_bss_start
     ldr r12, =_bss_end
     bl boot_clear
@@ -210,16 +195,6 @@ boot_clear:
 1:
 	bx lr
 
-/* Copies data from r7 to r11 up to the r12 limit */
-.global copy_data
-copy_data:
-1:
-    ldr r8, [r7], #4
-    str r8, [r11], #4
-    cmp r7, r12
-    bne 1b
-    bx lr
-
 /*
  * Code adapted from "Application Note Bare-metal Boot Code for ARMv8-A Processors - Version 1.0"
  *
@@ -252,3 +227,4 @@ set_loop:
     cmp r5, r3 // last way reached yet?
     ble way_loop // if not, iterate way_loop
     bx lr
+
