@@ -5,10 +5,11 @@
 
 #include <bao.h>
 #include <config.h>
-#include <shmem.h>
 
-void config_mem_prot_init(void)
+void config_mem_prot_init(paddr_t load_addr)
 {
+    UNUSED_ARG(load_addr);
+
     for (size_t i = 0; i < config.vmlist_size; i++) {
         for (size_t j = 0; j < config.vmlist[i].platform.region_num; j++) {
             /**
@@ -28,7 +29,7 @@ void config_mem_prot_init(void)
             vaddr_t ipc_base_addr = config.vmlist[i].platform.ipcs[j].base;
             vaddr_t shmem_base_addr = config.shmemlist[shmem_id].base;
             if (ipc_base_addr != shmem_base_addr) {
-                ERROR("IPC base addr must be the same as its shmem base addr.\n");
+                ERROR("IPC base addr must be the same as its shmem base addr.");
             }
         }
     }

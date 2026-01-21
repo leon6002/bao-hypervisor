@@ -9,15 +9,14 @@
 void objpool_init(struct objpool* objpool)
 {
     memset(objpool->pool, 0, objpool->objsize * objpool->num);
-    memset(objpool->bitmap, 0, BITMAP_SIZE_IN_BYTES(objpool->num));
-    objpool->lock = SPINLOCK_INITVAL;
+    memset(objpool->bitmap, 0, BITMAP_SIZE(objpool->num));
 }
 
 void* objpool_alloc_with_id(struct objpool* objpool, objpool_id_t* id)
 {
     void* obj = NULL;
     spin_lock(&objpool->lock);
-    ssize_t n = bitmap_find_nth(objpool->bitmap, objpool->num, 1, 0, BITMAP_NOT_SET);
+    ssize_t n = bitmap_find_nth(objpool->bitmap, objpool->num, 1, 0, false);
     if (n >= 0) {
         bitmap_set(objpool->bitmap, (size_t)n);
         obj = (void*)((uintptr_t)objpool->pool + (objpool->objsize * (size_t)n));
@@ -46,6 +45,6 @@ void objpool_free(struct objpool* objpool, void* obj)
         bitmap_clear(objpool->bitmap, n);
         spin_unlock(&objpool->lock);
     } else {
-        WARNING("leaked while trying to free stray object\n");
+        WARNING("leaked while trying to free stray object");
     }
 }

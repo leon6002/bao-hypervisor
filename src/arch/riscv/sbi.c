@@ -10,7 +10,6 @@
 #include <bit.h>
 #include <fences.h>
 #include <hypercall.h>
-#include <interrupts.h>
 
 #define SBI_EXTID_BASE                  (0x10)
 #define SBI_GET_SBI_SPEC_VERSION_FID    (0)
@@ -111,7 +110,7 @@ struct sbiret sbi_set_timer(uint64_t stime_value)
 {
     unsigned long a0 = (unsigned long)stime_value;
     unsigned long a1 = 0;
-    if (DEFINED(RV32)) {
+    if (RV32) {
         a1 = (unsigned long)(stime_value >> 32);
     }
     return sbi_ecall(SBI_EXTID_TIME, SBI_SET_TIMER_FID, a0, a1, 0, 0, 0, 0);
@@ -206,7 +205,7 @@ void sbi_msg_handler(uint32_t event, uint64_t data)
             spin_unlock(&cpu()->vcpu->arch.sbi_ctx.lock);
         } break;
         default:
-            WARNING("unknown sbi msg\n");
+            WARNING("unknown sbi msg");
             break;
     }
 }
@@ -218,7 +217,7 @@ static struct sbiret sbi_time_handler(unsigned long fid)
     }
 
     uint64_t stime_value = vcpu_readreg(cpu()->vcpu, REG_A0);
-    if (DEFINED(RV32)) {
+    if (RV32) {
         stime_value |= ((uint64_t)vcpu_readreg(cpu()->vcpu, REG_A1)) << 32;
     }
 
@@ -306,7 +305,7 @@ static struct sbiret sbi_rfence_handler(unsigned long fid)
     const size_t hart_mask_width = sizeof(hart_mask) * 8;
     if ((hart_mask_base != 0) &&
         ((hart_mask_base >= hart_mask_width) || ((hart_mask << hart_mask_base) == 0))) {
-        WARNING("sbi invalid hart_mask\n");
+        WARNING("sbi invalid hart_mask");
         return (struct sbiret){ SBI_ERR_INVALID_PARAM, 0 };
     }
 
@@ -351,7 +350,7 @@ static struct sbiret sbi_hsm_start_handler(void)
                 ret.error = SBI_ERR_FAILURE;
             } else {
                 vaddr_t start_addr = vcpu_readreg(cpu()->vcpu, REG_A1);
-                unsigned long priv = vcpu_readreg(cpu()->vcpu, REG_A2);
+                unsigned priv = (unsigned)vcpu_readreg(cpu()->vcpu, REG_A2);
                 vcpu->arch.sbi_ctx.state = START_PENDING;
                 vcpu->arch.sbi_ctx.start_addr = start_addr;
                 vcpu->arch.sbi_ctx.priv = priv;
@@ -394,7 +393,6 @@ static struct sbiret sbi_hsm_suspend_handler(void)
 {
     struct sbiret ret;
     uint32_t suspend_type = (uint32_t)vcpu_readreg(cpu()->vcpu, REG_A0);
-    bool try_suspend = false;
 
     spin_lock(&cpu()->vcpu->arch.sbi_ctx.lock);
     if (cpu()->vcpu->arch.sbi_ctx.state != STARTED) {
@@ -408,13 +406,8 @@ static struct sbiret sbi_hsm_suspend_handler(void)
              */
             ret.error = SBI_ERR_NOT_SUPPORTED;
         } else {
-            try_suspend = true;
+            ret = sbi_hart_suspend(suspend_type, 0, 0);
         }
-    }
-    spin_unlock(&cpu()->vcpu->arch.sbi_ctx.lock);
-
-    if (try_suspend) {
-        ret = sbi_hart_suspend(suspend_type, 0, 0);
     }
 
     return ret;
@@ -479,7 +472,7 @@ size_t sbi_vs_handler()
             ret = sbi_bao_handler(fid);
             break;
         default:
-            WARNING("guest issued unsupport sbi extension call (%d)\n", extid);
+            WARNING("guest issued unsupport sbi extension call (%d)", extid);
             ret.error = SBI_ERR_NOT_SUPPORTED;
     }
 
@@ -496,18 +489,17 @@ void sbi_init()
     ret = sbi_get_spec_version();
 
     if (ret.error != SBI_SUCCESS || ret.value < 2) {
-        ERROR("not supported SBI spec version: 0x%x\n", ret.value);
+        ERROR("not supported SBI spec version: 0x%x", ret.value);
     }
 
     for (size_t i = 0; i < NUM_EXT; i++) {
         ret = sbi_probe_extension(ext_table[i]);
         if (ret.error != SBI_SUCCESS || ret.value == 0) {
-            ERROR("sbi does not support ext 0x%x\n", ext_table[i]);
+            ERROR("sbi does not support ext 0x%x", ext_table[i]);
         }
     }
 
-    irqc_timer_int_id = interrupts_reserve(TIMR_INT_ID, (irq_handler_t)sbi_timer_irq_handler);
-    if (irqc_timer_int_id == INVALID_IRQID) {
-        ERROR("Failed to reserve SBI TIMR_INT_ID interrupt\n");
+    if (!interrupts_reserve(TIMR_INT_ID, (irq_handler_t)sbi_timer_irq_handler)) {
+        ERROR("Failed to reserve SBI TIMR_INT_ID interrupt");
     }
 }

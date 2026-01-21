@@ -11,8 +11,6 @@ arch_profile_dir:=$(cpu_arch_dir)/$(ARCH_PROFILE)
 include $(arch_profile_dir)/profile.mk
 src_dirs+=$(arch_profile_dir)
 
-src_dirs+=$(arch_profile_dir)/cpus
-
 arch_profile_sub_dir:=$(arch_profile_dir)/$(ARCH_SUB)
 src_dirs+=$(arch_profile_sub_dir)
 
@@ -22,4 +20,3 @@ arch-cflags+=-mgeneral-regs-only
 endif
 arch-asflags+=
 arch-ldflags+=
-

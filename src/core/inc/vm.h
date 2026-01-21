@@ -23,11 +23,8 @@ struct vm_mem_region {
     paddr_t base;
     size_t size;
     colormap_t colors;
-    struct {
-        bool place_phys;
-        paddr_t phys;
-        bool reserved;
-    };
+    bool place_phys;
+    paddr_t phys;
 };
 
 struct vm_dev_region {
@@ -97,7 +94,7 @@ struct vm {
 };
 
 struct vcpu {
-    node_t node;
+    node_t cpu_vcpu_list_node;
 
     struct arch_regs regs;
     struct vcpu_arch arch;
@@ -105,7 +102,12 @@ struct vcpu {
     vcpuid_t id;
     cpuid_t phys_id;
     bool active;
+    unsigned long first_run;
 
+    spinlock_t blocked_count_lock;
+    int blocked_count;
+
+    uint8_t stack[STACK_SIZE];
     struct vm* vm;
 };
 
@@ -116,8 +118,8 @@ struct vm_allocation {
     struct vcpu* vcpus;
 };
 
-struct vm* vm_init(struct vm_allocation* vm_alloc, struct cpu_synctoken* vm_init_sync,
-    const struct vm_config* config, bool master, vmid_t vm_id);
+struct vm* vm_init(struct vm_allocation* vm_alloc, const struct vm_config* config, bool master,
+    vmid_t vm_id);
 void vm_start(struct vm* vm, vaddr_t entry);
 void vm_emul_add_mem(struct vm* vm, struct emul_mem* emu);
 void vm_emul_add_reg(struct vm* vm, struct emul_reg* emu);
@@ -127,6 +129,8 @@ void vcpu_init(struct vcpu* vcpu, struct vm* vm, vaddr_t entry);
 void vm_msg_broadcast(struct vm* vm, struct cpu_msg* msg);
 cpumap_t vm_translate_to_pcpu_mask(struct vm* vm, cpumap_t mask, size_t len);
 cpumap_t vm_translate_to_vcpu_mask(struct vm* vm, cpumap_t mask, size_t len);
+void vcpu_save_state(struct vcpu* vcpu);
+void vcpu_restore_state(struct vcpu* vcpu);
 
 static inline struct vcpu* vm_get_vcpu(struct vm* vm, vcpuid_t vcpuid)
 {
@@ -150,7 +154,7 @@ static inline cpuid_t vm_translate_to_pcpuid(struct vm* vm, vcpuid_t vcpuid)
 static inline vcpuid_t vm_translate_to_vcpuid(struct vm* vm, cpuid_t pcpuid)
 {
     if (vm->cpus & (1UL << pcpuid)) {
-        return (cpuid_t)bit_count(vm->cpus & ((1UL << pcpuid) - 1UL));
+        return (cpuid_t)bit_count(vm->cpus & BIT_MASK(0, pcpuid));
     } else {
         return INVALID_CPUID;
     }
@@ -171,6 +175,51 @@ static inline void vcpu_inject_irq(struct vcpu* vcpu, irqid_t id)
     vcpu_arch_inject_irq(vcpu, id);
 }
 
+static inline void vcpu_block(struct vcpu* vcpu)
+{
+    // TODO check for overflows
+    vcpu->blocked_count += 1;
+}
+
+static inline void vcpu_unblock(struct vcpu* vcpu)
+{
+    if (vcpu->blocked_count > 0) {
+        vcpu->blocked_count -= 1;
+    }
+}
+
+static inline bool vcpu_is_blocked(struct vcpu* vcpu)
+{
+    return vcpu->blocked_count > 0;
+}
+
+static inline void vcpu_kill(struct vcpu* vcpu)
+{
+    vcpu->blocked_count = -1;
+}
+
+static inline bool vcpu_is_dead(struct vcpu* vcpu)
+{
+    return vcpu->blocked_count < 0;
+}
+
+static inline struct vcpu* vcpu_current(void)
+{
+    return cpu()->vcpu;
+}
+
+static inline struct vcpu* vcpu_next(void)
+{
+    return cpu()->vcpu;
+}
+
+static inline struct vcpu* vcpu_set_next(struct vcpu* vcpu)
+{
+    return cpu()->next_vcpu = vcpu;
+}
+
+void vcpu_context_switch(void);
+
 /* ------------------------------------------------------------*/
 
 void vm_mem_prot_init(struct vm* vm, const struct vm_config* config);
@@ -186,6 +235,5 @@ unsigned long vcpu_readpc(struct vcpu* vcpu);
 void vcpu_writepc(struct vcpu* vcpu, unsigned long pc);
 void vcpu_arch_reset(struct vcpu* vcpu, vaddr_t entry);
 bool vcpu_arch_is_on(struct vcpu* vcpu);
-void vm_arch_allow_mmio_access(struct vm* vm, struct vm_dev_region* dev);
 
 #endif /* __VM_H__ */

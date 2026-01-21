@@ -6,7 +6,7 @@ ARCH:=riscv
 # CPU definition
 CPU:=
 # Interrupt controller definition
-IRQC:=AIA
+IRQC:=PLIC
 # Core IPIs controller
 IPIC:=IPIC_SBI
 

@@ -23,7 +23,6 @@
 typedef signed long ssize_t;
 
 typedef unsigned long asid_t;
-#define INVALID_ASID ((asid_t)~0UL)
 
 typedef unsigned long vmid_t;
 #define INVALID_VMID ((vmid_t)~0UL)
@@ -53,7 +52,7 @@ typedef size_t objpool_id_t;
 
 typedef size_t remio_bind_key_t;
 
-typedef enum {
+typedef enum AS_SEC {
     /*--- HYP AS SECTIONS -----*/
     SEC_HYP_GLOBAL = 0,
     SEC_HYP_IMAGE,
@@ -67,6 +66,8 @@ typedef enum {
 } as_sec_t;
 
 typedef enum AS_TYPE { AS_HYP = 0, AS_VM, AS_HYP_CPY } as_type_t;
+
+typedef enum { PRIV_NONE = 0, PRIV_HYP = 1, PRIV_VM = 2 } priv_t;
 
 typedef enum { PERM_X = 1, PERM_R = 2, PERM_W = 4 } perms_t;
 #define PERM_NONE ((perms_t)0)

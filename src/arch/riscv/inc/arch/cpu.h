@@ -13,11 +13,8 @@
 extern cpuid_t CPU_MASTER;
 
 struct cpu_arch {
-#if (IRQC == PLIC)
+    unsigned hart_id;
     unsigned plic_cntxt;
-#else
-    EMPTY_STRUCT_FIELDS
-#endif
 };
 
 static inline struct cpu* cpu(void)

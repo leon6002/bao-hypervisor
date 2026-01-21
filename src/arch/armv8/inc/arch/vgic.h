@@ -14,9 +14,6 @@ struct vm;
 struct vcpu;
 struct vgic_dscrp;
 
-#define VGIC_GICR_ACCESS     (true)
-#define VGIC_NOT_GICR_ACCESS (false)
-
 /**
  * TODO: optimize the vgic_int struct's size
  */

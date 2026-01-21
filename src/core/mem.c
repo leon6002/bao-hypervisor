@@ -13,46 +13,43 @@
 #include <vm.h>
 #include <fences.h>
 #include <config.h>
-#include <shmem.h>
 
-extern uint8_t _image_start, _image_load_end, _image_end, _vm_image_start, _vm_image_end,
-    _data_vma_start;
+extern size_t* _image_start; /* TODO _S_boot */
+extern size_t* _image_load_end;
+extern size_t* _image_end;
+
+// TODO: extern
+size_t* _vm_image_start;
+size_t* _vm_image_end;
+
+extern size_t* _data_vma_start;        /* TODO */
+
+extern uint32_t _load_addr, _data_addr; /* TODO from Assembly */
 
 struct list page_pool_list;
 
-/* The address where the Bao image is loaded in memory */
-vaddr_t img_addr __attribute__((section(".datanocopy")));
-/* The address where the data section is loaded in memory */
-vaddr_t data_addr __attribute__((section(".datanocopy")));
-
-static bool pp_bitmap_alloc(size_t pool_num_pages, bitmap_t** bitmap)
-{
-    static uint8_t bitmap_pool[PLAT_BITMAP_POOL_SIZE];
-    static spinlock_t bitmap_lock = SPINLOCK_INITVAL;
-    static size_t last_index = 0;
-    bool allocated = false;
-
-    spin_lock(&bitmap_lock);
-
-    if (((PLAT_BITMAP_POOL_SIZE - last_index) * 8) >= pool_num_pages) {
-        size_t prev_last_index = last_index;
-
-        last_index += BITMAP_SIZE_IN_BYTES(pool_num_pages);
-        allocated = true;
-        *bitmap = (bitmap_t*)&bitmap_pool[prev_last_index];
-    }
-
-    spin_unlock(&bitmap_lock);
-
-    return allocated;
-}
-
 static size_t calc_root_mem_size(void)
 {
-    if (DEFINED(MEM_NON_UNIFIED)) {
-        return (size_t)(&_image_end - &_data_vma_start);
-    } else {
+    if (!DEFINED(MEM_NON_UNIFIED)) {
         return (size_t)(&_image_end - &_image_start);
+    } else {
+        return ((size_t)_image_end - (size_t)_data_vma_start);
+    }
+}
+
+static paddr_t get_root_pool_bitmap_base(void)
+{
+    size_t cpu_size = platform.cpu_num * mem_cpu_boot_alloc_size();
+
+    if (!DEFINED(MEM_NON_UNIFIED)) {
+        size_t image_size = calc_root_mem_size();
+        size_t vm_image_size = (size_t)(&_vm_image_end - &_vm_image_start);
+
+        return (paddr_t)(_load_addr + image_size + vm_image_size + cpu_size);
+    } else {
+        size_t data_size = ((size_t)_image_end - (size_t)_data_vma_start);
+
+        return (paddr_t)(_data_vma_start + data_size + cpu_size);
     }
 }
 
@@ -72,15 +69,8 @@ bool pp_alloc(struct page_pool* pool, size_t num_pages, bool aligned, struct ppa
     /**
      * If we need a contigous segment aligned to its size, lets start at an already aligned index.
      */
-    size_t start;
-    size_t curr;
-    if (aligned) {
-        start = pool->base / PAGE_SIZE % num_pages;
-        curr = pool->last + ((pool->last + start) % num_pages);
-    } else {
-        start = 0;
-        curr = pool->last;
-    }
+    size_t start = aligned ? pool->base / PAGE_SIZE % num_pages : 0;
+    size_t curr = pool->last + ((pool->last + start) % num_pages);
 
     /**
      * Lets make two searches:
@@ -89,8 +79,7 @@ bool pp_alloc(struct page_pool* pool, size_t num_pages, bool aligned, struct ppa
      */
     for (size_t i = 0; i < 2 && !ok; i++) {
         while (pool->free != 0) {
-            ssize_t bit =
-                bitmap_find_consec(pool->bitmap, pool->num_pages, curr, num_pages, BITMAP_NOT_SET);
+            ssize_t bit = bitmap_find_consec(pool->bitmap, pool->size, curr, num_pages, false);
 
             if (bit < 0) {
                 /**
@@ -128,23 +117,18 @@ bool pp_alloc(struct page_pool* pool, size_t num_pages, bool aligned, struct ppa
     return ok;
 }
 
-static bool mem_ppages_in_pool(struct page_pool* ppool, struct ppages* ppages)
-{
-    return range_in_range(ppages->base, ppages->num_pages * PAGE_SIZE, ppool->base,
-        ppool->num_pages * PAGE_SIZE);
-}
-
 static bool mem_are_ppages_reserved_in_pool(struct page_pool* ppool, struct ppages* ppages)
 {
     bool reserved = false;
-    bool rgn_found = mem_ppages_in_pool(ppool, ppages);
+    bool rgn_found = range_in_range(ppages->base, ppages->num_pages * PAGE_SIZE, ppool->base,
+        ppool->size * PAGE_SIZE);
     if (rgn_found) {
         size_t pageoff = NUM_PAGES(ppages->base - ppool->base);
 
         // verify these pages arent allocated yet
         bool is_alloced = bitmap_get(ppool->bitmap, pageoff);
         size_t avlbl_contig_pp =
-            bitmap_count_consecutive(ppool->bitmap, ppool->num_pages, pageoff, ppages->num_pages);
+            bitmap_count_consecutive(ppool->bitmap, ppool->size, pageoff, ppages->num_pages);
 
         if (is_alloced || avlbl_contig_pp < ppages->num_pages) {
             reserved = true;
@@ -156,19 +140,26 @@ static bool mem_are_ppages_reserved_in_pool(struct page_pool* ppool, struct ppag
 
 static bool mem_reserve_ppool_ppages(struct page_pool* pool, struct ppages* ppages)
 {
-    bool reserved = false;
-    bool is_in_rgn = mem_ppages_in_pool(pool, ppages);
-    if (is_in_rgn && !mem_are_ppages_reserved_in_pool(pool, ppages)) {
-        size_t pageoff = NUM_PAGES(ppages->base - pool->base);
-        bitmap_set_consecutive(pool->bitmap, pageoff, ppages->num_pages);
-        pool->free -= ppages->num_pages;
-        reserved = true;
+    bool is_in_rgn = range_in_range(ppages->base, ppages->num_pages * PAGE_SIZE, pool->base,
+        pool->size * PAGE_SIZE);
+    if (!is_in_rgn) {
+        return true;
     }
 
-    return reserved;
+    size_t pageoff = NUM_PAGES(ppages->base - pool->base);
+
+    bool was_free = true;
+    if (mem_are_ppages_reserved_in_pool(pool, ppages)) {
+        was_free = false;
+    }
+
+    bitmap_set_consecutive(pool->bitmap, pageoff, ppages->num_pages);
+    pool->free -= ppages->num_pages;
+
+    return is_in_rgn && was_free;
 }
 
-void* mem_alloc_page(size_t num_pages, as_sec_t sec, bool phys_aligned)
+void* mem_alloc_page(size_t num_pages, enum AS_SEC sec, bool phys_aligned)
 {
     vaddr_t vpage = INVALID_VA;
     struct ppages ppages = mem_alloc_ppages(cpu()->as.colors, num_pages, phys_aligned);
@@ -182,90 +173,99 @@ void* mem_alloc_page(size_t num_pages, as_sec_t sec, bool phys_aligned)
 
 static bool root_pool_set_up_bitmap(struct page_pool* root_pool)
 {
-    return pp_bitmap_alloc(root_pool->num_pages, &root_pool->bitmap);
+    size_t bitmap_base = get_root_pool_bitmap_base();
+
+    size_t bitmap_num_pages =
+        root_pool->size / (8 * PAGE_SIZE) + ((root_pool->size % (8 * PAGE_SIZE) != 0) ? 1 : 0);
+    if (root_pool->size <= bitmap_num_pages) {
+        return false;
+    }
+
+    struct ppages bitmap_pp = mem_ppages_get(bitmap_base, bitmap_num_pages);
+    bitmap_t* root_bitmap = (bitmap_t*)mem_alloc_map(&cpu()->as, SEC_HYP_GLOBAL, &bitmap_pp,
+        INVALID_VA, bitmap_num_pages, PTE_HYP_FLAGS);
+    root_pool->bitmap = root_bitmap;
+    memset((void*)root_pool->bitmap, 0, bitmap_num_pages * PAGE_SIZE);
+    /* reserve the bitmap on the bitmap */
+    return mem_reserve_ppool_ppages(root_pool, &bitmap_pp);
 }
 
-static bool pp_root_reserve_hyp_image_load(struct page_pool* root_pool)
+static bool pp_reserve_hyp_image_load(paddr_t load_addr, struct page_pool* pool)
 {
-    size_t image_load_size = (size_t)(&_image_load_end - &_image_start);
+    size_t image_load_size = ((size_t)_image_load_end - (size_t)_image_start);
 
-    struct ppages images_load_ppages = mem_ppages_get(img_addr, NUM_PAGES(image_load_size));
+    struct ppages images_load_ppages = mem_ppages_get(load_addr, NUM_PAGES(image_load_size));
 
-    return mem_reserve_ppool_ppages(root_pool, &images_load_ppages);
+    return mem_reserve_ppool_ppages(pool, &images_load_ppages);
 }
 
-static bool pp_root_reserve_hyp_image_noload(struct page_pool* root_pool)
+static bool pp_reserve_hyp_image_noload(paddr_t load_addr, struct page_pool* pool)
 {
-    size_t image_load_size = (size_t)(&_image_load_end - &_image_start);
-    size_t image_noload_size = (size_t)(&_image_end - &_image_load_end);
-    size_t vm_image_size = (size_t)(&_vm_image_end - &_vm_image_start);
-    paddr_t image_noload_addr = img_addr + image_load_size + vm_image_size;
+    size_t image_load_size = ((size_t)_image_load_end - (size_t)_image_start);
+    size_t image_noload_size = ((size_t)_image_end - (size_t)_image_load_end);
+    size_t vm_image_size = ((size_t)_vm_image_end - (size_t)_vm_image_start);
+    paddr_t image_noload_addr = load_addr + image_load_size + vm_image_size;
 
     struct ppages images_noload_ppages =
         mem_ppages_get(image_noload_addr, NUM_PAGES(image_noload_size));
 
-    return mem_reserve_ppool_ppages(root_pool, &images_noload_ppages);
+    return mem_reserve_ppool_ppages(pool, &images_noload_ppages);
 }
 
-static bool pp_root_reserve_cpus(struct page_pool* root_pool)
+static bool pp_reserve_cpus(paddr_t load_addr, struct page_pool* pool)
 {
+    size_t image_load_size = ((size_t)_image_load_end - (size_t)_image_start);
+    size_t image_noload_size = ((size_t)_image_end - (size_t)_image_load_end);
+    size_t vm_image_size = ((size_t)_vm_image_end - (size_t)_vm_image_start);
     size_t cpu_size = platform.cpu_num * mem_cpu_boot_alloc_size();
-    paddr_t cpu_base_addr;
-
-    if (DEFINED(MEM_NON_UNIFIED)) {
-        size_t data_size = (size_t)(&_image_end - &_data_vma_start);
-        cpu_base_addr = (paddr_t)&_data_vma_start + data_size;
-    } else {
-        size_t image_load_size = (size_t)(&_image_load_end - &_image_start);
-        size_t image_noload_size = (size_t)(&_image_end - &_image_load_end);
-        size_t vm_image_size = (size_t)(&_vm_image_end - &_vm_image_start);
-
-        paddr_t image_noload_addr = img_addr + image_load_size + vm_image_size;
-        cpu_base_addr = image_noload_addr + image_noload_size;
-    }
+    paddr_t image_noload_addr = load_addr + image_load_size + vm_image_size;
+    paddr_t cpu_base_addr = image_noload_addr + image_noload_size;
 
     struct ppages cpu_ppages = mem_ppages_get(cpu_base_addr, NUM_PAGES(cpu_size));
 
-    return mem_reserve_ppool_ppages(root_pool, &cpu_ppages);
+    return mem_reserve_ppool_ppages(pool, &cpu_ppages);
 }
 
-static bool pp_root_reserve_hyp_data(struct page_pool* root_pool)
+static bool pp_reserve_hyp_data(struct page_pool* root_pool)
 {
-    size_t data_size = (size_t)(&_image_end - &_data_vma_start);
-    paddr_t data_base_addr = (paddr_t)&_data_vma_start;
+    size_t data_size = ((size_t)_image_end) - ((size_t)_data_vma_start);
+    size_t cpu_size = platform.cpu_num * mem_cpu_boot_alloc_size();
+    paddr_t data_base_addr = (paddr_t)_data_vma_start;
+    paddr_t cpu_base_addr = data_base_addr + data_size;
 
     struct ppages data_ppages = mem_ppages_get(data_base_addr, NUM_PAGES(data_size));
+    struct ppages cpu_ppages = mem_ppages_get(cpu_base_addr, NUM_PAGES(cpu_size));
 
-    return mem_reserve_ppool_ppages(root_pool, &data_ppages);
+    bool data_reserved = mem_reserve_ppool_ppages(root_pool, &data_ppages);
+    bool cpu_reserved = mem_reserve_ppool_ppages(root_pool, &cpu_ppages);
+
+    return data_reserved && cpu_reserved;
 }
 
-static bool pp_root_reserve_hyp_mem(struct page_pool* root_pool)
+static bool pp_root_reserve_hyp_mem(paddr_t load_addr, struct page_pool* root_pool)
 {
-    if (DEFINED(MEM_NON_UNIFIED)) {
-        bool hyp_data_mem = pp_root_reserve_hyp_data(root_pool);
-        bool cpus_mem = pp_root_reserve_cpus(root_pool);
-        return hyp_data_mem && cpus_mem;
-
-    } else {
-        bool hyp_image_load_mem = pp_root_reserve_hyp_image_load(root_pool);
-        bool hyp_image_noload_mem = pp_root_reserve_hyp_image_noload(root_pool);
-        bool cpus_mem = pp_root_reserve_cpus(root_pool);
+    if (!DEFINED(MEM_NON_UNIFIED)) {
+        bool hyp_image_load_mem = pp_reserve_hyp_image_load(load_addr, root_pool);
+        bool hyp_image_noload_mem = pp_reserve_hyp_image_noload(load_addr, root_pool);
+        bool cpus_mem = pp_reserve_cpus(load_addr, root_pool);
         return hyp_image_load_mem && hyp_image_noload_mem && cpus_mem;
+    } else {
+        return pp_reserve_hyp_data(root_pool);
     }
 }
 
-static bool pp_root_init(struct mem_region* root_region)
+static bool pp_root_init(paddr_t load_addr, struct mem_region* root_region)
 {
     struct page_pool* root_pool = &root_region->page_pool;
     root_pool->base = ALIGN(root_region->base, PAGE_SIZE);
-    root_pool->num_pages = root_region->size / PAGE_SIZE; /* TODO: what if not
-                                                            aligned? */
-    root_pool->free = root_pool->num_pages;
+    root_pool->size = root_region->size / PAGE_SIZE; /* TODO: what if not
+                                                        aligned? */
+    root_pool->free = root_pool->size;
 
     if (!root_pool_set_up_bitmap(root_pool)) {
         return false;
     }
-    if (!pp_root_reserve_hyp_mem(root_pool)) {
+    if (!pp_root_reserve_hyp_mem(load_addr, root_pool)) {
         return false;
     }
 
@@ -273,25 +273,37 @@ static bool pp_root_init(struct mem_region* root_region)
     return true;
 }
 
-static bool pp_init(struct page_pool* pool, paddr_t base, size_t size)
+static void pp_init(struct page_pool* pool, paddr_t base, size_t size)
 {
+    struct ppages pages;
+
     if (pool == NULL) {
-        return false;
+        return;
     }
 
     memset((void*)pool, 0, sizeof(struct page_pool));
     pool->base = ALIGN(base, PAGE_SIZE);
-    pool->num_pages = NUM_PAGES(size);
+    pool->size = NUM_PAGES(size);
+    size_t bitmap_size = pool->size / (8 * PAGE_SIZE) + !!(pool->size % (8 * PAGE_SIZE) != 0);
 
-    if (!pp_bitmap_alloc(pool->num_pages, &pool->bitmap)) {
-        return false;
+    if (size <= bitmap_size) {
+        return;
     }
 
-    pool->last = 0;
-    pool->free = pool->num_pages;
-    pool->lock = SPINLOCK_INITVAL;
+    pages = mem_alloc_ppages(cpu()->as.colors, bitmap_size, false);
+    if (pages.num_pages != bitmap_size) {
+        return;
+    }
 
-    return true;
+    if ((pool->bitmap = (bitmap_t*)mem_alloc_map(&cpu()->as, SEC_HYP_GLOBAL, &pages, INVALID_VA,
+             bitmap_size, PTE_HYP_FLAGS)) == NULL) {
+        return;
+    }
+
+    memset((void*)pool->bitmap, 0, bitmap_size * PAGE_SIZE);
+
+    pool->last = 0;
+    pool->free = pool->size;
 }
 
 static bool mem_vm_img_in_phys_rgn(struct vm_config* vm_config)
@@ -314,92 +326,15 @@ static bool mem_vm_img_in_phys_rgn(struct vm_config* vm_config)
     return img_in_rgn;
 }
 
-static bool mem_hyp_image_no_load_reserved;
-
-static void mem_init_reserved(void)
+static bool mem_reserve_physical_memory(struct page_pool* pool)
 {
+    if (pool == NULL) {
+        return false;
+    }
+
     if (DEFINED(MEM_NON_UNIFIED)) {
-        mem_hyp_image_no_load_reserved = false;
-    }
-
-    for (size_t i = 0; i < config.vmlist_size; i++) {
-        struct vm_config* vm_cfg = &config.vmlist[i];
-
-        // If the vm image is part of a statically allocated region of the same
-        // vm, we defer the reservation of this memory to when we reserve the
-        // physical region below. Note that this not allow partial overlaps. If
-        // the image must be entirely inside a statically allocated region, or
-        // completely outside of it. This avoid overcamplicating the
-        // reservation logic while still covering all the useful use cases.
-        if (mem_vm_img_in_phys_rgn(vm_cfg)) {
-            vm_cfg->image.reserved = true;
-        } else {
-            vm_cfg->image.reserved = false;
-        }
-    }
-
-    for (size_t i = 0; i < config.vmlist_size; i++) {
-        struct vm_config* vm_cfg = &config.vmlist[i];
-        for (size_t j = 0; j < vm_cfg->platform.region_num; j++) {
-            struct vm_mem_region* reg = &vm_cfg->platform.regions[j];
-            if (reg->place_phys) {
-                reg->reserved = false;
-            }
-        }
-    }
-
-    for (size_t i = 0; i < config.shmemlist_size; i++) {
-        struct shmem* shmem = &config.shmemlist[i];
-        if (shmem->place_phys) {
-            shmem->reserved = false;
-        }
-    }
-}
-
-static bool mem_check_reserved(void)
-{
-    if (DEFINED(MEM_NON_UNIFIED)) {
-        if (!mem_hyp_image_no_load_reserved) {
+        if (!pp_reserve_hyp_image_load(_load_addr, pool)) {
             return false;
-        }
-    }
-
-    for (size_t i = 0; i < config.vmlist_size; i++) {
-        struct vm_config* vm_cfg = &config.vmlist[i];
-        if (!vm_cfg->image.reserved) {
-            return false;
-        }
-    }
-
-    for (size_t i = 0; i < config.vmlist_size; i++) {
-        struct vm_config* vm_cfg = &config.vmlist[i];
-        for (size_t j = 0; j < vm_cfg->platform.region_num; j++) {
-            struct vm_mem_region* reg = &vm_cfg->platform.regions[j];
-            if (reg->place_phys) {
-                if (!reg->reserved) {
-                    return false;
-                }
-            }
-        }
-    }
-
-    for (size_t i = 0; i < config.shmemlist_size; i++) {
-        struct shmem* shmem = &config.shmemlist[i];
-        if (shmem->place_phys) {
-            if (!shmem->reserved) {
-                return false;
-            }
-        }
-    }
-
-    return true;
-}
-
-static void mem_reserve_physical_memory(struct page_pool* pool)
-{
-    if (DEFINED(MEM_NON_UNIFIED)) {
-        if (pp_root_reserve_hyp_image_load(pool)) {
-            mem_hyp_image_no_load_reserved = true;
         }
     }
 
@@ -408,8 +343,17 @@ static void mem_reserve_physical_memory(struct page_pool* pool)
         size_t n_pg = NUM_PAGES(vm_cfg->image.size);
         struct ppages ppages = mem_ppages_get(vm_cfg->image.load_addr, n_pg);
 
-        if (!vm_cfg->image.reserved && mem_reserve_ppool_ppages(pool, &ppages)) {
-            vm_cfg->image.reserved = true;
+        // If the vm image is part of a statically allocated region of the same vm, we defer the
+        // reservation of this memory to when we reserve the physical region below. Note that this
+        // not allow partial overlaps. If the image must be entirely inside a statically allocated
+        // region, or completely outside of it. This avoid overcamplicating the reservation logic
+        // while still covering all the useful use cases.
+        if (mem_vm_img_in_phys_rgn(vm_cfg)) {
+            continue;
+        }
+
+        if (!mem_reserve_ppool_ppages(pool, &ppages)) {
+            return false;
         }
     }
 
@@ -419,11 +363,11 @@ static void mem_reserve_physical_memory(struct page_pool* pool)
         /* for every mem region */
         for (size_t j = 0; j < vm_cfg->platform.region_num; j++) {
             struct vm_mem_region* reg = &vm_cfg->platform.regions[j];
-            if (reg->place_phys && !reg->reserved) {
+            if (reg->place_phys) {
                 size_t n_pg = NUM_PAGES(reg->size);
                 struct ppages ppages = mem_ppages_get(reg->phys, n_pg);
-                if (mem_reserve_ppool_ppages(pool, &ppages)) {
-                    reg->reserved = true;
+                if (!mem_reserve_ppool_ppages(pool, &ppages)) {
+                    return false;
                 }
             }
         }
@@ -431,15 +375,17 @@ static void mem_reserve_physical_memory(struct page_pool* pool)
 
     for (size_t i = 0; i < config.shmemlist_size; i++) {
         struct shmem* shmem = &config.shmemlist[i];
-        if (shmem->place_phys && !shmem->reserved) {
+        if (shmem->place_phys) {
             size_t n_pg = NUM_PAGES(shmem->size);
             struct ppages ppages = mem_ppages_get(shmem->phys, n_pg);
-            if (mem_reserve_ppool_ppages(pool, &ppages)) {
-                shmem->reserved = true;
-                shmem->phys = ppages.base;
+            if (!mem_reserve_ppool_ppages(pool, &ppages)) {
+                return false;
             }
+            shmem->phys = ppages.base;
         }
     }
+
+    return true;
 }
 
 static bool mem_create_ppools(struct mem_region* root_mem_region)
@@ -449,10 +395,10 @@ static bool mem_create_ppools(struct mem_region* root_mem_region)
             struct mem_region* reg = &platform.regions[i];
             struct page_pool* pool = &reg->page_pool;
             if (pool != NULL) {
-                if (!pp_init(pool, reg->base, reg->size)) {
+                pp_init(pool, reg->base, reg->size);
+                if (!mem_reserve_physical_memory(pool)) {
                     return false;
                 }
-                mem_reserve_physical_memory(pool);
                 list_push(&page_pool_list, &pool->node);
             }
         }
@@ -461,7 +407,7 @@ static bool mem_create_ppools(struct mem_region* root_mem_region)
     return true;
 }
 
-static struct mem_region* mem_find_root_region(void)
+static struct mem_region* mem_find_root_region(paddr_t load_addr)
 {
     size_t root_mem_size = calc_root_mem_size();
 
@@ -469,15 +415,7 @@ static struct mem_region* mem_find_root_region(void)
     struct mem_region* root_mem_region = NULL;
     for (size_t i = 0; i < platform.region_num; i++) {
         struct mem_region* region = &(platform.regions[i]);
-        bool is_in_rgn;
-        vaddr_t root_base_addr;
-        if (DEFINED(MEM_NON_UNIFIED)) {
-            root_base_addr = data_addr;
-        } else {
-            root_base_addr = img_addr;
-        }
-        is_in_rgn = range_in_range(root_base_addr, root_mem_size, region->base, region->size);
-
+        bool is_in_rgn = range_in_range(load_addr, root_mem_size, region->base, region->size);
         if (is_in_rgn) {
             root_mem_region = region;
             break;
@@ -487,16 +425,17 @@ static struct mem_region* mem_find_root_region(void)
     return root_mem_region;
 }
 
-static bool mem_setup_root_pool(struct mem_region** root_mem_region)
+static bool mem_setup_root_pool(paddr_t load_addr, struct mem_region** root_mem_region)
 {
-    *root_mem_region = mem_find_root_region();
+    *root_mem_region = mem_find_root_region(load_addr);
     if (*root_mem_region == NULL) {
         return false;
     }
 
-    return pp_root_init(*root_mem_region);
+    return pp_root_init(load_addr, *root_mem_region);
 }
 
+#ifdef MEM_PROT_MMU
 __attribute__((weak)) void mem_color_hypervisor(const paddr_t load_addr,
     struct mem_region* root_region)
 {
@@ -504,7 +443,7 @@ __attribute__((weak)) void mem_color_hypervisor(const paddr_t load_addr,
     UNUSED_ARG(root_region);
 
     WARNING("Trying to color hypervisor, but implementation does not suuport "
-            "it\n");
+            "it");
 }
 
 __attribute__((weak)) bool mem_map_reclr(struct addr_space* as, vaddr_t va, struct ppages* ppages,
@@ -516,7 +455,7 @@ __attribute__((weak)) bool mem_map_reclr(struct addr_space* as, vaddr_t va, stru
     UNUSED_ARG(num_pages);
     UNUSED_ARG(flags);
 
-    ERROR("Trying to recolor section but there is no coloring implementation\n");
+    ERROR("Trying to recolor section but there is no coloring implementation");
 }
 
 __attribute__((weak)) bool pp_alloc_clr(struct page_pool* pool, size_t num_pages, colormap_t colors,
@@ -528,16 +467,25 @@ __attribute__((weak)) bool pp_alloc_clr(struct page_pool* pool, size_t num_pages
     UNUSED_ARG(ppages);
 
     ERROR("Trying to allocate colored pages but there is no coloring "
-          "implementation\n");
+          "implementation");
 }
+#endif
 
 struct ppages mem_alloc_ppages(colormap_t colors, size_t num_pages, bool aligned)
 {
     struct ppages pages = { .num_pages = 0 };
 
     list_foreach (page_pool_list, struct page_pool, pool) {
-        bool ok = (!all_clrs(colors) && !aligned) ? pp_alloc_clr(pool, num_pages, colors, &pages) :
-                                                    pp_alloc(pool, num_pages, aligned, &pages);
+        bool ok;
+        if (!all_clrs(colors) && !aligned) {
+#ifdef MEM_PROT_MMU
+            ok = pp_alloc_clr(pool, num_pages, colors, &pages);
+#else
+            ERROR("not supported %s", __func__);
+#endif
+        } else {
+            ok = pp_alloc(pool, num_pages, aligned, &pages);
+        }
         if (ok) {
             break;
         }
@@ -555,34 +503,32 @@ void mem_init(void)
     if (cpu_is_master()) {
         cache_enumerate();
 
-        if (!mem_setup_root_pool(&root_mem_region)) {
-            ERROR("couldn't not initialize root pool\n");
+        if (!mem_setup_root_pool(_data_addr, &root_mem_region)) {
+            ERROR("couldn't not initialize root pool");
         }
 
         /* Insert root pool in pool list */
         list_init(&page_pool_list);
         list_push(&page_pool_list, &(root_mem_region->page_pool.node));
 
-        config_init();
+        config_init(_load_addr);
 
-        mem_init_reserved();
-
-        mem_reserve_physical_memory(&root_mem_region->page_pool);
+        if (!mem_reserve_physical_memory(&root_mem_region->page_pool)) {
+            ERROR("failed reserving memory in root pool");
+        }
     }
 
     cpu_sync_and_clear_msgs(&cpu_glb_sync);
 
+#ifdef MEM_PROT_MMU
     if (!all_clrs(config.hyp.colors)) {
-        mem_color_hypervisor(img_addr, root_mem_region);
+        mem_color_hypervisor(_load_addr, root_mem_region);
     }
+#endif
 
     if (cpu_is_master()) {
         if (!mem_create_ppools(root_mem_region)) {
-            ERROR("couldn't create additional page pools\n");
-        }
-
-        if (!mem_check_reserved()) {
-            ERROR("Failed to reserved static allocated memory\n");
+            ERROR("couldn't create additional page pools");
         }
     }
 

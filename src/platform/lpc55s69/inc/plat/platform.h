@@ -1,0 +1,17 @@
+/**
+ * SPDX-License-Identifier: Apache-2.0
+ * Copyright (c) Bao Project and Contributors. All rights reserved.
+ */
+
+#ifndef __PLAT_PLATFORM_H__
+#define __PLAT_PLATFORM_H__
+
+#ifndef __ASSEMBLER__
+#include <drivers/lpc_uart.h>
+#endif
+
+#define PLAT_MAX_INTERRUPTS  75
+
+#define PLAT_TIMER_FREQ      216000000UL
+#define PLAT_MAX_MPU_REGIONS 8
+#endif

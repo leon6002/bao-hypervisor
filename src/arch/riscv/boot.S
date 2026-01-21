@@ -10,7 +10,7 @@
 #include <platform_defs.h>
 
 #define PT_SIZE PAGE_SIZE
-#if defined(RV64)
+#if RV64
 #define PT_LVLS 3
 #define PTE_INDEX_SHIFT(LEVEL) ((9 * (PT_LVLS - 1 - (LEVEL))) + 12)
 #else
@@ -52,33 +52,24 @@
     LOAD      \rd, 0(\rd)
 .endm
 
-.macro DEFINE_WORD val
-#if REGLEN == 8
-    .8byte \val
-#else
-    .4byte \val
-#endif
-.endm
-
 .section ".rodata", "a"
-.balign REGLEN
 /* Symbol values */
-_image_start_sym: DEFINE_WORD _image_start
-_image_load_end_sym: DEFINE_WORD _image_load_end
-_image_noload_start_sym: DEFINE_WORD _image_noload_start
-_image_end_sym: DEFINE_WORD _image_end
-_dmem_beg_sym: DEFINE_WORD _dmem_beg
-_enter_vas_sym: DEFINE_WORD _enter_vas
-_bss_start_sym: DEFINE_WORD _bss_start
-_bss_end_sym: DEFINE_WORD _bss_end
-_extra_allocated_phys_mem_sym: DEFINE_WORD extra_allocated_phys_mem
+_image_start_sym: .8byte _image_start
+_image_load_end_sym: .8byte _image_load_end
+_image_noload_start_sym: .8byte _image_noload_start
+_image_end_sym: .8byte _image_end
+_dmem_beg_sym: .8byte _dmem_beg
+_enter_vas_sym: .8byte _enter_vas
+_bss_start_sym: .8byte _bss_start
+_bss_end_sym: .8byte _bss_end
+_extra_allocated_phys_mem_sym: .8byte extra_allocated_phys_mem
 
 .data 
-.balign REGLEN
+.align 3
 /**
  * barrier is used to minimal synchronization in boot - other cores wait for bsp to set it.
  */
-_barrier: DEFINE_WORD 0		
+_barrier: .8byte 0		
 
 /**
  * 	The following code MUST be at the base of the image, as this is bao's entrypoint. Therefore
@@ -104,14 +95,8 @@ _reset_handler:
     * values (can be also corrputed in auxiliary routines).
     */
 
-.option norelax
-
     mv      a2, a1
     la      a1, _image_start
-
-    la      a3, img_addr
-    STORE   a1, 0(a3) // store image load address in img_addr
-
     LD_SYM  s6, _extra_allocated_phys_mem_sym
 
     /**
@@ -176,7 +161,7 @@ _boot_lock:
 
     la          t0, root_l1_pt
     add         t0, t0, s6
-#if defined(RV64)
+#if RV64
     la          t1, root_l2_pt
     add         t1, t1, s6
     PTE_FILL    t1, t1, PTE_TABLE
@@ -200,7 +185,7 @@ _boot_lock:
     add     t0, t0, (PAGE_SIZE >> 2)
     j       1b
 2:
-#if defined(RV64)
+#if RV64
     la          t0, root_l2_pt
 #else
     la          t0, root_l1_pt
@@ -256,7 +241,7 @@ map_cpu:
     PTE_PTR     t3, t1, 0, t3
     STORE       t2, 0(t3)
 
-#if defined(RV64)
+#if RV64
     add         t1, t1, t4
     add         t2, t1, t4
     PTE_FILL    t2, t2, PTE_TABLE
@@ -315,7 +300,10 @@ _enter_vas:
     li      sp, CPU_STACK_OFF + CPU_STACK_SIZE
     add     sp, t0, sp
 
+    .option push
+    .option norelax
     la  gp, __global_pointer$
+    .option pop
 
     /* clear bss if hart 0 */
     LD_SYM  t0, CPU_MASTER

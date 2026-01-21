@@ -10,16 +10,27 @@
 #include <bitmap.h>
 #include <string.h>
 
-BITMAP_ALLOC(global_interrupt_bitmap, MAX_INTERRUPT_LINES);
+BITMAP_ALLOC(hyp_interrupt_bitmap, MAX_INTERRUPTS);
+BITMAP_ALLOC(vm_interrupt_bitmap, MAX_INTERRUPTS);
+BITMAP_ALLOC(vm_shared_interrupt_bitmap, MAX_INTERRUPTS);
+vmid_t interrupt_vm_id[MAX_INTERRUPTS];
 spinlock_t irq_reserve_lock = SPINLOCK_INITVAL;
 
 irq_handler_t interrupt_handlers[MAX_INTERRUPT_HANDLERS];
 
-irqid_t interrupts_ipi_id;
-
 void interrupts_cpu_sendipi(cpuid_t target_cpu)
 {
     interrupts_arch_ipi_send(target_cpu);
+}
+
+void interrupts_init_ipi(void)
+{
+    interrupts_arch_ipi_init();
+}
+
+void interrupts_cpu_enable_ipi(void)
+{
+    interrupts_arch_ipi_enable();
 }
 
 void interrupts_cpu_enable(irqid_t int_id, bool en)
@@ -27,52 +38,42 @@ void interrupts_cpu_enable(irqid_t int_id, bool en)
     interrupts_arch_enable(int_id, en);
 }
 
-/*
-    The following APIs are implemented with the weak attribute since they
-    can be used for platforms and architectures that use a single unique ID
-    for the hypervisor APIs.
-
-    Other architectures, like TC4, that use different mechanisms for IPIs
-    resulting in different ID per core or VM, should implement these APIs
-    at the architectural level.
-*/
-
-__attribute__((weak)) bool interrupts_ipi_check(void)
+bool interrupts_check(irqid_t int_id)
 {
-    return interrupts_arch_check(interrupts_ipi_id);
+    return interrupts_arch_check(int_id);
 }
 
-__attribute__((weak)) void interrupts_ipi_clear(void)
+void interrupts_clear(irqid_t int_id)
 {
-    interrupts_arch_clear(interrupts_ipi_id);
+    interrupts_arch_clear(int_id);
 }
-
-#ifdef IPI_CPU_MSG
-__attribute__((weak)) void interrupts_arch_ipi_init(void)
-{
-    if (cpu_is_master()) {
-        interrupts_ipi_id = interrupts_reserve(IPI_CPU_MSG, (irq_handler_t)cpu_msg_handler);
-        if (interrupts_ipi_id == INVALID_IRQID) {
-            ERROR("Failed to reserve IPI_CPU_MSG interrupt\n");
-        }
-    }
-}
-#endif
 
 void interrupts_init(void)
 {
     interrupts_arch_init();
 
-    interrupts_arch_ipi_init();
+    if (!DEFINED(SINGLE_CORE)) {
+        if (cpu_is_master()) {
+            interrupts_init_ipi();
+        }
 
-    cpu_sync_barrier(&cpu_glb_sync);
-
-    interrupts_cpu_enable(interrupts_ipi_id, true);
+        interrupts_cpu_enable_ipi();
+    }
 }
 
 static inline bool interrupt_assigned_to_hyp(irqid_t int_id)
 {
     return (int_id < MAX_INTERRUPT_HANDLERS) && (interrupt_handlers[int_id] != NULL);
+}
+
+static inline bool interrupt_assigned_to_vm(irqid_t int_id)
+{
+    return bitmap_get(vm_interrupt_bitmap, int_id);
+}
+
+static inline bool interrupt_is_shared(irqid_t int_id)
+{
+    return bitmap_get(vm_shared_interrupt_bitmap, int_id);
 }
 
 /**
@@ -85,13 +86,24 @@ static inline bool interrupt_assigned_to_hyp(irqid_t int_id)
  */
 static inline bool interrupt_assigned(irqid_t int_id)
 {
-    return bitmap_get(global_interrupt_bitmap, int_id);
+    return (int_id < MAX_INTERRUPTS) &&
+        (bitmap_get(hyp_interrupt_bitmap, int_id) || bitmap_get(vm_interrupt_bitmap, int_id) ||
+            bitmap_get(vm_shared_interrupt_bitmap, int_id));
 }
 
 enum irq_res interrupts_handle(irqid_t int_id)
 {
-    if (interrupts_arch_irq_is_forwardable(int_id) && vm_has_interrupt(cpu()->vcpu->vm, int_id)) {
+    if (vm_has_interrupt(cpu()->vcpu->vm, int_id)) {
         vcpu_inject_hw_irq(cpu()->vcpu, int_id);
+
+        return FORWARD_TO_VM;
+
+    } else if (interrupt_assigned_to_vm(int_id)) {
+        struct vcpu* vcpu = cpu_get_vcpu_by_vmid(interrupt_vm_id[int_id]);
+        if (vcpu == NULL) {
+            ERROR("No vcpu found for recevied interrupt %ld", int_id);
+        }
+        vcpu_inject_hw_irq(vcpu, int_id);
 
         return FORWARD_TO_VM;
 
@@ -101,7 +113,7 @@ enum irq_res interrupts_handle(irqid_t int_id)
         return HANDLED_BY_HYP;
 
     } else {
-        ERROR("received unknown interrupt id = %d\n", int_id);
+        ERROR("received unknown interrupt id = %d", int_id);
     }
 }
 
@@ -110,12 +122,30 @@ bool interrupts_vm_assign(struct vm* vm, irqid_t id)
     bool ret = false;
 
     spin_lock(&irq_reserve_lock);
-    if (!interrupts_arch_conflict(global_interrupt_bitmap, id)) {
+
+    if ((id < MAX_INTERRUPTS) && interrupt_is_shared(id)) {
+        interrupts_arch_vm_assign(vm, id);
+        bitmap_set(vm->interrupt_bitmap, id);
+    } else if ((id < MAX_INTERRUPTS) && !interrupt_assigned(id) &&
+        !interrupts_arch_conflict(vm_interrupt_bitmap, id)) {
         ret = true;
         interrupts_arch_vm_assign(vm, id);
-
         bitmap_set(vm->interrupt_bitmap, id);
-        bitmap_set(global_interrupt_bitmap, id);
+        bitmap_set(vm_interrupt_bitmap, id);
+        interrupt_vm_id[id] = vm->id;
+    }
+    spin_unlock(&irq_reserve_lock);
+
+    return ret || interrupt_is_shared(id);
+}
+
+bool interrupts_set_shared(irqid_t int_id)
+{
+    bool ret = false;
+
+    spin_lock(&irq_reserve_lock);
+    if ((int_id < MAX_INTERRUPTS) && !interrupt_assigned(int_id)) {
+        bitmap_set(vm_shared_interrupt_bitmap, int_id);
     }
     spin_unlock(&irq_reserve_lock);
 
@@ -128,7 +158,7 @@ irqid_t interrupts_reserve(irqid_t pint_id, irq_handler_t handler)
 
     spin_lock(&irq_reserve_lock);
     if ((pint_id < MAX_INTERRUPT_LINES) && !interrupt_assigned(pint_id)) {
-        bitmap_set(global_interrupt_bitmap, pint_id);
+        bitmap_set(hyp_interrupt_bitmap, pint_id);
 
         irqid_t tmp_id = interrupts_arch_reserve(pint_id);
         if ((tmp_id != INVALID_IRQID) && (tmp_id < MAX_INTERRUPT_HANDLERS)) {

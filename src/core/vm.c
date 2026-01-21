@@ -10,7 +10,6 @@
 #include <config.h>
 #include <shmem.h>
 #include <objpool.h>
-#include <list.h>
 
 static void vm_master_init(struct vm* vm, const struct vm_config* vm_config, vmid_t vm_id)
 {
@@ -18,11 +17,10 @@ static void vm_master_init(struct vm* vm, const struct vm_config* vm_config, vmi
     vm->config = vm_config;
     vm->cpu_num = vm_config->platform.cpu_num;
     vm->id = vm_id;
-    vm->lock = SPINLOCK_INITVAL;
 
-    list_init(&vm->emul_mem_list);
-    list_init(&vm->emul_reg_list);
     cpu_sync_init(&vm->sync, vm->cpu_num);
+
+    vm_mem_prot_init(vm, vm_config);
 }
 
 static void vm_cpu_init(struct vm* vm)
@@ -51,11 +49,14 @@ static void vm_vcpu_init(struct vm* vm, const struct vm_config* vm_config)
     vcpu->id = vcpu_id;
     vcpu->phys_id = cpu()->id;
     vcpu->vm = vm;
-    vcpu->active = true;
+    // TODO:ARMV8M - check this
     cpu()->vcpu = vcpu;
+    vcpu->blocked_count = 0;
 
     vcpu_arch_init(vcpu, vm);
     vcpu_arch_reset(vcpu, vm_config->entry);
+
+    cpu_add_vcpu(vcpu);
 }
 
 static void vm_map_mem_region(struct vm* vm, struct vm_mem_region* reg)
@@ -74,7 +75,7 @@ static void vm_map_mem_region(struct vm* vm, struct vm_mem_region* reg)
 
     vaddr_t va = mem_alloc_map(&vm->as, SEC_VM_ANY, pa_ptr, (vaddr_t)reg->base, n, PTE_VM_FLAGS);
     if (va != (vaddr_t)reg->base) {
-        ERROR("failed to allocate vm's region at 0x%lx\n", reg->base);
+        ERROR("failed to allocate vm's region at 0x%lx", reg->base);
     }
 }
 
@@ -99,8 +100,12 @@ static void vm_map_img_rgn_inplace(struct vm* vm, const struct vm_config* vm_con
         mem_alloc_map(&vm->as, SEC_VM_ANY, &pa_img, img_base, n_img, PTE_VM_FLAGS);
         /* we are mapping in place, config is already reserved */
     } else {
+#ifdef MEM_PROT_MMU
         /* recolour img */
         mem_map_reclr(&vm->as, img_base, &pa_img, n_img, PTE_VM_FLAGS);
+#else
+        ERROR("coloring not supported");
+#endif
     }
     /* map pages after img */
     mem_alloc_map(&vm->as, SEC_VM_ANY, NULL, img_base + NUM_PAGES(img_size) * PAGE_SIZE, n_aft,
@@ -124,20 +129,20 @@ static void vm_install_image(struct vm* vm, struct vm_mem_region* reg)
             // simplifies the copying procedure as well as avoids limitations of mpu-based memory
             // management which does not allow overlapping mappings on the same address space.
             ERROR("failed installing vm image. Image load region overlaps with"
-                  " image runtime region\n");
+                  " image runtime region");
         }
     }
 
     size_t img_num_pages = NUM_PAGES(vm->config->image.size);
     struct ppages img_ppages = mem_ppages_get(vm->config->image.load_addr, img_num_pages);
-    vaddr_t src_va = mem_alloc_map(&cpu()->as, SEC_HYP_PRIVATE, &img_ppages, INVALID_VA,
+    vaddr_t src_va = mem_alloc_map(&cpu()->as, SEC_HYP_GLOBAL, &img_ppages, INVALID_VA,
         img_num_pages, PTE_HYP_FLAGS);
-    vaddr_t dst_va = mem_map_cpy(&vm->as, &cpu()->as, SEC_HYP_PRIVATE, vm->config->image.base_addr,
-        INVALID_VA, img_num_pages);
+    vaddr_t dst_va =
+        mem_map_cpy(&vm->as, &cpu()->as, vm->config->image.base_addr, INVALID_VA, img_num_pages);
     memcpy((void*)dst_va, (void*)src_va, vm->config->image.size);
     cache_flush_range((vaddr_t)dst_va, vm->config->image.size);
-    mem_unmap(&cpu()->as, src_va, img_num_pages, MEM_DONT_FREE_PAGES);
-    mem_unmap(&cpu()->as, dst_va, img_num_pages, MEM_DONT_FREE_PAGES);
+    mem_unmap(&cpu()->as, src_va, img_num_pages, false);
+    mem_unmap(&cpu()->as, dst_va, img_num_pages, false);
 }
 
 static void vm_map_img_rgn(struct vm* vm, const struct vm_config* vm_config,
@@ -173,22 +178,16 @@ static void vm_init_ipc(struct vm* vm, const struct vm_config* vm_config)
         struct ipc* ipc = &vm_config->platform.ipcs[i];
         struct shmem* shmem = shmem_get(ipc->shmem_id);
         if (shmem == NULL) {
-            WARNING("Invalid shmem id in configuration. Ignored.\n");
+            WARNING("Invalid shmem id in configuration. Ignored.");
             continue;
         }
         size_t size = ipc->size;
         if (ipc->size > shmem->size) {
             size = shmem->size;
-            WARNING("Trying to map region to smaller shared memory. Truncated\n");
+            WARNING("Trying to map region to smaller shared memory. Truncated");
         }
 
-        if (DEFINED(PHYS_IRQS_ONLY)) {
-            for (size_t j = 0; j < ipc->interrupt_num; j++) {
-                if (!interrupts_vm_assign(vm, ipc->interrupts[j])) {
-                    ERROR("Failed to assign interrupt id %d\n", ipc->interrupts[j]);
-                }
-            }
-        }
+        ipc->master = cpu()->id;
 
         spin_lock(&shmem->lock);
         shmem->cpu_masters |= (1UL << cpu()->id);
@@ -203,6 +202,12 @@ static void vm_init_ipc(struct vm* vm, const struct vm_config* vm_config)
         };
 
         vm_map_mem_region(vm, &reg);
+
+        for (size_t j = 0; j < ipc->interrupt_num; j++) {
+            if (!interrupts_vm_assign(vm, ipc->interrupts[j])) {
+                ERROR("Failed to assign interrupt id %d", ipc->interrupts[j]);
+            }
+        }
     }
 }
 
@@ -211,16 +216,15 @@ static void vm_init_dev(struct vm* vm, const struct vm_config* vm_config)
     for (size_t i = 0; i < vm_config->platform.dev_num; i++) {
         struct vm_dev_region* dev = &vm_config->platform.devs[i];
 
-        if (DEFINED(MMIO_SLAVE_SIDE_PROT)) {
-            vm_arch_allow_mmio_access(vm, dev);
-        } else if (dev->va != INVALID_VA) {
-            size_t n = ALIGN(dev->size, PAGE_SIZE) / PAGE_SIZE;
+        size_t n = ALIGN(dev->size, PAGE_SIZE) / PAGE_SIZE;
+
+        if (dev->va != INVALID_VA) {
             mem_alloc_map_dev(&vm->as, SEC_VM_ANY, (vaddr_t)dev->va, dev->pa, n);
         }
 
         for (size_t j = 0; j < dev->interrupt_num; j++) {
             if (!interrupts_vm_assign(vm, dev->interrupts[j])) {
-                ERROR("Failed to assign interrupt id %d\n", dev->interrupts[j]);
+                ERROR("Failed to assign interrupt id %d", dev->interrupts[j]);
             }
         }
     }
@@ -230,7 +234,7 @@ static void vm_init_dev(struct vm* vm, const struct vm_config* vm_config)
             struct vm_dev_region* dev = &vm_config->platform.devs[i];
             if (dev->id) {
                 if (!io_vm_add_device(vm, dev->id)) {
-                    ERROR("Failed to add device to iommu\n");
+                    ERROR("Failed to add device to iommu");
                 }
             }
         }
@@ -241,13 +245,13 @@ static void vm_init_remio_dev(struct vm* vm, struct remio_dev* remio_dev)
 {
     struct shmem* shmem = shmem_get(remio_dev->shmem.shmem_id);
     if (shmem == NULL) {
-        ERROR("Invalid shmem id (%d) in the Remote I/O device (%d) configuration\n",
+        ERROR("Invalid shmem id (%d) in the Remote I/O device (%d) configuration",
             remio_dev->shmem.shmem_id, remio_dev->bind_key);
     }
     size_t shmem_size = remio_dev->shmem.size;
     if (shmem_size > shmem->size) {
         shmem_size = shmem->size;
-        WARNING("Trying to map region to smaller shared memory. Truncated\n");
+        WARNING("Trying to map region to smaller shared memory. Truncated");
     }
     spin_lock(&shmem->lock);
     shmem->cpu_masters |= (1UL << cpu()->id);
@@ -295,8 +299,8 @@ static struct vm* vm_allocation_init(struct vm_allocation* vm_alloc)
     return vm;
 }
 
-struct vm* vm_init(struct vm_allocation* vm_alloc, struct cpu_synctoken* vm_init_sync,
-    const struct vm_config* vm_config, bool master, vmid_t vm_id)
+struct vm* vm_init(struct vm_allocation* vm_alloc, const struct vm_config* vm_config, bool master,
+    vmid_t vm_id)
 {
     struct vm* vm = vm_allocation_init(vm_alloc);
 
@@ -306,8 +310,6 @@ struct vm* vm_init(struct vm_allocation* vm_alloc, struct cpu_synctoken* vm_init
     if (master) {
         vm_master_init(vm, vm_config, vm_id);
     }
-
-    cpu_sync_barrier(vm_init_sync);
 
     /*
      *  Initialize each core.
@@ -320,12 +322,6 @@ struct vm* vm_init(struct vm_allocation* vm_alloc, struct cpu_synctoken* vm_init
      *  Initialize each virtual core.
      */
     vm_vcpu_init(vm, vm_config);
-
-    cpu_sync_barrier(&vm->sync);
-
-    if (master) {
-        vm_mem_prot_init(vm, vm_config);
-    }
 
     cpu_sync_barrier(&vm->sync);
 
@@ -396,7 +392,7 @@ void vm_msg_broadcast(struct vm* vm, struct cpu_msg* msg)
     }
 }
 
-__attribute__((weak)) cpumap_t vm_translate_to_pcpu_mask(struct vm* vm, cpumap_t mask, size_t len)
+cpumap_t vm_translate_to_pcpu_mask(struct vm* vm, cpumap_t mask, size_t len)
 {
     cpumap_t pmask = 0;
     cpuid_t shift;
@@ -408,7 +404,7 @@ __attribute__((weak)) cpumap_t vm_translate_to_pcpu_mask(struct vm* vm, cpumap_t
     return pmask;
 }
 
-__attribute__((weak)) cpumap_t vm_translate_to_vcpu_mask(struct vm* vm, cpumap_t mask, size_t len)
+cpumap_t vm_translate_to_vcpu_mask(struct vm* vm, cpumap_t mask, size_t len)
 {
     cpumap_t pmask = 0;
     vcpuid_t shift;
@@ -433,10 +429,11 @@ void vcpu_run(struct vcpu* vcpu)
     }
 }
 
-__attribute__((weak)) void vm_arch_allow_mmio_access(struct vm* vm, struct vm_dev_region* dev)
+void vcpu_context_switch(void)
 {
-    UNUSED_ARG(dev);
-    UNUSED_ARG(vm);
-    ERROR("vm_arch_allow_mmio_access must be implemented by the arch!\n")
-    return;
+    if (cpu()->vcpu != NULL) {
+        vcpu_save_state(cpu()->vcpu);
+    }
+    vcpu_restore_state(cpu()->next_vcpu);
+    cpu()->vcpu = cpu()->next_vcpu;
 }

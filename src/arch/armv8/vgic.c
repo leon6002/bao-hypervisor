@@ -789,7 +789,7 @@ struct vgic_reg_handler_info icpendr_info = {
     vgic_int_state_hw,
 };
 
-struct vgic_reg_handler_info icactiver_info = {
+struct vgic_reg_handler_info iactiver_info = {
     vgic_emul_generic_access,
     0x4,
     VGIC_ICACTIVER_ID,
@@ -894,7 +894,7 @@ struct vgic_reg_handler_info* reg_handler_info_table[VGIC_REG_HANDLER_ID_NUM] = 
     [VGIC_ISACTIVER_ID] = &isactiver_info,
     [VGIC_ICENABLER_ID] = &icenabler_info,
     [VGIC_ICPENDR_ID] = &icpendr_info,
-    [VGIC_ICACTIVER_ID] = &icactiver_info,
+    [VGIC_ICACTIVER_ID] = &iactiver_info,
     [VGIC_ICFGR_ID] = &icfgr_info,
     [VGIC_IROUTER_ID] = &irouter_info,
     [VGIC_IPRIORITYR_ID] = &ipriorityr_info,
@@ -942,7 +942,7 @@ bool vgicd_emul_handler(struct emul_access* acc)
             handler_info = &icpendr_info;
             break;
         case GICD_REG_GROUP(ICACTIVER):
-            handler_info = &icactiver_info;
+            handler_info = &iactiver_info;
             break;
         case GICD_REG_GROUP(ICFGR):
             handler_info = &icfgr_info;
@@ -968,7 +968,7 @@ bool vgicd_emul_handler(struct emul_access* acc)
 
     if (vgic_check_reg_alignment(acc, handler_info)) {
         spin_lock(&cpu()->vcpu->vm->arch.vgicd.lock);
-        handler_info->reg_access(acc, handler_info, VGIC_NOT_GICR_ACCESS, cpu()->vcpu->id);
+        handler_info->reg_access(acc, handler_info, false, cpu()->vcpu->id);
         spin_unlock(&cpu()->vcpu->vm->arch.vgicd.lock);
         return true;
     } else {
@@ -1009,7 +1009,7 @@ void vgic_ipi_handler(uint32_t event, uint64_t data)
     uint64_t val = VGIC_MSG_VAL(data);
 
     if (vm_id != cpu()->vcpu->vm->id) {
-        ERROR("received vgic3 msg target to another vcpu\n");
+        ERROR("received vgic3 msg target to another vcpu");
         // TODO: need to fetch vcpu from other vm if the taget vm for this is not active
     }
 
@@ -1046,7 +1046,7 @@ void vgic_ipi_handler(uint32_t event, uint64_t data)
         } break;
 
         default:
-            WARNING("Unknown VGIC IPI event\n");
+            WARNING("Unknown VGIC IPI event");
             break;
     }
 }
@@ -1233,7 +1233,7 @@ void vgic_set_hw(struct vm* vm, irqid_t id)
             interrupt->hw = true;
             spin_unlock(&interrupt->lock);
         } else {
-            WARNING("trying to link non-existent virtual irq to physical irq\n");
+            WARNING("trying to link non-existent virtual irq to physical irq");
         }
     }
 }

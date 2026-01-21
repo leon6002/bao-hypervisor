@@ -11,6 +11,8 @@
 #include <console.h>
 #include <printk.h>
 #include <platform.h>
+#include <sched.h>
+#include <timer.h>
 #include <vmm.h>
 
 void init(cpuid_t cpu_id)
@@ -24,17 +26,19 @@ void init(cpuid_t cpu_id)
 
     /* -------------------------------------------------------------- */
 
-    platform_init();
-
     console_init();
 
     if (cpu_is_master()) {
-        console_printk("Bao Hypervisor %s (%s - %s)\n\r", BAO_VERSION, __DATE__, __TIME__);
+        console_printk("Bao Hypervisor\n\r");
     }
 
     interrupts_init();
 
+    /* timer_init(); */
+
     vmm_init();
+
+    vcpu_arch_entry();
 
     /* Should never reach here */
     while (1) { }
