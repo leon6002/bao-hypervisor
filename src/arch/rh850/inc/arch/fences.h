@@ -3,59 +3,63 @@
  * Copyright (c) Bao Project and Contributors. All rights reserved.
  */
 
-#ifndef __ARCH_FENCES_H__
-#define __ARCH_FENCES_H__
+#ifndef __FENCES_ARCH_H__
+#define __FENCES_ARCH_H__
 
 #include <bao.h>
 
-static inline void syncp(void)
+#pragma inline_asm syncp
+static unsigned long syncp(void)
 {
-    __asm__ volatile("syncp" ::: "memory");
+    syncp
 }
 
-static inline void syncm(void)
+#pragma inline_asm syncm
+static unsigned long syncm(void)
 {
-    __asm__ volatile("syncm" ::: "memory");
+    syncm
 }
 
-static inline void synci(void)
+#pragma inline_asm synci
+static unsigned long synci(void)
 {
-    __asm__ volatile("synci" ::: "memory");
+    synci
 }
 
-static inline void synce(void)
+#pragma inline_asm synce
+static unsigned long synce(void)
 {
-    __asm__ volatile("synce" ::: "memory");
+    synce
 }
 
 static inline void fence_ord_write(void)
 {
-    syncm();
+    synci();
 }
 
 static inline void fence_ord_read(void)
 {
-    syncp();
+    synci();
 }
 
 static inline void fence_ord(void)
 {
-    syncm();
+    synci();
 }
 
 static inline void fence_sync_write(void)
 {
-    syncm();
+    synci();
 }
 
 static inline void fence_sync_read(void)
 {
-    syncp();
+    synci();
 }
 
 static inline void fence_sync(void)
 {
-    syncm();
+    synci();
 }
 
-#endif /* __ARCH_FENCES_H__ */
+#endif /* __FENCES_ARCH_H__ */

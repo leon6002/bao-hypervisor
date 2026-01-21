@@ -8,204 +8,59 @@
 
 #include <bao.h>
 
-#define MPU_ARCH_MAX_NUM_ENTRIES (32)
+#define HYP_SPID 0x0
+#define VM_SPID 0x1
 
 typedef union {
     struct {
-        uint16_t ur : 1;
-        uint16_t uw : 1;
-        uint16_t ux : 1;
-        uint16_t sr : 1;
-        uint16_t sw : 1;
-        uint16_t sx : 1;
+        uint16_t ur : 1; // hyp att?
+        uint16_t uw : 1; // hyp att?
+        uint16_t ux : 1; // hyp att?
+        uint16_t sr : 1; // hyp att?
+        uint16_t sw : 1; // hyp att?
+        uint16_t sx : 1; // hyp att?
         uint16_t res1 : 1;
         uint16_t e : 1;
         uint16_t res2 : 6;
         uint16_t rg : 1;
         uint16_t wg : 1;
-        uint16_t rmpid0 : 1;
-        uint16_t rmpid1 : 1;
-        uint16_t rmpid2 : 1;
-        uint16_t rmpid3 : 1;
-        uint16_t rmpid4 : 1;
-        uint16_t rmpid5 : 1;
-        uint16_t rmpid6 : 1;
-        uint16_t rmpid7 : 1;
-        uint16_t wmpid0 : 1;
-        uint16_t wmpid1 : 1;
-        uint16_t wmpid2 : 1;
-        uint16_t wmpid3 : 1;
-        uint16_t wmpid4 : 1;
-        uint16_t wmpid5 : 1;
-        uint16_t wmpid6 : 1;
-        uint16_t wmpid7 : 1;
+        uint16_t rmpid0 : 1; // VM attributes?
+        uint16_t rmpid1 : 1; // VM attributes?
+        uint16_t rmpid2 : 1; // VM attributes?
+        uint16_t rmpid3 : 1; // VM attributes?
+        uint16_t rmpid4 : 1; // VM attributes?
+        uint16_t rmpid5 : 1; // VM attributes?
+        uint16_t rmpid6 : 1; // VM attributes?
+        uint16_t rmpid7 : 1; // VM attributes?
+        uint16_t wmpid0 : 1; // VM attributes?
+        uint16_t wmpid1 : 1; // VM attributes?
+        uint16_t wmpid2 : 1; // VM attributes?
+        uint16_t wmpid3 : 1; // VM attributes?
+        uint16_t wmpid4 : 1; // VM attributes?
+        uint16_t wmpid5 : 1; // VM attributes?
+        uint16_t wmpid6 : 1; // VM attributes?
+        uint16_t wmpid7 : 1; // VM attributes?
     };
     uint32_t raw;
 } mpat_flags_t;
 
 typedef mpat_flags_t mem_flags_t;
 
-#define PTE_INVALID ((mem_flags_t){ .e = 0 })
+#define PTE_INVALID         ((mem_flags_t){ .e = 0 })
 
-/**
- * Only SPID in MPID7 can read and execute this region
- */
-#define PTE_HYP_FLAGS_CODE \
-    ((mem_flags_t){        \
-        .ur = 1,           \
-        .uw = 0,           \
-        .ux = 1,           \
-        .sr = 1,           \
-        .sw = 0,           \
-        .sx = 1,           \
-        .e = 1,            \
-        .rg = 0,           \
-        .wg = 0,           \
-        .rmpid0 = 0,       \
-        .rmpid1 = 0,       \
-        .rmpid2 = 0,       \
-        .rmpid3 = 0,       \
-        .rmpid4 = 0,       \
-        .rmpid5 = 0,       \
-        .rmpid6 = 0,       \
-        .rmpid7 = 1,       \
-        .wmpid0 = 0,       \
-        .wmpid1 = 0,       \
-        .wmpid2 = 0,       \
-        .wmpid3 = 0,       \
-        .wmpid4 = 0,       \
-        .wmpid5 = 0,       \
-        .wmpid6 = 0,       \
-        .wmpid7 = 1,       \
-    })
+#define PTE_HYP_CODE_FLAGS  ((mem_flags_t){ .e = 1, .sr = 1, .sw = 0, .sx = 1, .rg = 1 })
+#define PTE_HYP_FLAGS       ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1, .rmpid0 = 1, .wmpid0 = 1 })
+#define PTE_HYP_DEV_FLAGS   ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 0, .rmpid0 = 1, .wmpid0 = 1 })
 
-/**
- * Only SPID in MPID7 can read and write this region
- */
-#define PTE_HYP_FLAGS \
-    ((mem_flags_t){   \
-        .ur = 1,      \
-        .uw = 1,      \
-        .ux = 0,      \
-        .sr = 1,      \
-        .sw = 1,      \
-        .sx = 0,      \
-        .e = 1,       \
-        .rg = 0,      \
-        .wg = 0,      \
-        .rmpid0 = 0,  \
-        .rmpid1 = 0,  \
-        .rmpid2 = 0,  \
-        .rmpid3 = 0,  \
-        .rmpid4 = 0,  \
-        .rmpid5 = 0,  \
-        .rmpid6 = 0,  \
-        .rmpid7 = 1,  \
-        .wmpid0 = 0,  \
-        .wmpid1 = 0,  \
-        .wmpid2 = 0,  \
-        .wmpid3 = 0,  \
-        .wmpid4 = 0,  \
-        .wmpid5 = 0,  \
-        .wmpid6 = 0,  \
-        .wmpid7 = 1,  \
-    })
-
-/**
- * Only the SPID in MPID7 can read write this region
- */
-#define PTE_HYP_DEV_FLAGS \
-    ((mem_flags_t){       \
-        .ur = 1,          \
-        .uw = 1,          \
-        .ux = 0,          \
-        .sr = 1,          \
-        .sw = 1,          \
-        .sx = 0,          \
-        .e = 1,           \
-        .rg = 0,          \
-        .wg = 0,          \
-        .rmpid0 = 0,      \
-        .rmpid1 = 0,      \
-        .rmpid2 = 0,      \
-        .rmpid3 = 0,      \
-        .rmpid4 = 0,      \
-        .rmpid5 = 0,      \
-        .rmpid6 = 0,      \
-        .rmpid7 = 1,      \
-        .wmpid0 = 0,      \
-        .wmpid1 = 0,      \
-        .wmpid2 = 0,      \
-        .wmpid3 = 0,      \
-        .wmpid4 = 0,      \
-        .wmpid5 = 0,      \
-        .wmpid6 = 0,      \
-        .wmpid7 = 1,      \
-    })
-
-/**
- * Only SPIDs in MPID6 can read, write or execute this region
- */
+/* TODO in the future we need to deal with IO permissions securely */
 #define PTE_VM_FLAGS \
-    ((mem_flags_t){  \
-        .ur = 1,     \
-        .uw = 1,     \
-        .ux = 1,     \
-        .sr = 1,     \
-        .sw = 1,     \
-        .sx = 1,     \
-        .e = 1,      \
-        .rg = 0,     \
-        .wg = 0,     \
-        .rmpid0 = 0, \
-        .rmpid1 = 0, \
-        .rmpid2 = 0, \
-        .rmpid3 = 0, \
-        .rmpid4 = 0, \
-        .rmpid5 = 0, \
-        .rmpid6 = 1, \
-        .rmpid7 = 0, \
-        .wmpid0 = 0, \
-        .wmpid1 = 0, \
-        .wmpid2 = 0, \
-        .wmpid3 = 0, \
-        .wmpid4 = 0, \
-        .wmpid5 = 0, \
-        .wmpid6 = 1, \
-        .wmpid7 = 0, \
-    })
+    ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1, .ur = 1, .uw = 1, .ux = 1, .rmpid1 = 1, .wmpid1 = 1 })
 
-/**
- * Only SPIDs in MPID6 can read and write this region
- */
+/* TODO in the future we need to deal with IO permissions securely */
 #define PTE_VM_DEV_FLAGS \
-    ((mem_flags_t){      \
-        .ur = 1,         \
-        .uw = 1,         \
-        .ux = 0,         \
-        .sr = 1,         \
-        .sw = 1,         \
-        .sx = 0,         \
-        .e = 1,          \
-        .rg = 0,         \
-        .wg = 0,         \
-        .rmpid0 = 0,     \
-        .rmpid1 = 0,     \
-        .rmpid2 = 0,     \
-        .rmpid3 = 0,     \
-        .rmpid4 = 0,     \
-        .rmpid5 = 0,     \
-        .rmpid6 = 1,     \
-        .rmpid7 = 0,     \
-        .wmpid0 = 0,     \
-        .wmpid1 = 0,     \
-        .wmpid2 = 0,     \
-        .wmpid3 = 0,     \
-        .wmpid4 = 0,     \
-        .wmpid5 = 0,     \
-        .wmpid6 = 1,     \
-        .wmpid7 = 0,     \
-    })
+    ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 0, .ur = 1, .uw = 1, .ux = 0, .rmpid1 = 1, .wmpid1 = 1 })
+
+#define MPU_ARCH_MAX_NUM_ENTRIES (32)
 
 static inline size_t mpu_granularity(void)
 {

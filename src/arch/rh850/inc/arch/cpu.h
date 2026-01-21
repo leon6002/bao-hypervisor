@@ -8,25 +8,21 @@
 
 #include <bao.h>
 #include <mem.h>
-#include <bitmap.h>
-#include <srs.h>
+
+#define CPU_HAS_EXTENSION(EXT) (DEFINED(EXT))
 
 extern cpuid_t CPU_MASTER;
 
 struct cpu_arch {
     struct {
         BITMAP_ALLOC(bitmap, MPU_ARCH_MAX_NUM_ENTRIES);
+        /**
+         * A locked region means that it can never be removed from the MPU. For example,
+         */
+        BITMAP_ALLOC(locked, MPU_ARCH_MAX_NUM_ENTRIES);
     } mpu_hyp;
 };
 
-static inline struct cpu* cpu(void)
-{
-    return (struct cpu*)srs_fewr_read();
-}
-
-static inline void snooze(void)
-{
-    __asm__ volatile("snooze");
-}
+struct cpu* cpu();
 
 #endif /* __ARCH_CPU_H__ */

@@ -1,45 +1,10 @@
-/**
- * SPDX-License-Identifier: Apache-2.0
- * Copyright (c) Bao Project and Contributors. All rights reserved.
- */
-
+#include <bao.h>
+#include <platform_defs.h>
+#include <platform.h>
 #include <interrupts.h>
-#include <intc.h>
-#include <vm.h>
-#include <types.h>
-
-/* EIC */
-#define EIRFn_BIT          (1U << 12)
-#define EIMKn_BIT          (1U << 7)
-
-#define EIPn_MASK          (0xF)
-
-#define EIC_SET_EIRFn(reg) ((reg) |= (uint16_t)EIRFn_BIT)
-#define EIC_CLR_EIRFn(reg) ((reg) &= (uint16_t)(~EIRFn_BIT))
-#define EIC_GET_EIRFn(reg) (((reg) & (uint16_t)EIRFn_BIT) >> 12)
-
-#define EIC_SET_EIMKn(reg) ((reg) |= (uint16_t)EIMKn_BIT)
-#define EIC_CLR_EIMKn(reg) ((reg) &= (uint16_t)(~EIMKn_BIT))
-
-#define EIC_SET_EIPn(reg, value) \
-    ((reg) = (uint16_t)(((reg) & (uint16_t)(~EIPn_MASK)) | ((value) & EIPn_MASK)))
-
-/* EIBD */
-#define EIBD_GM_BIT      (1U << 15)
-
-#define EIBD_GPID_MASK   (0x7U << 8)
-#define EIBD_GPID_SHIFT  8
-
-#define EIBD_PEID_MASK   (0x7U)
-
-#define EIBD_SET_GM(reg) ((reg) |= (unsigned long)EIBD_GM_BIT)
-#define EIBD_CLR_GM(reg) ((reg) &= (unsigned long)(~EIBD_GM_BIT))
-
-#define EIBD_SET_GPID(reg, value) \
-    ((reg) = ((reg) & (unsigned long)(~EIBD_GPID_MASK)) | (((value) & 0x7) << EIBD_GPID_SHIFT))
-
-#define EIBD_SET_PEID(reg, value) \
-    ((reg) = ((reg) & (unsigned long)(~EIBD_PEID_MASK)) | ((value) & EIBD_PEID_MASK))
+#include <mem.h>
+#include <cpu.h>
+#include <arch/intc.h>
 
 volatile struct intc1* intc1_hw;
 volatile struct intc2* intc2_hw;
@@ -48,16 +13,79 @@ volatile struct eint* eint_hw;
 volatile struct fenc* fenc_hw;
 volatile struct feinc* feinc_hw[PLAT_CPU_NUM];
 
+// EIC Register Bit Definitions
+#define EICTn_BIT                (1 << 15)
+#define EIRFn_BIT                (1 << 12)
+#define EIMKn_BIT                (1 << 7)
+#define EITBn_BIT                (1 << 6)
+#define EIOVn_BIT                (1 << 5)
+
+// EIPn Mask (Bits 3-0)
+#define EIPn_MASK                (0xF)
+
+// Macro to Set/Reset EICTn
+#define EIC_SET_EICTn(reg)       ((reg) |= EICTn_BIT)        // Set EICTn to 1 (Detection by level)
+#define EIC_CLR_EICTn(reg)       ((reg) &= ~EICTn_BIT)       // Clear EICTn to 0 (Detection by edge)
+#define EIC_GET_EICTn(reg)       (((reg) & EICTn_BIT) >> 15) // Read EICTn value
+
+// Macro to Set/Reset EIRFn
+#define EIC_SET_EIRFn(reg)       ((reg) |= EIRFn_BIT)  // Set EIRFn to 1 (Interrupt request present)
+#define EIC_CLR_EIRFn(reg)       ((reg) &= ~EIRFn_BIT) // Clear EIRFn to 0 (No interrupt request)
+#define EIC_GET_EIRFn(reg)       (((reg) & EIRFn_BIT) >> 12) // Read EIRFn value
+
+// Macro to Set/Reset EIMKn
+#define EIC_SET_EIMKn(reg)       ((reg) |= EIMKn_BIT)       // Mask interrupt
+#define EIC_CLR_EIMKn(reg)       ((reg) &= ~EIMKn_BIT)      // Unmask interrupt
+#define EIC_GET_EIMKn(reg)       (((reg) & EIMKn_BIT) >> 7) // Read EIMKn value
+
+// Macro to Set/Reset EITBn
+#define EIC_SET_EITBn(reg)       ((reg) |= EITBn_BIT)  // Set EITBn to 1 (Table reference method)
+#define EIC_CLR_EITBn(reg)       ((reg) &= ~EITBn_BIT) // Set EITBn to 0 (Direct vector method)
+#define EIC_GET_EITBn(reg)       (((reg) & EITBn_BIT) >> 6) // Read EITBn value
+
+// Macro to Set/Reset EIOVn
+#define EIC_SET_EIOVn(reg)       ((reg) |= EIOVn_BIT)       // Set EIOVn to 1 (Interrupt overflow)
+#define EIC_CLR_EIOVn(reg)       ((reg) &= ~EIOVn_BIT)      // Clear EIOVn to 0 (No overflow)
+#define EIC_GET_EIOVn(reg)       (((reg) & EIOVn_BIT) >> 5) // Read EIOVn value
+
+// Macro to Set/Reset EIPn
+#define EIC_SET_EIPn(reg, value) ((reg) = ((reg) & ~EIPn_MASK) | ((value) & EIPn_MASK))
+#define EIC_GET_EIPn(reg)        ((reg) & EIPn_MASK)
+
+// EIBD Register Bit Definitions
+#define EIBD_GM_BIT              (1 << 15) // Guest Mode Bit
+
+// GPID[2:0] Mask (Bits 10-8)
+#define EIBD_GPID_MASK           (0x7 << 8) // 3-bit mask for GPID field
+#define EIBD_GPID_SHIFT          8          // GPID starting position
+
+// PEID[2:0] Mask (Bits 2-0)
+#define EIBD_PEID_MASK           (0x7) // 3-bit mask for PEID field
+
+// Macro to Set/Reset GM
+#define EIBD_SET_GM(reg)         ((reg) |= EIBD_GM_BIT)  // Set GM to 1 (Channel bound to Guest)
+#define EIBD_CLR_GM(reg)         ((reg) &= ~EIBD_GM_BIT) // Clear GM to 0 (Channel bound to Host)
+#define EIBD_GET_GM(reg)         (((reg) & EIBD_GM_BIT) >> 15) // Read GM value
+
+// Macro to Set GPID (Bits 10-8)
+#define EIBD_SET_GPID(reg, value) \
+    ((reg) = ((reg) & ~EIBD_GPID_MASK) | (((value) & 0x7) << EIBD_GPID_SHIFT))
+#define EIBD_GET_GPID(reg)        (((reg) & EIBD_GPID_MASK) >> EIBD_GPID_SHIFT)
+
+// Macro to Set PEID (Bits 2-0)
+#define EIBD_SET_PEID(reg, value) ((reg) = ((reg) & ~EIBD_PEID_MASK) | ((value) & EIBD_PEID_MASK))
+#define EIBD_GET_PEID(reg)        ((reg) & EIBD_PEID_MASK)
+
 void intc_set_pend(irqid_t int_id, bool en)
 {
-    if (int_id < INTC_PRIVATE_IRQS_NUM) {
+    if (int_id < PRIVATE_IRQS_NUM) {
         if (en) {
-            EIC_SET_EIRFn(intc1_hw->self.EIC[int_id]);
+            EIC_SET_EIRFn(intc1_hw->EIC[int_id]);
         } else {
-            EIC_CLR_EIRFn(intc1_hw->self.EIC[int_id]);
+            EIC_CLR_EIRFn(intc1_hw->EIC[int_id]);
         }
     } else {
-        irqid_t intc2_irq_id = int_id - INTC_PRIVATE_IRQS_NUM;
+        irqid_t intc2_irq_id = int_id - PRIVATE_IRQS_NUM;
         if (en) {
             EIC_SET_EIRFn(intc2_hw->EIC[intc2_irq_id]);
         } else {
@@ -69,11 +97,11 @@ void intc_set_pend(irqid_t int_id, bool en)
 bool intc_get_pend(irqid_t int_id)
 {
     unsigned int pend = 0;
-    if (int_id < INTC_PRIVATE_IRQS_NUM) {
-        pend = EIC_GET_EIRFn(intc1_hw->self.EIC[int_id]);
+    if (int_id < PRIVATE_IRQS_NUM) {
+        pend = EIC_GET_EIRFn(intc1_hw->EIC[int_id]);
 
     } else {
-        irqid_t intc2_irq_id = int_id - INTC_PRIVATE_IRQS_NUM;
+        irqid_t intc2_irq_id = int_id - PRIVATE_IRQS_NUM;
         pend = EIC_GET_EIRFn(intc2_hw->EIC[intc2_irq_id]);
     }
 
@@ -82,61 +110,51 @@ bool intc_get_pend(irqid_t int_id)
 
 void intc_hyp_assign(irqid_t int_id)
 {
-    if (int_id < INTC_PRIVATE_IRQS_NUM) {
-        for (cpuid_t c = 0; c < PLAT_CPU_NUM; c++) {
-            EIBD_CLR_GM(intc1_hw->pe[c].EIBD[int_id]);
-        }
+    if (int_id < PRIVATE_IRQS_NUM) {
+        EIBD_CLR_GM(intc1_hw->EIBD[int_id]);
     } else {
-        irqid_t intc2_irq_id = int_id - INTC_PRIVATE_IRQS_NUM;
+        irqid_t intc2_irq_id = int_id - PRIVATE_IRQS_NUM;
         EIBD_CLR_GM(intc2_hw->EIBD[intc2_irq_id]);
     }
 }
 
-void intc_vm_assign(struct vm* vm, irqid_t int_id)
+void intc_vm_assign(irqid_t int_id, vmid_t vm_id)
 {
-    if (int_id < INTC_PRIVATE_IRQS_NUM) {
-        /* assign private interrupt to all VM's vcpus */
-        for (cpuid_t i = 0; i < vm->cpu_num; i++) {
-            cpuid_t pcpu_id = vm_translate_to_pcpuid(vm, i);
-            if (pcpu_id != INVALID_CPUID) {
-                EIBD_SET_GM(intc1_hw->pe[pcpu_id].EIBD[int_id]);
-                EIBD_SET_GPID(intc1_hw->pe[pcpu_id].EIBD[int_id], vm->id);
-            }
-        }
+    /* assumes calling cpu is configuring this interrupt */
+    if (int_id < PRIVATE_IRQS_NUM) {
+        EIBD_SET_GM(intc1_hw->EIBD[int_id]);
+        EIBD_SET_GPID(intc1_hw->EIBD[int_id], vm_id);
     } else {
-        irqid_t intc2_irq_id = int_id - INTC_PRIVATE_IRQS_NUM;
+        irqid_t intc2_irq_id = int_id - PRIVATE_IRQS_NUM;
         EIBD_SET_GM(intc2_hw->EIBD[intc2_irq_id]);
-        EIBD_SET_GPID(intc2_hw->EIBD[intc2_irq_id], vm->id);
-        /* default target for interrupts is VM's vcpu 0 */
-        cpuid_t pcpu_id = vm_translate_to_pcpuid(vm, 0);
-        if (pcpu_id != INVALID_CPUID) {
-            EIBD_SET_PEID(intc2_hw->EIBD[intc2_irq_id], pcpu_id);
-        }
+        EIBD_SET_GPID(intc2_hw->EIBD[intc2_irq_id], vm_id);
+
+        EIBD_SET_PEID(intc2_hw->EIBD[intc2_irq_id], cpu()->id);
     }
 }
 
 void intc_set_trgt(irqid_t int_id, cpuid_t cpu_id)
 {
-    if (int_id < INTC_PRIVATE_IRQS_NUM) {
+    if (int_id < PRIVATE_IRQS_NUM) {
         if (cpu()->id != cpu_id) {
-            ERROR("setting private interrupt on another core\n");
+            ERROR("setting private interrupt on another core");
         }
     } else {
-        irqid_t intc2_irq_id = int_id - INTC_PRIVATE_IRQS_NUM;
+        irqid_t intc2_irq_id = int_id - PRIVATE_IRQS_NUM;
         EIBD_SET_PEID(intc2_hw->EIBD[intc2_irq_id], cpu_id);
     }
 }
 
 void intc_set_enable(irqid_t int_id, bool en)
 {
-    if (int_id < INTC_PRIVATE_IRQS_NUM) {
+    if (int_id < PRIVATE_IRQS_NUM) {
         if (en) {
-            EIC_CLR_EIMKn(intc1_hw->self.EIC[int_id]);
+            EIC_CLR_EIMKn(intc1_hw->EIC[int_id]);
         } else {
-            EIC_SET_EIMKn(intc1_hw->self.EIC[int_id]);
+            EIC_SET_EIMKn(intc1_hw->EIC[int_id]);
         }
     } else {
-        irqid_t intc2_irq_id = int_id - INTC_PRIVATE_IRQS_NUM;
+        irqid_t intc2_irq_id = int_id - PRIVATE_IRQS_NUM;
         if (en) {
             EIC_CLR_EIMKn(intc2_hw->EIC[intc2_irq_id]);
         } else {
@@ -147,55 +165,72 @@ void intc_set_enable(irqid_t int_id, bool en)
 
 void intc_set_prio(irqid_t int_id, unsigned long prio)
 {
-    if (int_id < INTC_PRIVATE_IRQS_NUM) {
-        EIC_SET_EIPn(intc1_hw->self.EIC[int_id], prio);
+    if (int_id < PRIVATE_IRQS_NUM) {
+        EIC_SET_EIPn(intc1_hw->EIC[int_id], prio);
     } else {
-        irqid_t intc2_irq_id = int_id - INTC_PRIVATE_IRQS_NUM;
+        irqid_t intc2_irq_id = int_id - PRIVATE_IRQS_NUM;
         EIC_SET_EIPn(intc2_hw->EIC[intc2_irq_id], prio);
     }
 }
 
-static void intc_map_global_mmio(void)
+static void intc_map_local_mmio()
 {
-    vaddr_t intc1_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_GLOBAL, INVALID_VA,
+    /* because we are mapping an alias this could be global mapping actually */
+    vaddr_t intc1_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
         platform.arch.intc.intc1_addr, NUM_PAGES(sizeof(struct intc1)));
     if (intc1_ptr == INVALID_VA) {
-        ERROR("maping intc1 failed\n");
+        ERROR("maping intc1 failed");
     }
     intc1_hw = (struct intc1*)intc1_ptr;
 
+    vaddr_t feinc_ptr;
+    feinc_ptr = mem_alloc_map_dev(&cpu()->as, SEC_HYP_PRIVATE, INVALID_VA,
+        platform.arch.intc.feinc_addr[cpu()->id], NUM_PAGES(sizeof(struct feinc)));
+    if (feinc_ptr == INVALID_VA) {
+        ERROR("maping feinc_ptr failed");
+    }
+
+    feinc_hw[cpu()->id] = (struct feinc*)feinc_ptr;
+}
+
+static void intc_map_global_mmio()
+{
     vaddr_t global_start_addr = platform.arch.intc.intif_addr;
     vaddr_t global_end_addr = platform.arch.intc.intc2_addr + sizeof(struct intc2);
     size_t global_size = global_end_addr - global_start_addr;
     size_t global_npages = NUM_PAGES(global_size);
 
-    vaddr_t global_ptr =
+    vaddr_t global_ptr;
+    global_ptr =
         mem_alloc_map_dev(&cpu()->as, SEC_HYP_GLOBAL, INVALID_VA, global_start_addr, global_npages);
     if (global_ptr == INVALID_VA) {
-        ERROR("maping global interrupt controller region failed\n");
+        ERROR("maping global interrupt controller region failed");
     }
 
     intc2_hw = (struct intc2*)platform.arch.intc.intc2_addr;
     intif_hw = (struct intif*)platform.arch.intc.intif_addr;
     eint_hw = (struct eint*)platform.arch.intc.eint_addr;
     fenc_hw = (struct fenc*)platform.arch.intc.fenc_addr;
-}
-
-static void intc_local_init(void)
-{
     feinc_hw[cpu()->id] = (struct feinc*)platform.arch.intc.feinc_addr[cpu()->id];
 }
 
-void intc_init()
+void intc_map_mmio()
 {
+    intc_map_local_mmio();
     if (cpu_is_master()) {
         intc_map_global_mmio();
     }
-    /* wait for global mappings */
-    cpu_sync_and_clear_msgs(&cpu_glb_sync);
+}
 
-    /* setup local pointers */
-    intc_local_init();
+/* TODO needed? */
+/* void intc_clk_init() */
+/* { */
+/* } */
 
-    cpu_sync_and_clear_msgs(&cpu_glb_sync);
+void intc_init()
+{
+    intc_map_mmio();
+
+    // (mandatory) enable virtualization support
+    intc1_hw->IHVCFG = 1;
 }
