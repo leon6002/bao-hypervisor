@@ -11,3 +11,8 @@ configs/*
 !configs/example/
 !configs/null/
 !configs/autosar-vm0+vm1/
+
+# Local working directories: the flashing bundle, release tarballs, and working notes.
+flash/
+dist/
+.claude/
