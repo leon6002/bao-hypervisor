@@ -66,12 +66,27 @@ void cpu_arch_init(cpuid_t cpuid, paddr_t load_addr)
     srs_snzcfg_write(SNZCFG_PERIOD);
 }
 
+#ifdef CC_IS_RHCC
+
+/* Arguments arrive in r6 and r7 per the CC-RH calling convention (User's Manual 9.1.2). No
+ * labels here, so inline expansion at more than one call site is safe. */
+#pragma inline_asm reset_stack_and_jump
+static void reset_stack_and_jump(void* stack_base, void (*jmp_target)(void))
+{
+    mov r6, sp
+    jarl [r7], lp
+}
+
+#else
+
 static void reset_stack_and_jump(void* stack_base, void (*jmp_target)(void))
 {
     __asm__ volatile("mov   %[stack], sp\n\t"
                      "jarl  %[target], lp\n\t" : : [stack] "r"(stack_base), [target] "r"(jmp_target)
                      : "lp", "memory");
 }
+
+#endif
 
 void cpu_arch_standby()
 {

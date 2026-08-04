@@ -8,6 +8,36 @@
 
 #include <bao.h>
 
+#ifdef CC_IS_RHCC
+
+/* CC-RH has no GNU extended asm; #pragma inline_asm is the equivalent. Each body is a single
+ * instruction with no operands and no labels, so it expands safely at every call site. */
+#pragma inline_asm syncp
+static void syncp(void)
+{
+    syncp
+}
+
+#pragma inline_asm syncm
+static void syncm(void)
+{
+    syncm
+}
+
+#pragma inline_asm synci
+static void synci(void)
+{
+    synci
+}
+
+#pragma inline_asm synce
+static void synce(void)
+{
+    synce
+}
+
+#else
+
 static inline void syncp(void)
 {
     __asm__ volatile("syncp" ::: "memory");
@@ -27,6 +57,8 @@ static inline void synce(void)
 {
     __asm__ volatile("synce" ::: "memory");
 }
+
+#endif
 
 static inline void fence_ord_write(void)
 {

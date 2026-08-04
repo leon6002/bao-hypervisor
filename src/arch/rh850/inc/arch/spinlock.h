@@ -13,6 +13,15 @@
 
 typedef uint32_t spinlock_t;
 
+#ifdef CC_IS_RHCC
+
+/* Defined out of line in spinlock.asm: the loop needs labels, and a #pragma inline_asm body is
+ * expanded at every call site, which would emit them more than once. */
+void spin_lock(spinlock_t* lock);
+void spin_unlock(spinlock_t* lock);
+
+#else
+
 static inline void spin_lock(spinlock_t* lock)
 {
     __asm__ volatile("1:\n\t"
@@ -33,5 +42,7 @@ static inline void spin_unlock(spinlock_t* lock)
 {
     __asm__ volatile("st.w r0, 0[%0]\n\t" : : "r"(lock) : "memory");
 }
+
+#endif
 
 #endif /* __ARCH_SPINLOCK_H__ */

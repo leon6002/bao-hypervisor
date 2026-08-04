@@ -16,3 +16,6 @@ cpu-objs-y+=vipir.o
 cpu-objs-y+=vbootctrl.o
 cpu-objs-y+=vm.o
 cpu-objs-y+=vmm.o
+
+# The GCC build keeps the spin lock inline in the header; CC-RH needs it out of line.
+cpu-objs-$(CC_IS_RHCC)+=spinlock.o
