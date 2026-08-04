@@ -22,3 +22,6 @@ flash/images/
 
 # Release tarballs, built on demand
 dist/
+
+# Local working notes and vendor manuals, never published
+.claude/
