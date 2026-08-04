@@ -10,3 +10,4 @@ configs/*
 !configs/linker.ld 
 !configs/example/
 !configs/null/
+!configs/autosar-vm0+vm1/
