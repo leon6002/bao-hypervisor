@@ -280,12 +280,21 @@ else ifeq ($(CC_IS_RHCC),y)
 	build_macros+=-DCC_IS_RHCC
 endif
 
+ifdef CC_IS_RHCC
+bao_version_def:=-DBAO_VERSION=$(version_str)
+else
+bao_version_def:=-DBAO_VERSION=\"$(version_str)\"
+endif
+
 override CPPFLAGS+=$(addprefix -I, $(inc_dirs)) $(arch-cppflags) \
-	$(platform-cppflags) $(build_macros) -DBAO_VERSION=\"$(version_str)\"
+	$(platform-cppflags) $(build_macros) $(bao_version_def)
 vpath:.=CPPFLAGS
 
+# The generators run on the host with gcc, so they must not be told the target compiler is
+# CC-RH: headers would then offer them #pragma inline_asm bodies that gcc cannot parse.
+host_build_macros:=$(filter-out -DCC_IS_RHCC,$(build_macros))
 HOST_CPPFLAGS+=$(addprefix -I, $(inc_dirs)) $(arch-cppflags) \
-	$(platform-cppflags) $(build_macros)
+	$(platform-cppflags) $(host_build_macros)
 
 ifeq ($(DEBUG), y)
 	debug_flags:=-g
@@ -461,7 +470,7 @@ $(config_dep): $(config_src)
 
 $(config_def_generator): $(config_def_generator_src) $(config_src)
 	@echo "Compiling generator	$(patsubst $(cur_dir)/%,%, $@)"
-	@$(HOST_CC) $^ $(build_macros) $(HOST_CPPFLAGS) -DGENERATING_DEFS \
+	@$(HOST_CC) $^ $(host_build_macros) $(HOST_CPPFLAGS) -DGENERATING_DEFS \
 		$(addprefix -I, $(inc_dirs)) -o $@
 
 $(config_defs): $(config_def_generator)
@@ -470,7 +479,7 @@ $(config_defs): $(config_def_generator)
 
 $(platform_def_generator): $(platform_def_generator_src) $(platform_description)
 	@echo "Compiling generator	$(patsubst $(cur_dir)/%,%, $@)"
-	@$(HOST_CC) $^ $(build_macros) $(HOST_CPPFLAGS) -DGENERATING_DEFS -D$(ARCH) \
+	@$(HOST_CC) $^ $(host_build_macros) $(HOST_CPPFLAGS) -DGENERATING_DEFS -D$(ARCH) \
 		$(addprefix -I, $(inc_dirs)) -o $@
 
 $(platform_defs): $(platform_def_generator)

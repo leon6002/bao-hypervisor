@@ -24,9 +24,21 @@ static inline struct cpu* cpu(void)
     return (struct cpu*)srs_fewr_read();
 }
 
+#ifdef CC_IS_RHCC
+
+#pragma inline_asm snooze
+static void snooze(void)
+{
+    snooze
+}
+
+#else
+
 static inline void snooze(void)
 {
     __asm__ volatile("snooze");
 }
+
+#endif
 
 #endif /* __ARCH_CPU_H__ */

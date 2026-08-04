@@ -10,6 +10,16 @@
 
 #ifndef __ASSEMBLER__
 
+/* CC-RH strips the quotes from a -D value, so the version arrives as bare tokens and has to be
+ * stringified here. Every other toolchain gets it already quoted from the command line. */
+#ifdef CC_IS_RHCC
+#define BAO_VERSION_STR_(x) #x
+#define BAO_VERSION_STR(x)  BAO_VERSION_STR_(x)
+#define BAO_VERSION_STRING  BAO_VERSION_STR(BAO_VERSION)
+#else
+#define BAO_VERSION_STRING  BAO_VERSION
+#endif
+
 #include <types.h>
 #include <console.h>
 #include <util.h>
