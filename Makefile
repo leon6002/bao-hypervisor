@@ -14,13 +14,27 @@ endef
 # Check cross compiler
 ifneq ($(findstring clang,$(CROSS_COMPILE)),)
 CC_IS_CLANG =	y
+else ifneq ($(findstring ccrh,$(CROSS_COMPILE)),)
+CC_IS_RHCC =	y
 else
 CC_IS_GCC =	y
 endif
 
 # Setup toolchain macros
 
-ifdef CC_IS_CLANG
+ifdef CC_IS_RHCC
+# Renesas CC-RH. Not a GNU-alike: no objcopy/objdump/readelf, and rlink is driven by a
+# subcommand file rather than a linker script. See flash/README.md for the toolchain itself.
+cpp=		ccrh
+sstrip=
+cc=			ccrh
+ld =		rlink
+as=			asrh
+objcopy=
+objdump=
+readelf=
+size=
+else ifdef CC_IS_CLANG
 clang_version:=$(strip $(patsubst clang%, %, $(notdir $(CROSS_COMPILE))))
 clang_path:=$(dir $(wildcard $(abspath $(CROSS_COMPILE))))
 cpp=		$(clang_path)clang-cpp$(clang_version)
@@ -45,6 +59,16 @@ size=		$(CROSS_COMPILE)size
 endif
 
 HOST_CC:=gcc
+
+# CC-RH has no -MM, so dependencies are generated with the host compiler. It only ever sees
+# the preprocessor, so the target flags it would not understand are dropped.
+ifdef CC_IS_RHCC
+dep_cc:=$(HOST_CC)
+dep_cflags:=
+else
+dep_cc=$(cc)
+dep_cflags=$(CFLAGS)
+endif
 
 #Makefile arguments and default values
 DEBUG:=n
@@ -191,7 +215,11 @@ objs-y+=$(addprefix $(platform_dir)/, $(boards-objs-y))
 objs-y+=$(addprefix $(drivers_dir)/, $(drivers-objs-y))
 
 c_src_files:=$(wildcard $(patsubst %.o,%.c, $(objs-y)))
+ifdef CC_IS_RHCC
+asm_src_files:=$(wildcard $(patsubst %.o,%.asm, $(objs-y)))
+else
 asm_src_files:=$(wildcard $(patsubst %.o,%.S, $(objs-y)))
+endif
 c_hdr_files=$(shell cat $(deps) | grep -o "$(src_dir)/\S*\.h" | sort | uniq)
 
 deps+=$(patsubst %.o,%.d,$(objs-y))
@@ -248,6 +276,8 @@ ifeq ($(CC_IS_GCC),y)
 	build_macros+=-DCC_IS_GCC
 else ifeq ($(CC_IS_CLANG),y)
 	build_macros+=-DCC_IS_CLANG
+else ifeq ($(CC_IS_RHCC),y)
+	build_macros+=-DCC_IS_RHCC
 endif
 
 override CPPFLAGS+=$(addprefix -I, $(inc_dirs)) $(arch-cppflags) \
@@ -287,9 +317,16 @@ else ifeq ($(CC_IS_CLANG), y)
 	override LDFLAGS+=--no-check-sections
 endif
 
+ifdef CC_IS_RHCC
+# CC-RH spells its optimisation levels differently: default/size/speed/nothing, not 0..3.
+OPTIMIZATIONS:=$(if $(filter 2 3 s g 0,$(OPTIMIZATIONS)),default,$(OPTIMIZATIONS))
+override CFLAGS+=-O$(OPTIMIZATIONS) -Xcommon=rh850 -lang=c99 \
+	$(arch-cflags) $(platform-cflags) $(CPPFLAGS) $(debug_flags)
+else
 override CFLAGS+=-O$(OPTIMIZATIONS) -Wall -Werror -Wextra $(cflags_warns) \
 	-ffreestanding -std=c11 -fno-pic -fno-pie \
 	$(arch-cflags) $(platform-cflags) $(CPPFLAGS) $(debug_flags)
+endif
 
 override ASFLAGS+=$(CFLAGS) $(arch-asflags) $(platform-asflags)
 
@@ -306,19 +343,41 @@ all: $(targets-y)
 
 $(bin_dir)/$(PROJECT_NAME).elf: $(gens) $(objs-y) $(extra-objs-y) $(ld_script_temp)
 	@echo "Linking			$(patsubst $(cur_dir)/%,%, $@)"
+ifdef CC_IS_RHCC
+	@$(ld) -subcommand="$(ld_script_temp)" -form=absolute -output="$@"
+else
 	@$(ld) $(LDFLAGS) -T$(ld_script_temp) $(objs-y) $(extra-objs-y) -o $@
 	@$(objdump) -S --wide $@ > $(basename $@).asm
 	@$(readelf) -a --wide $@ > $@.txt
+endif
 
 ifneq ($(DEBUG), y)
+ifndef CC_IS_RHCC
 	@echo "Striping		$(patsubst $(cur_dir)/%,%, $@)"
 	@$(sstrip) -s $@
 endif
+endif
 
+ifdef CC_IS_RHCC
+# rlink takes a subcommand file, not a linker script. src/linker.ld is unused on this path;
+# the layout below is what places the image, so change it here rather than there.
+rhs8n_lib=$(dir $(shell which $(cc)))../lib/v850e3v5/rhs8n.lib
+$(ld_script_temp):
+	@echo "Generating subcommand	$(patsubst $(cur_dir)/%,%, $@)"
+	@echo -e $(foreach obj,$(objs-y) $(extra-objs-y),-input="$(obj)\n") > $@
+	@echo " -list" >> $@
+	@echo " -nologo" >> $@
+	@echo ' -library="$(rhs8n_lib)"' >> $@
+	@echo " -start=VECTAB,EINTTBL,.text,.const,.data,\
+.ipi_cpumsg_handlers_id.data,.ipi_cpumsg_handlers.const,.bss/0,\
+.data.R,.ipi_cpumsg_handlers_id.data.R,.ipi_cpumsg_handlers.const.R,.bss.R/$(RHCC_RAM_BASE)" >> $@
+	@echo " -rom=.data*=.data.*R,.ipi_cpumsg_handlers*=.ipi_cpumsg_handlers*.R,.bss=.bss.R" >> $@
+else
 $(ld_script_temp):
 	@echo "Pre-processing		$(patsubst $(cur_dir)/%,%, $(ld_script))"
 	@$(cc) $(CFLAGS) -E $(addprefix -I, $(inc_dirs)) -x assembler-with-cpp  $(CPPFLAGS) \
 		$(ld_script) | grep -v '^\#' > $(ld_script_temp)
+endif
 
 ifneq ($(build_targets),)
 -include $(deps)
@@ -326,45 +385,53 @@ endif
 
 $(ld_script_temp).d: $(ld_script)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) -x assembler-with-cpp  -MM -MT "$(ld_script_temp) $@" \
+	@$(dep_cc) -x assembler-with-cpp  -MM -MT "$(ld_script_temp) $@" \
 		$(addprefix -I, $(inc_dirs))  $< > $@
 
 $(build_dir)/%.d : $(cur_dir)/%.[c,S]
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
+	@$(dep_cc) $(dep_cflags) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
 
 # We need a specific rule for the config deps which has the exact same recipe as the generic
 # dep rule because the `config_dir` might be out-of-tree if CONFIG_REPO points to a foreign directory
 # and the pattern match must allow for it, given it might not match $(cur_dir)
 $(build_dir)/%.d : $(config_dir)/%.[c,S]
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
+	@$(dep_cc) $(dep_cflags) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
 
 # Dep rule for config-objs-y routed directly into config_build_dir.
 # The stem maps directly to config_dir so out-of-tree sources are found correctly.
 $(config_build_dir)/%.d : $(config_dir)/%.[c,S]
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
+	@$(dep_cc) $(dep_cflags) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
 
 # Dep rule for absolute-path config-objs-y, placed under config_build_dir/external/.
 # No slash after 'external' so the stem captures the full absolute source path.
 $(config_build_dir)/external%.d : %.[c,S]
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
+	@$(dep_cc) $(dep_cflags) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
 
 # We need to repeat the rule again to support fully out-of-tree sources (both from the root directory
 # and the CONFIG_REPO)
 $(build_dir)%.d : %.[c,S]
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%, $<)"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
+	@$(dep_cc) $(dep_cflags) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@"  $(CPPFLAGS) $< > $@
 
 $(objs-y):
 	@echo "Compiling source	$(patsubst $(cur_dir)/%,%, $<)"
+ifdef CC_IS_RHCC
+	@$(cc) $(CFLAGS) -c $< -o$@
+else
 	@$(cc) $(CFLAGS) -c $< -o $@
+endif
 
 %.bin: %.elf
 	@echo "Generating binary	$(patsubst $(cur_dir)/%,%, $@)"
+ifdef CC_IS_RHCC
+	@$(ld) -subcommand="$(ld_script_temp)" -form=binary -output="$@"
+else
 	@$(objcopy) -S -O binary $< $@
+endif
 
 $(deps): | $(gens)
 
@@ -388,7 +455,7 @@ config_dep:=$(config_build_dir)/$(patsubst %.c,%.d,$(notdir $(config_src)))
 $(config_dep): $(config_src)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%,\
 		 $(patsubst %.d,%, $@))"
-	@$(cc) $(CFLAGS) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@" $(CPPFLAGS) $(filter %.c, $^) > $@
+	@$(dep_cc) $(dep_cflags) -MM -MG -MT "$(patsubst %.d, %.o, $@) $@" $(CPPFLAGS) $(filter %.c, $^) > $@
 	@$(cc) $(CFLAGS) $(CPPFLAGS) -S $(config_src) -o - | grep ".incbin" | \
 		awk '{ gsub("\"", "", $$2); print "$(patsubst %.d, %.o, $@): " $$2 }' >> $@
 

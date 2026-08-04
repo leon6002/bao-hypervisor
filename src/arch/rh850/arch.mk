@@ -4,6 +4,10 @@
 # Default CROSS_COMPILE
 CROSS_COMPILE ?= v850-elf-
 
+ifdef CC_IS_RHCC
+# CC-RH selects the core and ABI through -Xcommon=rh850, set centrally in the Makefile, so
+# there is nothing to add here. It also emits leading underscores unconditionally.
+else
 # RH850 specific flags for compiler
 arch-cflags+=-mv850e3v5
 arch-cflags+=-mrh850-abi
@@ -15,6 +19,7 @@ arch-cflags+=-fno-leading-underscore
 arch-asflags+=-mv850e3v5
 arch-asflags+=-mrh850-abi
 arch-asflags+=-m8byte-align
+endif
 
 arch_mem_prot:=mpu
 phys_irqs_only:=y

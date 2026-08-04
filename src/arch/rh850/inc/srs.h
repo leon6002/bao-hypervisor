@@ -68,6 +68,33 @@
 #ifndef __ASSEMBLER__
 
 /* System Register accessors */
+#ifdef CC_IS_RHCC
+
+/*
+ * CC-RH has no GNU extended asm. The equivalent is #pragma inline_asm, where the function body
+ * is raw assembly handed to the assembler unchanged and the compiler does no register
+ * allocation for it, so the calling convention has to be honoured by hand: the first argument
+ * arrives in r6 and the return value leaves in r10 (User's Manual 9.1.2).
+ *
+ * _Pragma lets the pragma be emitted from inside the macro, so the generated accessors below
+ * stay generated rather than being written out one by one. Each body is a single instruction,
+ * which matters: the macro expands to one logical line and the assembler sees it as such.
+ */
+#define SRS_PRAGMA_STR(x) #x
+#define SRS_GEN_ACCESSORS(name, regid, selid)              \
+    _Pragma(SRS_PRAGMA_STR(inline_asm srs_##name##_read))  \
+    static unsigned long srs_##name##_read(void)           \
+    {                                                      \
+        stsr regid, r10, selid                             \
+    }                                                      \
+    _Pragma(SRS_PRAGMA_STR(inline_asm srs_##name##_write)) \
+    static void srs_##name##_write(unsigned long val)      \
+    {                                                      \
+        ldsr r6, regid, selid                              \
+    }
+
+#else
+
 #define SRS_GEN_ACCESSORS(name, regid, selid)                                  \
     static inline unsigned long srs_##name##_read(void)                        \
     {                                                                          \
@@ -79,6 +106,8 @@
     {                                                                          \
         __asm__ volatile("ldsr %0," #regid ", " #selid "\n\r" ::"r"(val));     \
     }
+
+#endif
 
 /* BASIC SYS REG */
 SRS_GEN_ACCESSORS(eipc, 0, 0)
