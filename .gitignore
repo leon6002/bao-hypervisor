@@ -11,3 +11,11 @@ configs/*
 !configs/example/
 !configs/null/
 !configs/*.c
+
+# Flashing bundle: only the scripts and docs are tracked. The vendor tools, the installers,
+# the guest images and the prebuilt Bao images all live in the working tree but are kept out
+# of the repository -- flash/README.md records what they are and where each one comes from.
+flash/tools/
+flash/installers/
+flash/guests/
+flash/images/
