@@ -19,7 +19,7 @@ static void shmem_alloc(void)
             if (ppages.num_pages < n_pg) {
                 ERROR("failed to allocate shared memory\n");
             }
-            shmem->phys = ppages.base;
+            shmem->base = ppages.base;
         }
     }
 }

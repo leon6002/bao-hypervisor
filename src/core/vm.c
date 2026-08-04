@@ -198,7 +198,7 @@ static void vm_init_ipc(struct vm* vm, const struct vm_config* vm_config)
             .base = ipc->base,
             .size = size,
             .place_phys = true,
-            .phys = shmem->phys,
+            .phys = shmem->base,
             .colors = shmem->colors,
         };
 
@@ -257,7 +257,7 @@ static void vm_init_remio_dev(struct vm* vm, struct remio_dev* remio_dev)
         .base = remio_dev->shmem.base,
         .size = shmem_size,
         .place_phys = true,
-        .phys = shmem->phys,
+        .phys = shmem->base,
         .colors = shmem->colors,
     };
 

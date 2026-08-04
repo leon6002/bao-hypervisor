@@ -20,6 +20,21 @@
 #define BAO_VERSION_STRING  BAO_VERSION
 #endif
 
+/*
+ * CC-RH accepts __attribute__((aligned(n))) on a member only up to 4 bytes, and not at all on a
+ * struct, so PAGE_SIZE alignment cannot be expressed in C on that toolchain.
+ *
+ * TODO: the CC-RH build currently drops the alignment. It is not needed to find the current
+ * cpu -- cpu() reads the pointer out of FEWR -- but the MPU maps these structures and its
+ * regions must start on a granularity boundary, so this has to be given back through the
+ * linker (a dedicated section plus rlink section alignment) before the build is trusted.
+ */
+#ifdef CC_IS_RHCC
+#define ATTRIB_ALIGN(n)
+#else
+#define ATTRIB_ALIGN(n) __attribute__((aligned(n)))
+#endif
+
 #include <types.h>
 #include <console.h>
 #include <util.h>

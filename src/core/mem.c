@@ -433,10 +433,10 @@ static void mem_reserve_physical_memory(struct page_pool* pool)
         struct shmem* shmem = &config.shmemlist[i];
         if (shmem->place_phys && !shmem->reserved) {
             size_t n_pg = NUM_PAGES(shmem->size);
-            struct ppages ppages = mem_ppages_get(shmem->phys, n_pg);
+            struct ppages ppages = mem_ppages_get(shmem->base, n_pg);
             if (mem_reserve_ppool_ppages(pool, &ppages)) {
                 shmem->reserved = true;
-                shmem->phys = ppages.base;
+                shmem->base = ppages.base;
             }
         }
     }

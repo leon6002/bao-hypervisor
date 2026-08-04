@@ -36,7 +36,7 @@ struct cpu_msg {
 
 struct cpuif {
     CQ_DEFINE(struct cpu_msg, msgs, IPI_MAX_EVENTS);
-} __attribute__((aligned(PAGE_SIZE)));
+} ATTRIB_ALIGN(PAGE_SIZE);
 
 struct vcpu;
 
@@ -53,9 +53,9 @@ struct cpu {
 
     struct cpuif* interface;
 
-    uint8_t stack[STACK_SIZE] __attribute__((aligned(PAGE_SIZE)));
+    uint8_t stack[STACK_SIZE] ATTRIB_ALIGN(PAGE_SIZE);
 
-} __attribute__((aligned(PAGE_SIZE)));
+} ATTRIB_ALIGN(PAGE_SIZE);
 
 void cpu_send_msg(cpuid_t cpu, struct cpu_msg* msg);
 
