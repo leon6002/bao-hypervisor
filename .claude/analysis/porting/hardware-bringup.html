@@ -216,6 +216,43 @@ td.m,th.m{font-family:var(--mono);font-size:12.5px}
           </tbody>
         </table>
       </div>
+
+      <div class="callout callout-ok">
+        <div class="callout-head">
+          <span class="chip chip-ok">同样验证通过</span>
+          <h3>上游 main + v850-elf-gcc 也能带起这两个 guest</h3>
+        </div>
+        <p>
+          把反解出来的配置原样放到上游 <code>main</code>（自带 rh850 支持，<code>rh850-u2a16</code> 平台），
+          用 v850-elf-gcc 编译，<strong>一次通过、配置零改动</strong>——config API 仍然兼容，
+          上游平台描述符已覆盖两个 guest 需要的全部内存区。
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>构建</th><th class="m">分支</th><th>工具链</th><th class="n">体积</th><th class="n">串口</th><th>CAN</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>上游</td>
+                <td class="m">upstream/rh850-u2a-gcc</td>
+                <td>v850-elf-gcc 14.2.0</td>
+                <td class="n">37 184 B</td><td class="n">391 B/s</td>
+                <td><span class="chip chip-ok">正常</span></td>
+              </tr>
+              <tr>
+                <td>私有线</td>
+                <td class="m">osyx/rh850-u2a-ccrh208</td>
+                <td>CC-RH V2.08.00</td>
+                <td class="n">45 900 B</td><td class="n">386 B/s</td>
+                <td><span class="chip chip-ok">正常</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          对路线选择的意义：开源方向的门槛比预想的低得多，上游现成能用，不需要移植工作。
+          反倒是 CC-RH 这条线还停在 2025-04 的私有基底上，落后上游 15 个月。
+        </p>
+      </div>
     </section>
 
     <!-- ================= 工具 ================= -->

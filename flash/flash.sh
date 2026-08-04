@@ -2,7 +2,10 @@
 #
 # Flash Bao and its two guests to an RH850/U2A board over a Renesas E2 emulator.
 #
-#   ./flash.sh              flash the guests, then Bao, then release reset
+#   ./flash.sh              flash the guests, then the Bao you just built, then release reset
+#   ./flash.sh demo         same, but from the prebuilt images/bao-ccrh208-autosar.bin
+#   ./flash.sh ref          same, but from the historical reference image
+#   ./flash.sh gcc          same, but from the upstream-main / v850-elf-gcc build
 #   ./flash.sh bao          flash only Bao (guests already in flash)
 #   ./flash.sh guests       flash only the two guests
 #   ./flash.sh reset        just release the reset signal
@@ -31,9 +34,8 @@ RFP_PASS="ffff"
 
 PLATFORM="${PLATFORM:-rh850-u2a-vm1+vm2}"
 CONFIG="${CONFIG:-autosar-vm0+vm1}"
-RFP_DIR="${RFP_DIR:-/home/leo/osyx/rh850/bao-benchmarks-portable/Tools/linux-x64}"
-
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+RFP_DIR="${RFP_DIR:-${HERE}/tools/rfp-cli}"
 ROOT="$(cd -- "${HERE}/.." && pwd)"
 BAO_BIN="${ROOT}/bin/${PLATFORM}/${CONFIG}/bao.bin"
 export PATH="${RFP_DIR}:${PATH}"
@@ -50,6 +52,8 @@ flash_guests() {
 }
 
 flash_bao() {
+    # IMAGE overrides the build tree, for flashing a prebuilt image from images/
+    [[ -n "${IMAGE:-}" ]] && BAO_BIN="${IMAGE}"
     [[ -s "${BAO_BIN}" ]] || { echo "not built: ${BAO_BIN}" >&2; exit 1; }
     echo "== Bao -> 0x0, then release reset =="
     rfp -program -bin 0x0 "${BAO_BIN}" -run
@@ -57,8 +61,11 @@ flash_bao() {
 
 case "${1:-all}" in
     all)    flash_guests; flash_bao ;;
+    demo)   IMAGE="${HERE}/images/bao-ccrh208-autosar.bin"; flash_guests; flash_bao ;;
+    ref)    IMAGE="${HERE}/images/bao-reference-twovm.bin"; flash_guests; flash_bao ;;
+    gcc)    IMAGE="${HERE}/images/bao-upstream-gcc-autosar.bin"; flash_guests; flash_bao ;;
     bao)    flash_bao ;;
     guests) flash_guests ;;
     reset)  rfp -reset -run ;;
-    *)      echo "usage: $0 [all|bao|guests|reset]" >&2; exit 2 ;;
+    *)      echo "usage: $0 [all|demo|gcc|ref|bao|guests|reset]" >&2; exit 2 ;;
 esac
