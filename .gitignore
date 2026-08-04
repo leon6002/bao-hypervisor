@@ -19,3 +19,6 @@ flash/tools/
 flash/installers/
 flash/guests/
 flash/images/
+
+# Release tarballs, built on demand
+dist/
