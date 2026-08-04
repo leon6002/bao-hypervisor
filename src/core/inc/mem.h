@@ -47,10 +47,12 @@ struct shmem {
     size_t size;
     colormap_t colors;
     bool place_phys;
-    union {
-        paddr_t base;
-        paddr_t phys;
-    };
+    /*
+     * Holds the requested base before placement and the physical address after. Was an anonymous
+     * union aliasing base/phys; collapsed to a single field because CC-RH rejects designated
+     * initializers for anonymous members (E0523134) and configs initialize this as .base.
+     */
+    paddr_t base;
     cpumap_t cpu_masters;
     spinlock_t lock;
 };

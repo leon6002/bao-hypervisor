@@ -82,10 +82,10 @@ long int ipc_hypercall(void)
     if (valid_ipc_obj && valid_shmem) {
         cpumap_t ipc_cpu_masters = shmem->cpu_masters & ~cpu()->vcpu->vm->cpus;
 
-        union ipc_msg_data data = {
-            .shmem_id = (uint32_t)cpu()->vcpu->vm->ipcs[ipc_id].shmem_id,
-            .event_id = (uint32_t)ipc_event,
-        };
+        union ipc_msg_data data;
+        data.raw = 0;
+        data.shmem_id = (uint32_t)cpu()->vcpu->vm->ipcs[ipc_id].shmem_id;
+        data.event_id = (uint32_t)ipc_event;
         struct cpu_msg msg = { (uint32_t)IPC_CPUMSG_ID, IPC_NOTIFY, data.raw };
 
         for (size_t i = 0; i < platform.cpu_num; i++) {

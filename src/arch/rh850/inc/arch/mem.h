@@ -47,19 +47,26 @@ typedef union {
 
 typedef mpat_flags_t mem_flags_t;
 
-#define PTE_INVALID         ((mem_flags_t){ .e = 0 })
+#define MPAT_UR             (1UL << 0)
+#define MPAT_UW             (1UL << 1)
+#define MPAT_UX             (1UL << 2)
+#define MPAT_SR             (1UL << 3)
+#define MPAT_SW             (1UL << 4)
+#define MPAT_SX             (1UL << 5)
+#define MPAT_E              (1UL << 7)
+#define MPAT_RG             (1UL << 14)
+#define MPAT_WG             (1UL << 15)
+#define MPAT_RMPID(n)       (1UL << (16 + (n)))
+#define MPAT_WMPID(n)       (1UL << (24 + (n)))
 
-#define PTE_HYP_CODE_FLAGS  ((mem_flags_t){ .e = 1, .sr = 1, .sw = 0, .sx = 1, .rg = 1 })
-#define PTE_HYP_FLAGS       ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1, .rmpid0 = 1, .wmpid0 = 1 })
-#define PTE_HYP_DEV_FLAGS   ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 0, .rmpid0 = 1, .wmpid0 = 1 })
-
-/* TODO in the future we need to deal with IO permissions securely */
-#define PTE_VM_FLAGS \
-    ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 1, .ur = 1, .uw = 1, .ux = 1, .rmpid1 = 1, .wmpid1 = 1, .rmpid7 = 1, .wmpid7 = 1 })
-
-/* TODO in the future we need to deal with IO permissions securely */
-#define PTE_VM_DEV_FLAGS \
-    ((mem_flags_t){ .e = 1, .sr = 1, .sw = 1, .sx = 0, .ur = 1, .uw = 1, .ux = 0, .rmpid1 = 1, .wmpid1 = 1 })
+#define PTE_INVALID         ((mem_flags_t){ .raw = 0 })
+#define PTE_HYP_CODE_FLAGS  ((mem_flags_t){ .raw = MPAT_E | MPAT_SR | MPAT_SX | MPAT_RG })
+#define PTE_HYP_FLAGS       ((mem_flags_t){ .raw = MPAT_E | MPAT_SR | MPAT_SW | MPAT_SX | MPAT_RMPID(0) | MPAT_WMPID(0) })
+#define PTE_HYP_DEV_FLAGS   ((mem_flags_t){ .raw = MPAT_E | MPAT_SR | MPAT_SW | MPAT_RMPID(0) | MPAT_WMPID(0) })
+#define PTE_VM_FLAGS                                                                          \
+    ((mem_flags_t){ .raw = MPAT_E | MPAT_SR | MPAT_SW | MPAT_SX | MPAT_UR | MPAT_UW | MPAT_UX | \
+              MPAT_RMPID(1) | MPAT_WMPID(1) | MPAT_RMPID(7) | MPAT_WMPID(7) })
+#define PTE_VM_DEV_FLAGS    ((mem_flags_t){ .raw = MPAT_E | MPAT_SR | MPAT_SW | MPAT_UR | MPAT_UW | MPAT_RMPID(1) | MPAT_WMPID(1) })
 
 #define MPU_ARCH_MAX_NUM_ENTRIES (32)
 
