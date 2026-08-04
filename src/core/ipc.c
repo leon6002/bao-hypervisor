@@ -84,10 +84,11 @@ static void notify_remote_vms(unsigned long shmem_id, unsigned long event_id)
 {
     struct shmem* shmem = shmem_get(shmem_id);
     cpumap_t ipc_cpu_masters = shmem->cpu_masters & ~cpu()->vcpu->vm->cpus;
-    union ipc_msg_data data = {
-        .shmem_id = (uint32_t)shmem_id,
-        .event_id = (uint32_t)event_id,
-    };
+    /* Assigned field by field: CC-RH rejects designated initializers for anonymous members. */
+    union ipc_msg_data data;
+    data.raw = 0;
+    data.shmem_id = (uint32_t)shmem_id;
+    data.event_id = (uint32_t)event_id;
     struct cpu_msg msg = { (uint32_t)IPC_CPUMSG_ID, IPC_NOTIFY, data.raw };
 
     for (size_t i = 0; i < platform.cpu_num; i++) {
