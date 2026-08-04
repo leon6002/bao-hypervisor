@@ -1,0 +1,600 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RH850/U2A 实机 bring-up — CC-RH 双 VM</title>
+<style>
+:root {
+  --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+  --ink:#101819; --ink-2:#47585c; --ink-3:#74868a;
+  --rule:#dae1e2; --rule-strong:#b9c5c6;
+  --accent:#0d6470; --accent-soft:#e2eff0;
+  --ok:#2c6f52; --ok-soft:#e3efe8;
+  --warn:#9c5a05; --warn-soft:#f6ecdc;
+  --note:#4a4a95; --note-soft:#e8e8f4;
+  --mono: ui-monospace,"SF Mono","JetBrains Mono","DejaVu Sans Mono","Liberation Mono",Consolas,monospace;
+  --sans: system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans CJK SC","Source Han Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  --measure:68ch;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px; --s8:72px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground:#0c1213; --surface:#121a1c; --surface-2:#182225;
+    --ink:#dde5e6; --ink-2:#9aabaf; --ink-3:#74878c;
+    --rule:#223034; --rule-strong:#33454a;
+    --accent:#52c2cd; --accent-soft:#14282c;
+    --ok:#63bd92; --ok-soft:#14261e;
+    --warn:#d99b3f; --warn-soft:#2a2013;
+    --note:#9c9ce0; --note-soft:#1c1c2e;
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0c1213; --surface:#121a1c; --surface-2:#182225;
+  --ink:#dde5e6; --ink-2:#9aabaf; --ink-3:#74878c;
+  --rule:#223034; --rule-strong:#33454a;
+  --accent:#52c2cd; --accent-soft:#14282c;
+  --ok:#63bd92; --ok-soft:#14261e; --warn:#d99b3f; --warn-soft:#2a2013;
+  --note:#9c9ce0; --note-soft:#1c1c2e;
+}
+:root[data-theme="light"] {
+  --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+  --ink:#101819; --ink-2:#47585c; --ink-3:#74868a;
+  --rule:#dae1e2; --rule-strong:#b9c5c6;
+  --accent:#0d6470; --accent-soft:#e2eff0;
+  --ok:#2c6f52; --ok-soft:#e3efe8; --warn:#9c5a05; --warn-soft:#f6ecdc;
+  --note:#4a4a95; --note-soft:#e8e8f4;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+     font-size:15.5px;line-height:1.68}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+code,kbd,pre,.m{font-family:var(--mono)}
+
+.shell{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--s7);
+       max-width:1180px;margin:0 auto;padding:var(--s6) var(--s5) var(--s8)}
+@media (min-width:1000px){.shell{grid-template-columns:216px minmax(0,1fr);gap:var(--s8);padding-top:var(--s7)}}
+
+.masthead{grid-column:1/-1;border-top:2px solid var(--ink);padding-top:var(--s4);
+          display:flex;flex-direction:column;gap:var(--s4)}
+.masthead-top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:var(--s3)}
+.doc-id{font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.masthead h1{margin:0;font-family:var(--mono);font-size:clamp(25px,4.4vw,38px);font-weight:600;
+             letter-spacing:-.02em;line-height:1.16;text-wrap:balance;max-width:24ch}
+.standfirst{margin:0;max-width:var(--measure);color:var(--ink-2);font-size:16px}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:var(--s1) var(--s5);
+      border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:var(--s3) 0;margin-top:var(--s2)}
+.meta div{display:flex;flex-direction:column;gap:1px}
+.meta dt{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.meta dd{margin:0;font-family:var(--mono);font-size:12.5px;color:var(--ink);font-variant-numeric:tabular-nums}
+.toggle{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+        background:transparent;color:var(--ink-3);border:1px solid var(--rule-strong);border-radius:2px;
+        padding:4px 9px;cursor:pointer}
+.toggle:hover{color:var(--ink);border-color:var(--ink-3)}
+
+.rail{display:none}
+@media (min-width:1000px){.rail{display:block;position:sticky;top:var(--s5);align-self:start;
+      max-height:calc(100vh - var(--s7));overflow-y:auto}}
+.rail-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+            color:var(--ink-3);padding-bottom:var(--s2);border-bottom:1px solid var(--rule);margin-bottom:var(--s3)}
+.rail ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+.rail a{display:grid;grid-template-columns:2.1em 1fr;gap:var(--s1);padding:3px 0;font-size:13px;
+        color:var(--ink-2);text-decoration:none;line-height:1.4}
+.rail a:hover{color:var(--accent)}
+.rail a span:first-child{font-family:var(--mono);font-size:11px;color:var(--ink-3);padding-top:1px}
+.rail .rail-gap{height:var(--s3)}
+
+.doc{min-width:0;display:flex;flex-direction:column;gap:var(--s7)}
+section{display:flex;flex-direction:column;gap:var(--s4);scroll-margin-top:var(--s4)}
+section>*{max-width:var(--measure)}
+section>.tablewrap,section>pre,section>.split,section>.findings,section>.callout{max-width:none}
+h2{margin:0;display:grid;grid-template-columns:2.4em 1fr;gap:var(--s2);align-items:baseline;
+   font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.01em;line-height:1.3;
+   padding-bottom:var(--s3);border-bottom:1px solid var(--rule-strong);max-width:none;text-wrap:balance}
+h2 .num{color:var(--accent);font-size:15px;font-weight:500}
+h3{margin:var(--s3) 0 0;font-family:var(--mono);font-size:14.5px;font-weight:600;color:var(--ink)}
+p{margin:0}
+ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:var(--s2)}
+li::marker{color:var(--ink-3)}
+.lede{font-size:16.5px;color:var(--ink-2)}
+p code,li code,td code,.lede code,dd code{font-size:.885em;background:var(--surface-2);
+   border:1px solid var(--rule);border-radius:2px;padding:.5px 4px;word-break:break-word}
+pre{margin:0;background:var(--surface);border:1px solid var(--rule);border-left:2px solid var(--rule-strong);
+    border-radius:2px;padding:var(--s3) var(--s4);overflow-x:auto;font-size:12.5px;line-height:1.62;tab-size:4}
+pre code{background:none;border:0;padding:0;font-size:inherit}
+.cmt{color:var(--ink-3)}
+.add{color:var(--ok)}
+.del{color:var(--warn)}
+.split{display:grid;gap:var(--s3);grid-template-columns:minmax(0,1fr)}
+@media (min-width:760px){.split{grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s4)}}
+.split>figure{margin:0;display:flex;flex-direction:column;gap:var(--s2);min-width:0}
+.split figcaption{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3)}
+.split figcaption b{color:var(--ink-2);font-weight:600}
+.tablewrap{overflow-x:auto;border:1px solid var(--rule);border-radius:2px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+caption{caption-side:top;text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;
+        text-transform:uppercase;color:var(--ink-3);padding-bottom:var(--s2)}
+th,td{text-align:left;padding:8px var(--s3);border-bottom:1px solid var(--rule);vertical-align:top}
+thead th{font-family:var(--mono);font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:600;
+         color:var(--ink-3);background:var(--surface-2);white-space:nowrap}
+tbody tr:last-child td{border-bottom:0}
+tbody tr{background:var(--surface)}
+td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+td.m,th.m{font-family:var(--mono);font-size:12.5px}
+.chip{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;font-weight:600;
+      padding:1.5px 6px;border-radius:2px;white-space:nowrap;border:1px solid transparent}
+.chip-ok{color:var(--ok);background:var(--ok-soft);border-color:var(--ok)}
+.chip-warn{color:var(--warn);background:var(--warn-soft);border-color:var(--warn)}
+.chip-note{color:var(--note);background:var(--note-soft);border-color:var(--note)}
+.callout{border:1px solid var(--rule);border-left:3px solid var(--rule-strong);border-radius:2px;
+         background:var(--surface);padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3)}
+.callout-warn{border-left-color:var(--warn)}
+.callout-note{border-left-color:var(--note)}
+.callout-ok{border-left-color:var(--ok)}
+.callout-head{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2)}
+.callout-head h3{margin:0}
+.src{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.02em}
+.callout blockquote{margin:0;padding-left:var(--s3);border-left:1px solid var(--rule-strong);
+                    color:var(--ink-2);font-size:14px}
+.findings{display:flex;flex-direction:column;gap:var(--s4)}
+.colophon{grid-column:1/-1;border-top:1px solid var(--rule);padding-top:var(--s4);
+          display:flex;flex-direction:column;gap:var(--s2);font-family:var(--mono);font-size:11.5px;
+          color:var(--ink-3);line-height:1.7}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="masthead">
+    <div class="masthead-top">
+      <div class="doc-id">Bao Hypervisor · RH850/U2A · 实机 bring-up</div>
+      <button class="toggle" id="themeToggle" type="button">切换主题</button>
+    </div>
+    <h1>用 CC-RH 编出能跑的双 VM 镜像</h1>
+    <p class="standfirst">
+      从零编译到板子上 CAN 与串口同时工作的完整记录：工具、烧录步骤，
+      以及为什么现成的配置文件都跑不出 CAN。
+    </p>
+    <dl class="meta">
+      <div><dt>目标板</dt><dd>RH850/U2A</dd></div>
+      <div><dt>编译器</dt><dd>CC-RH V2.08.00</dd></div>
+      <div><dt>烧录</dt><dd>rfp-cli + E2</dd></div>
+      <div><dt>配置</dt><dd>autosar-vm0+vm1</dd></div>
+      <div><dt>日期</dt><dd>2026-08-04</dd></div>
+    </dl>
+  </header>
+
+  <nav class="rail" aria-label="目录">
+    <div class="rail-label">目录</div>
+    <ol>
+      <li><a href="#result"><span>—</span><span>结果</span></a></li>
+      <li class="rail-gap"></li>
+      <li><a href="#tools"><span>1</span><span>工具清单</span></a></li>
+      <li><a href="#build"><span>2</span><span>编译</span></a></li>
+      <li><a href="#flash"><span>3</span><span>烧录</span></a></li>
+      <li><a href="#console"><span>4</span><span>串口</span></a></li>
+      <li class="rail-gap"></li>
+      <li><a href="#can"><span>5</span><span>CAN 排查</span></a></li>
+      <li><a href="#recover"><span>6</span><span>配置反解</span></a></li>
+      <li><a href="#lineage"><span>7</span><span>血脉地图</span></a></li>
+      <li class="rail-gap"></li>
+      <li><a href="#repro"><span>—</span><span>复现步骤</span></a></li>
+    </ol>
+  </nav>
+
+  <main class="doc">
+
+    <!-- ================= 结果 ================= -->
+    <section id="result">
+      <h2><span class="num">—</span><span>结果</span></h2>
+      <p class="lede">
+        CC-RH V2.08.00 编出的 Bao 在真板子上驱动两个 guest：一个持续输出串口数据流，
+        一个持续发 CAN 帧。与历史参考镜像同水平，且<strong>源码完全可复现</strong>。
+      </p>
+
+      <div class="tablewrap">
+        <table>
+          <caption>与历史参考镜像对比</caption>
+          <thead>
+            <tr><th></th><th>参考 bao_AutoSar_TwoVM.bin</th><th>本次构建</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>工具链</td><td>CC-RH（旧版）</td><td class="m">CC-RH V2.08.00</td></tr>
+            <tr><td>体积</td><td class="n">47 552 B</td><td class="n">45 900 B</td></tr>
+            <tr><td>串口吞吐</td><td class="n">386 B/s</td><td class="n">386 B/s</td></tr>
+            <tr><td>CAN</td><td><span class="chip chip-ok">正常</span></td><td><span class="chip chip-ok">正常</span></td></tr>
+            <tr><td>复位后稳定</td><td><span class="chip chip-ok">是</span></td><td><span class="chip chip-ok">是</span></td></tr>
+            <tr><td><code>BAO ERROR</code></td><td>无</td><td>无</td></tr>
+            <tr>
+              <td>源码可复现</td>
+              <td><span class="chip chip-warn">否</span><br><span class="src">平台与配置均已失传</span></td>
+              <td><span class="chip chip-ok">是</span><br><span class="src">见复现步骤</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= 工具 ================= -->
+    <section id="tools">
+      <h2><span class="num">01</span><span>工具清单</span></h2>
+      <p>
+        下面这些体积都在几十 MB 到 GB 级，<strong>不进 git</strong>，只记录用了什么、装在哪。
+        仓库里只保留脚本和 guest 镜像。
+      </p>
+
+      <div class="tablewrap">
+        <table>
+          <caption>外部工具（不纳入版本控制）</caption>
+          <thead>
+            <tr><th>用途</th><th>软件</th><th class="m">路径</th><th class="n">体积</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>编译 Bao</td>
+              <td><strong>Renesas CC-RH</strong> V2.08.00<br><span class="src">商业授权，编译器 + asrh + rlink</span></td>
+              <td class="m">/usr/local/Renesas/CC-RH/V2.08.00</td>
+              <td class="n">71 MB</td>
+            </tr>
+            <tr>
+              <td>烧录</td>
+              <td><strong>Renesas Flash Programmer CLI</strong> V1.16<br><span class="src">随 bao-benchmarks-portable 分发</span></td>
+              <td class="m">bao-benchmarks-portable/<br>Tools/linux-x64/rfp-cli</td>
+              <td class="n">97 MB</td>
+            </tr>
+            <tr>
+              <td>开源线备用</td>
+              <td><strong>v850-elf-gcc</strong> 14.2.0<br><span class="src">未来开源项目走这条线</span></td>
+              <td class="m">bao-benchmarks-portable/<br>Tools/gcc-v850-elf-master</td>
+              <td class="n">1.7 GB</td>
+            </tr>
+            <tr>
+              <td>编译 guest</td>
+              <td><strong>Green Hills MULTI</strong><br><span class="src">Windows 上编，产出 .hex 直接烧</span></td>
+              <td class="m">autoshow/ghs_u2a16_mcal</td>
+              <td class="n">—</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>硬件</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>设备</th><th class="m">识别</th><th>说明</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Renesas E2 emulator</td>
+              <td class="m">USB 045b:82a1<br>S/N 4KS026858D</td>
+              <td>烧录用。<strong>它自己不提供串口</strong></td>
+            </tr>
+            <tr>
+              <td>CH340 USB 串口</td>
+              <td class="m">USB 1a86:55d3<br>/dev/ttyACM0</td>
+              <td>接板子 RLIN35 引脚，console 走这里</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout-warn">
+        <div class="callout-head">
+          <span class="chip chip-warn">首次必做</span>
+          <h3>E2 的 udev 规则</h3>
+        </div>
+        <p>不装的话 rfp-cli 报 <code>E3000201: Cannot find the specified tool</code>——设备节点默认是 <code>root:root 0664</code>，普通用户只读。</p>
+<pre><code>cd &lt;bao-benchmarks-portable&gt; &amp;&amp; ./install-udev-rule.sh   <span class="cmt"># 需要 sudo</span>
+<span class="cmt"># 装完把 E2 拔插一次</span></code></pre>
+        <p>规则内容就一行：<code>SUBSYSTEM=="usb", ATTR{idVendor}=="045b", ATTR{idProduct}=="82a1", MODE="0666"</code></p>
+      </div>
+    </section>
+
+    <!-- ================= 编译 ================= -->
+    <section id="build">
+      <h2><span class="num">02</span><span>编译</span></h2>
+<pre><code>export PATH=/usr/local/Renesas/CC-RH/V2.08.00/bin:$PATH
+make PLATFORM=rh850-u2a-vm1+vm2 CONFIG=autosar-vm0+vm1</code></pre>
+      <p>产出 <code>bin/rh850-u2a-vm1+vm2/autosar-vm0+vm1/bao.bin</code>，约 45.9 KB。</p>
+      <p>
+        CC-RH V2.08.00 会拒绝几处 C99 写法（匿名 struct/union 上的 designated initializer，
+        错误码 <code>E0523134</code>），修复已在本分支提交，细节见
+        <a href="gcc-to-ccrh.html">GCC 到 CC-RH 的移植分析</a>。
+      </p>
+    </section>
+
+    <!-- ================= 烧录 ================= -->
+    <section id="flash">
+      <h2><span class="num">03</span><span>烧录</span></h2>
+
+      <div class="tablewrap">
+        <table>
+          <caption>Flash 布局</caption>
+          <thead><tr><th class="m">地址</th><th>内容</th><th class="m">文件</th><th class="n">大小</th></tr></thead>
+          <tbody>
+            <tr><td class="m">0x000000</td><td>Bao hypervisor</td><td class="m">bao.bin</td><td class="n">45 900 B</td></tr>
+            <tr><td class="m">0x010000</td><td>VM0 — AUTOSAR，驱动 CAN</td><td class="m">flash/guests/<br>vm0-autosar-0x10000.hex</td><td class="n">355 268 B</td></tr>
+            <tr><td class="m">0x7F0000</td><td>VM1 — MCAL，驱动串口</td><td class="m">flash/guests/<br>vm1-mcal-0x7F0000.hex</td><td class="n">565 764 B</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        guest 用 <code>VM_IMAGE_LOADED</code> 声明，<strong>不内嵌进 bao.bin</strong>，单独烧到各自地址。
+        这也顺带绕开了 CC-RH 不支持 <code>.incbin</code> 的问题。
+      </p>
+
+      <h3>脚本</h3>
+<pre><code>./flash/flash.sh            <span class="cmt"># guest + bao，最后释放复位</span>
+./flash/flash.sh bao        <span class="cmt"># 只烧 bao（guest 已在 flash 里）</span>
+./flash/flash.sh guests     <span class="cmt"># 只烧两个 guest</span>
+./flash/flash.sh reset      <span class="cmt"># 只释放复位</span></code></pre>
+
+      <p>脚本内部就是三条 rfp-cli，参数取自 <code>bao-benchmarks-portable</code> 里那份 <code>runme-rh850-u2a16.sh</code>：</p>
+<pre><code>echo ffff | rfp-cli -device "RH850/U2x" -tool e2 -osc 40.0 \
+    -program -file flash/guests/vm0-autosar-0x10000.hex
+echo ffff | rfp-cli -device "RH850/U2x" -tool e2 -osc 40.0 \
+    -program -file flash/guests/vm1-mcal-0x7F0000.hex
+echo ffff | rfp-cli -device "RH850/U2x" -tool e2 -osc 40.0 \
+    -program -bin 0x0 bin/&lt;platform&gt;/&lt;config&gt;/bao.bin -run</code></pre>
+
+      <ul>
+        <li><code>ffff</code> 是 ID code，从 stdin 喂给 rfp-cli</li>
+        <li><code>-osc 40.0</code> 主时钟 40 MHz</li>
+        <li>guest 是 <code>-program -file</code>（hex 自带地址），bao 是 <code>-program -bin 0x0</code></li>
+        <li><strong>不要用 <code>-erase-chip</code></strong>，逐块编程即可，否则会把已烧的 guest 抹掉</li>
+        <li><code>-run</code> 释放复位让板子跑起来</li>
+      </ul>
+
+      <p>
+        <code>RFP_DIR</code> 环境变量可覆盖 rfp-cli 位置，<code>PLATFORM</code> / <code>CONFIG</code>
+        可覆盖要烧哪个构建。
+      </p>
+    </section>
+
+    <!-- ================= 串口 ================= -->
+    <section id="console">
+      <h2><span class="num">04</span><span>串口</span></h2>
+
+      <div class="callout callout-warn">
+        <div class="callout-head">
+          <span class="chip chip-warn">两个坑</span>
+          <h3>波特率 500000，且不是 E2 的口</h3>
+        </div>
+        <p>
+          波特率写死在 <code>src/platform/drivers/renesas_rlin3/renesas_rlin3.c</code> 的
+          <code>uart_init()</code> 里（<code>LPRS_16 | NSPB_10</code>，假设 <code>CLK_RLIN = 80 MHz</code>），
+          注释标的就是 500000。按 115200 抓什么都收不到。
+        </p>
+        <p>
+          串口是独立的 CH340（<code>1a86:55d3</code>）接在 RLIN35 上，节点恰好也叫
+          <code>/dev/ttyACM0</code>，容易误以为是 E2 的虚拟口。
+        </p>
+      </div>
+
+<pre><code>picocom -b 500000 /dev/ttyACM0</code></pre>
+
+      <p>正常启动应该看到横幅，随后是持续的数据流，约 386 B/s：</p>
+<pre><code>Bao Hypervisor
+RH850/U2Ax Demo Code
+RH850 shell commands:
+RH850 &gt;
+AA 55 | 06 00 00 01 2C | 2A FB E7 35 | 06 00 00 02 02 02 02
+AA 55 | 07 00 00 01 35 | 2A FB E7 35 | 06 00 00 02 02 02 02
+    <span class="cmt">帧头     计数/测量           固定字段</span></code></pre>
+      <p>
+        MCAL guest 带一个交互 shell，回车会回显提示符。若出现 <code>BAO ERROR:</code>
+        通常是配置声明的内存区超出平台描述符给的范围。
+      </p>
+    </section>
+
+    <!-- ================= CAN 排查 ================= -->
+    <section id="can">
+      <h2><span class="num">05</span><span>CAN 排查</span></h2>
+      <p class="lede">
+        串口先跑通了，CAN 却一直没信号。手上三个现成配置全都不行——排查花的时间比编译本身长得多。
+      </p>
+
+      <div class="tablewrap">
+        <table>
+          <caption>对照实验（guest 全程相同）</caption>
+          <thead><tr><th>Bao</th><th>配置</th><th>串口</th><th>CAN</th></tr></thead>
+          <tbody>
+            <tr><td>本次构建</td><td class="m">vm1+vm2.c</td><td>只有横幅，命令表空</td><td><span class="chip chip-warn">无</span></td></tr>
+            <tr><td>本次构建</td><td class="m">twovm.c</td><td>同上</td><td><span class="chip chip-warn">无</span></td></tr>
+            <tr><td>参考镜像</td><td>失传</td><td>386 B/s</td><td><span class="chip chip-ok">有</span></td></tr>
+            <tr><td>本次构建</td><td class="m">autosar-vm0+vm1.c<br><span class="src">反解得到</span></td><td>386 B/s</td><td><span class="chip chip-ok">有</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        排查中还岔出过一条弯路：起初以为 guest 固件不配对。odyssey 仓库里那对 2025-04 的
+        guest 确实与参考镜像那对不是一代（<code>355 KB</code> vs <code>561 KB</code>），
+        换成 <code>autoshow/bins-to-flash</code> 那对后串口才正常。但 CAN 仍然没有——
+        说明还有第二个问题。
+      </p>
+
+      <div class="callout callout-warn">
+        <div class="callout-head">
+          <span class="chip chip-warn">根因</span>
+          <h3>CAN VM 没有映射 INTC1</h3>
+        </div>
+        <p>
+          CAN 控制器是 <code>RSCFD0 @ 0xFFF50000</code>，依赖 8 个中断
+          <code>{296, 297, 304, 305, 306, 319, 320, 321}</code> 经中断控制器路由到 VM。
+        </p>
+        <p>
+          <code>twovm.c</code> 和 <code>vm1+vm2.c</code> <strong>都没有给 VM0 映射 INTC1
+          （<code>0xFFFC0000</code>，16 KB）</strong>，而反解出来的参考配置有。
+          中断进不去，CAN 控制器就只能静默——而串口 VM 的中断走另一条路径，不受影响。
+          症状就成了「日志一切正常，唯独 CAN 没有」。
+        </p>
+      </div>
+    </section>
+
+    <!-- ================= 配置反解 ================= -->
+    <section id="recover">
+      <h2><span class="num">06</span><span>配置反解</span></h2>
+      <p>
+        参考镜像 <code>bao_AutoSar_TwoVM.elf</code> 带符号表，里面留着构建路径：
+      </p>
+<pre><code>/home/manuale97/Renesas_RH850/shangai-odyssey-auto-demo/bao-hypervisor/build/
+    rh850-u2a-autosar-vm0+vm1/autosar-vm0+vm1/arch/rh850/aborts.o</code></pre>
+      <p>
+        <code>PLATFORM=rh850-u2a-autosar-vm0+vm1</code>、<code>CONFIG=autosar-vm0+vm1</code>——
+        这两个在 odyssey 四个分支、archive 里的 tar 包、autoshow 三十多个分支里
+        <strong>一个都没有</strong>，只存在于原作者的机器上。
+      </p>
+      <p>
+        于是改从二进制里挖。ELF 有 <code>_platform</code>（<code>0xfe10041c</code>，380 字节）和
+        <code>_config</code>（<code>0xfe100840</code>）两个符号，
+        <code>.data.R</code> 的 ROM 原像在 <code>.data</code> 段里，按结构体布局逐字段解出来即可。
+        关键是先定出步长：<code>struct mem_region</code> 内嵌 <code>page_pool</code> 是 40 字节，
+        <code>vm_config</code> 76 字节，<code>vm_dev_region</code> 24 字节。
+      </p>
+
+      <h3>解出来的差异</h3>
+      <div class="tablewrap">
+        <table>
+          <caption>平台内存区</caption>
+          <thead><tr><th class="m">基址</th><th class="m">参考</th><th class="m">原 vm1+vm2 平台</th></tr></thead>
+          <tbody>
+            <tr><td class="m">0xFE100000</td><td class="m">0x80000</td><td class="m">0x80000</td></tr>
+            <tr><td class="m">0xFE000000</td><td class="m add">0x80000</td><td class="m del">0x1000</td></tr>
+            <tr><td class="m">0xFE820000</td><td class="m">0x20000</td><td class="m">0x20000</td></tr>
+            <tr><td class="m">0xFE800000</td><td class="m add">0x1000</td><td class="m del">0x20000</td></tr>
+            <tr><td class="m">0x0</td><td class="m">0x10000</td><td class="m">0x10000</td></tr>
+            <tr><td class="m">0x10000</td><td class="m add">0x30000</td><td class="m del">0x100000</td></tr>
+            <tr><td class="m">0x7F0000</td><td class="m">0x100000</td><td class="m">0x100000</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <caption>VM0（CAN）配置</caption>
+          <thead><tr><th></th><th>参考（可用）</th><th class="m">twovm.c</th></tr></thead>
+          <tbody>
+            <tr><td>代码窗口</td><td class="m">0x10000 + 0x30000</td><td class="m">+ 0x100000</td></tr>
+            <tr><td>VM RAM</td><td class="m">0xFE000000 + 0x80000</td><td class="m">0xfe800000 + 0x40000</td></tr>
+            <tr><td>共享内存</td><td class="m">0xFE800000 + 0x1000</td><td class="m">0xfe000000 + 0x10000</td></tr>
+            <tr>
+              <td>设备</td>
+              <td>6 个，<strong>含 INTC1</strong>，无 TAUJ1</td>
+              <td>5 个，有 TAUJ1，<strong>无 INTC1</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        RAM 与共享内存两块地址在两份配置里是<strong>对调</strong>的，说明 <code>twovm.c</code>
+        与这批 guest 本就不是一套。完整还原结果见
+        <code>configs/autosar-vm0+vm1.c</code>，文件头注释记录了来源。
+      </p>
+    </section>
+
+    <!-- ================= 血脉 ================= -->
+    <section id="lineage">
+      <h2><span class="num">07</span><span>血脉地图</span></h2>
+      <p>排查过程中理清了手上并存的四条 rh850 移植线，都从同一个 Bao 根提交 <code>d840da6</code> 长出来：</p>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>线</th><th class="m">分支</th><th>工具链</th><th>状态</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>odyssey CC-RH</td>
+              <td class="m">osyx/0r</td>
+              <td>CC-RH</td>
+              <td>CC-RH 移植的完整开发史，135 提交。<strong>CCRH 包的来源</strong></td>
+            </tr>
+            <tr>
+              <td>odyssey demo</td>
+              <td class="m">osyx/rh850-u2a</td>
+              <td>CC-RH</td>
+              <td>参考镜像所属的线，<strong>本次构建的基底</strong></td>
+            </tr>
+            <tr>
+              <td>autoshow</td>
+              <td class="m">—</td>
+              <td>GCC / clang</td>
+              <td>CC-RH → GCC 的转换尝试，<strong>未跑通</strong>（无 CAN、复位不起）</td>
+            </tr>
+            <tr>
+              <td>上游</td>
+              <td class="m">main</td>
+              <td>GCC</td>
+              <td>2025-09 已合入官方 rh850 支持，之后 7 个修复，持续维护中</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout callout-note">
+        <div class="callout-head">
+          <span class="chip chip-note">值得注意</span>
+          <h3>上游已有 rh850，且作者是同一批人</h3>
+        </div>
+        <p>
+          <code>5d4d72d feat(rh850): support for rh850 architecture</code>（2025-09-11，Manuel Rodríguez）——
+          与 odyssey 私有线的主要贡献者重合。也就是说这套移植 2025 年 9 月已被上游收编并持续维护，
+          手上的 CC-RH 快照是收编前 6 个月的状态。
+        </p>
+        <p>
+          后续若要长期维护，把 CC-RH 工具链适配重新打到上游的 rh850 之上，比继续在旧私有分支上打补丁更可持续。
+        </p>
+      </div>
+    </section>
+
+    <!-- ================= 复现 ================= -->
+    <section id="repro">
+      <h2><span class="num">—</span><span>复现步骤</span></h2>
+<pre><code><span class="cmt"># 0. 首次：装 E2 的 udev 规则，然后拔插 E2</span>
+cd &lt;bao-benchmarks-portable&gt; &amp;&amp; ./install-udev-rule.sh
+
+<span class="cmt"># 1. 编译</span>
+cd &lt;repo&gt;
+export PATH=/usr/local/Renesas/CC-RH/V2.08.00/bin:$PATH
+make PLATFORM=rh850-u2a-vm1+vm2 CONFIG=autosar-vm0+vm1
+
+<span class="cmt"># 2. 烧录（guest + bao + 释放复位）</span>
+./flash/flash.sh
+
+<span class="cmt"># 3. 看串口</span>
+picocom -b 500000 /dev/ttyACM0</code></pre>
+      <p>
+        之后只改 Bao 的话，<code>make</code> 完跑 <code>./flash/flash.sh bao</code> 即可，
+        guest 不用重烧。
+      </p>
+    </section>
+
+  </main>
+
+  <footer class="colophon">
+    <div>Bao hypervisor · RH850/U2A 实机 bring-up · 2026-08-04</div>
+    <div>
+      配套文档：<a href="gcc-to-ccrh.html">GCC 到 CC-RH 的移植分析</a>　·
+      工具链 <span class="m">CC-RH V2.08.00</span>　·
+      烧录 <span class="m">rfp-cli V1.16 + E2</span>　·
+      console <span class="m">500000 8N1</span>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  document.getElementById('themeToggle').addEventListener('click', function () {
+    var cur = root.getAttribute('data-theme');
+    if (!cur) cur = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    root.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1352 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bao / RH850 — GCC 到 CC-RH 移植分析</title>
+<style>
+/* ============================================================
+   tokens
+   ============================================================ */
+:root {
+  --ground:      #f5f7f7;
+  --surface:     #ffffff;
+  --surface-2:   #eef2f2;
+  --ink:         #101819;
+  --ink-2:       #47585c;
+  --ink-3:       #74868a;
+  --rule:        #dae1e2;
+  --rule-strong: #b9c5c6;
+
+  --accent:      #0d6470;
+  --accent-soft: #e2eff0;
+
+  --ok:          #2c6f52;
+  --ok-soft:     #e3efe8;
+  --warn:        #9c5a05;
+  --warn-soft:   #f6ecdc;
+  --note:        #4a4a95;
+  --note-soft:   #e8e8f4;
+
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", "DejaVu Sans Mono",
+          "Liberation Mono", Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto,
+          "Noto Sans CJK SC", "Source Han Sans SC", "PingFang SC",
+          "Microsoft YaHei", sans-serif;
+
+  --measure: 68ch;
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 32px; --s7: 48px; --s8: 72px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground:      #0c1213;
+    --surface:     #121a1c;
+    --surface-2:   #182225;
+    --ink:         #dde5e6;
+    --ink-2:       #9aabaf;
+    --ink-3:       #74878c;
+    --rule:        #223034;
+    --rule-strong: #33454a;
+
+    --accent:      #52c2cd;
+    --accent-soft: #14282c;
+
+    --ok:          #63bd92;
+    --ok-soft:     #14261e;
+    --warn:        #d99b3f;
+    --warn-soft:   #2a2013;
+    --note:        #9c9ce0;
+    --note-soft:   #1c1c2e;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #0c1213;
+  --surface:     #121a1c;
+  --surface-2:   #182225;
+  --ink:         #dde5e6;
+  --ink-2:       #9aabaf;
+  --ink-3:       #74878c;
+  --rule:        #223034;
+  --rule-strong: #33454a;
+  --accent:      #52c2cd;
+  --accent-soft: #14282c;
+  --ok:          #63bd92;
+  --ok-soft:     #14261e;
+  --warn:        #d99b3f;
+  --warn-soft:   #2a2013;
+  --note:        #9c9ce0;
+  --note-soft:   #1c1c2e;
+}
+
+:root[data-theme="light"] {
+  --ground:      #f5f7f7;
+  --surface:     #ffffff;
+  --surface-2:   #eef2f2;
+  --ink:         #101819;
+  --ink-2:       #47585c;
+  --ink-3:       #74868a;
+  --rule:        #dae1e2;
+  --rule-strong: #b9c5c6;
+  --accent:      #0d6470;
+  --accent-soft: #e2eff0;
+  --ok:          #2c6f52;
+  --ok-soft:     #e3efe8;
+  --warn:        #9c5a05;
+  --warn-soft:   #f6ecdc;
+  --note:        #4a4a95;
+  --note-soft:   #e8e8f4;
+}
+
+/* ============================================================
+   base
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15.5px;
+  line-height: 1.68;
+  font-feature-settings: "kern" 1;
+}
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+code, kbd, pre, .m { font-family: var(--mono); }
+
+/* ============================================================
+   shell
+   ============================================================ */
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s7);
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--s6) var(--s5) var(--s8);
+}
+@media (min-width: 1000px) {
+  .shell {
+    grid-template-columns: 216px minmax(0, 1fr);
+    gap: var(--s8);
+    padding-top: var(--s7);
+  }
+}
+
+/* ---- masthead ---- */
+.masthead {
+  grid-column: 1 / -1;
+  border-top: 2px solid var(--ink);
+  padding-top: var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+.masthead-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.doc-id {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.masthead h1 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: clamp(25px, 4.4vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.16;
+  text-wrap: balance;
+  max-width: 22ch;
+}
+.standfirst {
+  margin: 0;
+  max-width: var(--measure);
+  color: var(--ink-2);
+  font-size: 16px;
+}
+
+/* ---- metadata strip ---- */
+.meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--s1) var(--s5);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: var(--s3) 0;
+  margin-top: var(--s2);
+}
+.meta div { display: flex; flex-direction: column; gap: 1px; }
+.meta dt {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.meta dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- theme toggle ---- */
+.toggle {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: transparent;
+  color: var(--ink-3);
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+  padding: 4px 9px;
+  cursor: pointer;
+}
+.toggle:hover { color: var(--ink); border-color: var(--ink-3); }
+
+/* ---- rail ---- */
+.rail { display: none; }
+@media (min-width: 1000px) {
+  .rail {
+    display: block;
+    position: sticky;
+    top: var(--s5);
+    align-self: start;
+    max-height: calc(100vh - var(--s7));
+    overflow-y: auto;
+  }
+}
+.rail-label {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: var(--s3);
+}
+.rail ol { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 1px; }
+.rail a {
+  display: grid;
+  grid-template-columns: 2.1em 1fr;
+  gap: var(--s1);
+  padding: 3px 0;
+  font-size: 13px;
+  color: var(--ink-2);
+  text-decoration: none;
+  line-height: 1.4;
+}
+.rail a:hover { color: var(--accent); }
+.rail a span:first-child {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  padding-top: 1px;
+}
+.rail .rail-gap { height: var(--s3); }
+
+/* ============================================================
+   article
+   ============================================================ */
+.doc { min-width: 0; display: flex; flex-direction: column; gap: var(--s7); }
+section { display: flex; flex-direction: column; gap: var(--s4); scroll-margin-top: var(--s4); }
+section > * { max-width: var(--measure); }
+section > .wide, section > .tablewrap, section > pre, section > .split, section > .findings { max-width: none; }
+
+h2 {
+  margin: 0;
+  display: grid;
+  grid-template-columns: 2.4em 1fr;
+  gap: var(--s2);
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+  padding-bottom: var(--s3);
+  border-bottom: 1px solid var(--rule-strong);
+  max-width: none;
+  text-wrap: balance;
+}
+h2 .num { color: var(--accent); font-size: 15px; font-weight: 500; }
+
+h3 {
+  margin: var(--s3) 0 0;
+  font-family: var(--mono);
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+
+p { margin: 0; }
+ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: var(--s2); }
+li::marker { color: var(--ink-3); }
+
+.lede { font-size: 16.5px; color: var(--ink-2); }
+
+/* inline code */
+p code, li code, td code, .lede code, dd code {
+  font-size: 0.885em;
+  background: var(--surface-2);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 0.5px 4px;
+  word-break: break-word;
+}
+
+/* ---- code blocks ---- */
+pre {
+  margin: 0;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--rule-strong);
+  border-radius: 2px;
+  padding: var(--s3) var(--s4);
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.62;
+  tab-size: 4;
+}
+pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+.cap {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: -8px;
+}
+.cmt { color: var(--ink-3); }
+.add { color: var(--ok); }
+.del { color: var(--warn); }
+
+/* ---- side-by-side before/after ---- */
+.split { display: grid; gap: var(--s3); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 760px) { .split { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s4); } }
+.split > figure { margin: 0; display: flex; flex-direction: column; gap: var(--s2); min-width: 0; }
+.split figcaption {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.split figcaption b { color: var(--ink-2); font-weight: 600; }
+
+/* ---- tables ---- */
+.tablewrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 2px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+caption {
+  caption-side: top;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-bottom: var(--s2);
+}
+th, td {
+  text-align: left;
+  padding: 8px var(--s3);
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+thead th {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-3);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr { background: var(--surface); }
+td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+td.m, th.m { font-family: var(--mono); font-size: 12.5px; }
+
+/* ---- status chips ---- */
+.chip {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  padding: 1.5px 6px;
+  border-radius: 2px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.chip-ok   { color: var(--ok);   background: var(--ok-soft);   border-color: var(--ok); }
+.chip-warn { color: var(--warn); background: var(--warn-soft); border-color: var(--warn); }
+.chip-note { color: var(--note); background: var(--note-soft); border-color: var(--note); }
+
+/* ---- callouts ---- */
+.callout {
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  border-radius: 2px;
+  background: var(--surface);
+  padding: var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+}
+.callout-warn { border-left-color: var(--warn); }
+.callout-note { border-left-color: var(--note); }
+.callout-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+.callout-head h3 { margin: 0; }
+.src {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+}
+.callout blockquote {
+  margin: 0;
+  padding-left: var(--s3);
+  border-left: 1px solid var(--rule-strong);
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+/* ---- findings list ---- */
+.findings { display: flex; flex-direction: column; gap: var(--s4); }
+
+/* ---- footer ---- */
+.colophon {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--rule);
+  padding-top: var(--s4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  line-height: 1.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="masthead">
+    <div class="masthead-top">
+      <div class="doc-id">Bao Hypervisor · RH850/U2A · 移植分析</div>
+      <button class="toggle" id="themeToggle" type="button">切换主题</button>
+    </div>
+    <h1>从 GCC 到 CC-RH</h1>
+    <p class="standfirst">
+      Bao hypervisor 的 RH850 端口从 GNU 工具链迁移到 Renesas CC-RH 时，
+      具体改了什么、依据在哪一节手册、哪些地方没改对。
+    </p>
+    <dl class="meta">
+      <div><dt>对比基准</dt><dd>rh850-gcc @ a95edc0</dd></div>
+      <div><dt>目标</dt><dd>ccrh @ 766dc3c</dd></div>
+      <div><dt>依据</dt><dd>R20UT3516EJ0110</dd></div>
+      <div><dt>工具链</dt><dd>CC-RH V2.08.00</dd></div>
+      <div><dt>构建</dt><dd>两平台 exit 0</dd></div>
+      <div><dt>日期</dt><dd>2026-08-04</dd></div>
+    </dl>
+  </header>
+
+  <nav class="rail" aria-label="目录">
+    <div class="rail-label">目录</div>
+    <ol>
+      <li><a href="#summary"><span>—</span><span>摘要</span></a></li>
+      <li><a href="#build"><span>—</span><span>编译验证</span></a></li>
+      <li class="rail-gap"></li>
+      <li><a href="#s1"><span>1</span><span>工具链替换</span></a></li>
+      <li><a href="#s2"><span>2</span><span>链接方式</span></a></li>
+      <li><a href="#s3"><span>3</span><span>汇编文件</span></a></li>
+      <li><a href="#s4"><span>4</span><span>内联汇编</span></a></li>
+      <li><a href="#s5"><span>5</span><span>编译器扩展</span></a></li>
+      <li><a href="#s6"><span>6</span><span>段放置</span></a></li>
+      <li><a href="#s7"><span>7</span><span>asm_defs 生成</span></a></li>
+      <li class="rail-gap"></li>
+      <li><a href="#verify"><span>—</span><span>手册核对表</span></a></li>
+      <li><a href="#issues"><span>—</span><span>发现的问题</span></a></li>
+      <li><a href="#correction"><span>—</span><span>更正记录</span></a></li>
+      <li><a href="#refs"><span>—</span><span>参考手册</span></a></li>
+    </ol>
+  </nav>
+
+  <main class="doc">
+
+    <!-- ============ 摘要 ============ -->
+    <section id="summary">
+      <h2><span class="num">—</span><span>摘要</span></h2>
+      <p class="lede">
+        移植分六层：工具链、链接、汇编语法、内联汇编、编译器扩展、段放置。
+        除 <code>__align</code> 外，所有做法都能在 CC-RH User&rsquo;s Manual 里找到正式依据。
+        核对过程中确认了两个真实缺陷和一处此前的误判。
+      </p>
+
+      <div class="callout callout-note">
+        <div class="callout-head">
+          <span class="chip chip-note">配套</span>
+          <h3>实机 bring-up 另有文档</h3>
+        </div>
+        <p>
+          本文只讲源码层面的移植。工具清单、烧录步骤、串口参数，以及 CAN 不工作的排查
+          与配置反解过程，见 <a href="hardware-bringup.html">用 CC-RH 编出能跑的双 VM 镜像</a>。
+        </p>
+      </div>
+
+      <div class="tablewrap">
+        <table>
+          <caption>结论一览</caption>
+          <thead>
+            <tr><th>项</th><th>状态</th><th>说明</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="m">#pragma inline_asm</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td>§4.2.6.2 有完整定义；参数 r6&ndash;r9、返回 r10 与 §9.1.2 一致</td>
+            </tr>
+            <tr>
+              <td class="m">#pragma section</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td>§4.2.6.1；生成段名与 Makefile <code>-start=</code> 完全吻合</td>
+            </tr>
+            <tr>
+              <td class="m">rlink 选项</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td><code>-form</code> / <code>-start</code> / <code>-rom</code> / subcommand 均有手册示例</td>
+            </tr>
+            <tr>
+              <td class="m">__align(x)</td>
+              <td><span class="chip chip-warn">问题</span></td>
+              <td>手册 0 处提及，非 CC-RH 构造；目前无人使用，属埋雷</td>
+            </tr>
+            <tr>
+              <td class="m">spin_lock / spin_unlock</td>
+              <td><span class="chip chip-warn">问题</span></td>
+              <td>实际生效的是空实现；备用实现破坏 callee-save 寄存器</td>
+            </tr>
+            <tr>
+              <td class="m">段名 .ipi_cpumsg_handlers</td>
+              <td><span class="chip chip-note">更正</span></td>
+              <td>此前判断&ldquo;可能被静默忽略&rdquo;有误，已由 map 文件实证机制生效</td>
+            </tr>
+            <tr>
+              <td class="m">designated initializer</td>
+              <td><span class="chip chip-warn">已修复</span></td>
+              <td>唯一的编译阻塞项，18 处错误一个根因；修复后两个平台均可链接</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ 编译验证 ============ -->
+    <section id="build">
+      <h2><span class="num">—</span><span>编译验证</span></h2>
+      <p class="lede">
+        用本机的 <span class="m">CC-RH V2.08.00</span> 实际构建。初次编译失败，
+        <strong>18 个错误全部出自同一个根因</strong>；修复后两个平台都能干净链接。
+      </p>
+
+      <div class="callout callout-warn">
+        <div class="callout-head">
+          <span class="chip chip-warn">阻塞项</span>
+          <h3>匿名 union / struct 不能用 designated initializer</h3>
+          <span class="src">E0523134 · 6 个文件 18 处</span>
+        </div>
+<pre><code>src/core/mem.c(168):E0523134:Anonymous unions and structures
+                            cannot be initialized using designators</code></pre>
+        <p>
+          <code>mem_flags_t</code>（<code>arch/rh850/inc/arch/mem.h</code>）是含匿名 struct 的 union，
+          而六个 <code>PTE_*_FLAGS</code> 宏用 <code>.e</code> / <code>.sr</code> / <code>.rmpid0</code>
+          这些匿名成员做 designator。同样的模式还有 <code>core/ipc.c</code> 的
+          <code>union ipc_msg_data</code> 和 <code>core/remio.c</code> 的
+          <code>union remio_cpu_msg_data</code>。
+        </p>
+        <p>
+          注意<strong>成员访问是允许的</strong>——<code>ipc_data.shmem_id</code> 编译得过，
+          CC-RH 只拒绝 designated <em>初始化</em>。
+        </p>
+      </div>
+
+      <h3>修复取舍</h3>
+      <p>
+        位域成员在全树只出现在这六个宏里，没有任何其他访问点，所以有多种改法。
+        实测下来它们的代码体积差异很大：
+      </p>
+
+      <div class="tablewrap">
+        <table>
+          <caption>三种改法的 .text 体积（rh850-u2a-noguest）</caption>
+          <thead>
+            <tr><th>写法</th><th class="m">.text</th><th>可读性</th><th>结论</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="m">.b = { .e = 1, ... }<br><span class="src">给匿名 struct 命名</span></td>
+              <td class="m n">0x6ff4</td>
+              <td>最好</td>
+              <td>CC-RH 在<strong>每个使用点逐字段存储</strong>，不折叠成一个字，
+                  <span class="chip chip-warn">+2368 字节</span></td>
+            </tr>
+            <tr>
+              <td class="m">.raw = 0x010100B8<br><span class="src">十六进制魔数</span></td>
+              <td class="m n">0x66b4</td>
+              <td>最差</td>
+              <td>代码最优，但位含义完全丢失</td>
+            </tr>
+            <tr>
+              <td class="m">.raw = MPAT_E | MPAT_SR | ...<br><span class="src">具名位宏组合（采用）</span></td>
+              <td class="m n">0x66b4</td>
+              <td>好</td>
+              <td><span class="chip chip-ok">采用</span>
+                  与魔数版<strong>逐字节相同</strong>的二进制，且无魔数</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        位宏的数值经过两重验证：先用命名 struct 编译一份等价代码，读 ccrh 自己生成的常量
+        （<span class="m">A8 40 00 00</span> / <span class="m">B8 00 01 01</span> /
+        <span class="m">98 00 01 01</span> / <span class="m">BF 00 02 02</span> /
+        <span class="m">9B 00 02 02</span>）；再用 <code>cmp</code> 确认最终
+        <code>bao.bin</code> 与魔数版逐字节一致。
+      </p>
+
+      <h3>构建结果</h3>
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>平台</th><th class="m">bao.elf</th><th class="m">bao.bin</th><th>结果</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="m">rh850-u2a-noguest</td>
+              <td class="m n">68 512 B</td>
+              <td class="m n">41 396 B</td>
+              <td><span class="chip chip-ok">exit 0</span></td>
+            </tr>
+            <tr>
+              <td class="m">rh850-u2a</td>
+              <td class="m n">68 368 B</td>
+              <td class="m n">41 596 B</td>
+              <td><span class="chip chip-ok">exit 0</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <code>bao.elf</code> 是有效的
+        <span class="m">ELF 32-bit LSB executable, NEC V800</span>。
+        零错误，11 条警告全部是既有的（<code>mpu.c</code> 无符号数与 0 比较、
+        <code>vintc.c</code> 的 <code>#warning</code> TODO、若干未引用符号）。
+      </p>
+
+      <h3>链接产出的段布局</h3>
+<pre><code>SECTION                         START     END       SIZE
+VECTAB                          00000000  000001f7   1f8
+EINTTBL                         00000200  000021ff  2000
+.text                           00002200  000088b3  66b4
+.const                          000088b4  00009e89  15d6
+.data                           00009e8c  0000a19b   310
+.ipi_cpumsg_handlers_id.data    0000a19c  0000a1a7     c   <span class="add">← 3 个条目</span>
+.ipi_cpumsg_handlers.const      0000a1a8  0000a1b3     c   <span class="add">← 3 个条目</span>
+.bss                            0000a1b4  0000f82b  5678
+.data.R                         fe100000  fe10030f   310   <span class="cmt">ROM→RAM 副本</span>
+.ipi_cpumsg_handlers_id.data.R  fe100310  fe10031b     c
+.ipi_cpumsg_handlers.const.R    fe10031c  fe100327     c
+.bss.R                          fe100328  fe10599f  5678</code></pre>
+      <p>
+        两个 handler 段各 <span class="m">0xc</span> 字节 = 3 个条目，
+        正好对应 <code>ipc.c</code>、<code>remio.c</code>、<code>mpu/mem.c</code> 三处注册。
+        <strong>段非空</strong>，<code>0xfe100000</code> 的 ROM/RAM 分界也按预期落位。
+      </p>
+    </section>
+
+    <!-- ============ 1 ============ -->
+    <section id="s1">
+      <h2><span class="num">01</span><span>工具链替换</span></h2>
+      <p>
+        GCC 版原本按 <code>CROSS_COMPILE</code> 自动判别 gcc / clang 两套工具链。
+        CC-RH 版把整个分支逻辑删掉，写死为 Renesas 三件套。
+      </p>
+
+      <div class="split">
+        <figure>
+          <figcaption><b>GCC</b> — Makefile</figcaption>
+<pre><code>cc=       $(CROSS_COMPILE)gcc
+as=       $(CROSS_COMPILE)as
+ld=       $(CROSS_COMPILE)ld
+objcopy=  $(CROSS_COMPILE)objcopy
+objdump=  $(CROSS_COMPILE)objdump
+readelf=  $(CROSS_COMPILE)readelf
+size=     $(CROSS_COMPILE)size
+
+OPTIMIZATIONS:=2</code></pre>
+        </figure>
+        <figure>
+          <figcaption><b>CC-RH</b> — Makefile</figcaption>
+<pre><code>cc=       ccrh
+as=       asrh
+ld =      rlink
+objcopy=  <span class="cmt">（空）</span>
+objdump=  <span class="cmt">（空）</span>
+readelf=  <span class="cmt">（空）</span>
+size=     <span class="cmt">（空）</span>
+
+OPTIMIZATIONS:=default</code></pre>
+        </figure>
+      </div>
+
+      <p>编译命令同步换成 ccrh 语法，注意 <code>-o</code> 后不带空格：</p>
+<pre><code>$(cc) $(CFLAGS) -O$(OPTIMIZATIONS) -lang=c99 -c $&lt; -o$@
+      <span class="cmt">CFLAGS 里含 -Xcommon=rh850</span></code></pre>
+
+      <p>
+        代价：没有 <code>objdump</code> / <code>readelf</code> 就没有反汇编和 ELF 报告输出，
+        没有 <code>strip</code> 就不做裁剪。原来 GCC 版链接后会自动产出
+        <code>bao.asm</code> 和 <code>bao.elf.txt</code>，现在都没有了。
+      </p>
+    </section>
+
+    <!-- ============ 2 ============ -->
+    <section id="s2">
+      <h2><span class="num">02</span><span>链接方式：ld 脚本 → rlink subcommand</span></h2>
+      <p>这是改动最大的一处。rlink 不接受 GNU ld 脚本，改成生成一个 subcommand 文件传入。</p>
+
+      <div class="split">
+        <figure>
+          <figcaption><b>GCC</b> — 链接规则</figcaption>
+<pre><code>$(ld) $(LDFLAGS) -T$(ld_script_temp) \
+      $(objs-y) -o $@
+$(objdump) -S --wide $@ &gt; $(basename $@).asm
+$(readelf) -a --wide $@ &gt; $@.txt</code></pre>
+        </figure>
+        <figure>
+          <figcaption><b>CC-RH</b> — 链接规则</figcaption>
+<pre><code>$(ld) -subcommand="$(ld_script_temp)" \
+      -form=absolute -output="$@"
+
+<span class="cmt">.bin 用同一份 subcommand 再链一次：</span>
+$(ld) -subcommand="..." -form=binary</code></pre>
+        </figure>
+      </div>
+
+      <p>subcommand 文件里是 rlink 选项，段布局<strong>硬编码在 Makefile 中</strong>：</p>
+<pre><code>-input=<span class="cmt">&lt;每个 .o 一行&gt;</span>
+-library="&lt;ccrh 安装目录&gt;/lib/v850e3v5/rhs8n.lib"
+-start=VECTAB,EINTTBL,.text,.const,.data,
+       .ipi_cpumsg_handlers_id.data,.ipi_cpumsg_handlers.const,.bss/0,
+       .data.R,.ipi_cpumsg_handlers_id.data.R,
+       .ipi_cpumsg_handlers.const.R,.bss.R/fe100000
+-rom=.data*=.data.*R,.ipi_cpumsg_handlers*=.ipi_cpumsg_handlers*.R,.bss=.bss.R</code></pre>
+
+      <div class="callout callout-note">
+        <div class="callout-head">
+          <h3>src/linker.ld 已经废弃</h3>
+          <span class="src">Makefile 的 $(ld_script_temp) 规则</span>
+        </div>
+        <p>
+          Makefile 仍然会用 <code>gcc -E</code> 预处理 <code>src/linker.ld</code>，
+          输出到 <code>linker_temp.ld.tmp.ld</code>，但紧接着就用 rlink 选项列表
+          <strong>覆盖了 <code>$(ld_script_temp)</code> 本身</strong>。
+          那份预处理结果没有任何消费者，GNU ld 脚本不参与链接。
+          改段布局要改 Makefile，不是改 linker.ld。
+        </p>
+      </div>
+
+      <p class="src">
+        手册对照：<code>-form=absolute</code> / <code>-form=binary</code> §7；
+        <code>-rom=</code> 与 <code>-start=</code> 的组合用法在 §31 有示例
+        <code>rlink a.obj b.obj -rom=.data=.data.R -start=.data/100,.data.R/8000</code>，
+        与此处写法同构。
+      </p>
+    </section>
+
+    <!-- ============ 3 ============ -->
+    <section id="s3">
+      <h2><span class="num">03</span><span>汇编文件：GNU as → asrh</span></h2>
+      <p>
+        <code>boot.S</code> / <code>exceptions.S</code> 整体重写成
+        <code>boot.asm</code> / <code>exceptions.asm</code>，语法全变。
+      </p>
+
+      <div class="tablewrap">
+        <table>
+          <caption>汇编语法对照</caption>
+          <thead>
+            <tr><th>构造</th><th class="m">GNU as</th><th class="m">asrh</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>注释</td><td class="m">/* ... */</td><td class="m">;</td></tr>
+            <tr><td>段声明</td><td class="m">.section ".boot", "ax"</td><td class="m">.section ".text", text</td></tr>
+            <tr><td>导出符号</td><td class="m">.global _reset_handler</td><td class="m">.public __start</td></tr>
+            <tr><td>4 字节数据</td><td class="m">.word 0</td><td class="m">.db4 0x0</td></tr>
+            <tr><td>取符号地址</td><td class="m">movhi hi(sym) + movea lo(sym)</td><td class="m">mov #_sym, r2</td></tr>
+            <tr><td>宏</td><td class="m">.macro ... .endm</td><td>无，手工展开</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>
+        另一处影响更大：CC-RH 版<strong>不再预处理汇编</strong>。
+        <code>boot.asm</code> 开头的 <code>; TODO #include &lt;arch/bao.h&gt;</code>
+        那几行是注释掉的，<code>asm_defs.h</code> / <code>platform_defs.h</code>
+        的常量在汇编里用不了，于是地址被直接写死：
+      </p>
+<pre><code>.public __data_addr
+__data_addr:
+    .db4 0xfe100000     <span class="cmt">; 原本应来自 platform_defs.h</span></code></pre>
+    </section>
+
+    <!-- ============ 4 ============ -->
+    <section id="s4">
+      <h2><span class="num">04</span><span>内联汇编：__asm__ → #pragma inline_asm</span></h2>
+      <p>
+        CC-RH 不支持 GCC 的扩展内联汇编——没有 <code>"r"(x)</code> 约束，没有 clobber 列表。
+        改法是把每段汇编变成独立函数，函数体直接写指令，寄存器按 CC-RH ABI 手工对应。
+      </p>
+
+      <div class="split">
+        <figure>
+          <figcaption><b>GCC</b> — src/arch/rh850/inc/srs.h</figcaption>
+<pre><code>static inline unsigned long get_eipc(void)
+{
+    unsigned long v;
+    __asm__ volatile("stsr 0, %0" : "=r"(v));
+    return v;
+}</code></pre>
+        </figure>
+        <figure>
+          <figcaption><b>CC-RH</b> — inc/arch/srs.h</figcaption>
+<pre><code>#pragma inline_asm get_eipc
+static unsigned long get_eipc(void)
+{
+    stsr 0, r10, 0
+}   <span class="cmt">// 返回值必须自己放进 r10</span></code></pre>
+        </figure>
+      </div>
+
+      <div class="callout">
+        <div class="callout-head">
+          <h3>ABI 约定</h3>
+          <span class="src">User&rsquo;s Manual §9.1.1 / §9.1.2</span>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>角色</th><th class="m">寄存器</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td>参数</td><td class="m">r6 &ndash; r9</td><td>前 4 个字（16 字节）经寄存器传递，其余走栈</td></tr>
+              <tr><td>返回值</td><td class="m">r10</td><td>8 字节返回值用 r10 + r11（低 32 位在 r10）</td></tr>
+              <tr><td>Callee-save</td><td class="m">r20 &ndash; r31</td><td>被调用方必须保存并恢复</td></tr>
+              <tr><td>Caller-save</td><td class="m">其余</td><td>r1 由汇编器使用，r2 可能被 OS 保留，r3 是 SP</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          <code>srs.h</code> 里几十个系统寄存器访问器的
+          <code>stsr n, r10, s</code> / <code>ldsr r6, n, s</code> 写法与此完全一致。
+        </p>
+      </div>
+
+      <p>用同样手法改写的还有：</p>
+      <ul>
+        <li><code>inc/arch/fences.h</code> — <code>syncp</code> / <code>syncm</code> / <code>synci</code> / <code>synce</code></li>
+        <li><code>cache.c</code> — cache 指令（目前全部注释掉）</li>
+        <li><code>asm_defs.c</code> — 用 inline_asm 发射 <code>.equ</code></li>
+        <li><code>spinlock.c</code> — 见 <a href="#issues">发现的问题</a></li>
+      </ul>
+
+      <p>
+        代价：编译器看不见这些指令，不做寄存器分配、不做内联优化，也无法校验 clobber。
+        手册原文：<em>&ldquo;The compiler passes strings in #pragma inline_asm to the assembler as-is,
+        without checking or modifying them.&rdquo;</em>
+      </p>
+    </section>
+
+    <!-- ============ 5 ============ -->
+    <section id="s5">
+      <h2><span class="num">05</span><span>编译器扩展的 shim</span></h2>
+      <p>
+        <code>src/core/inc/bao.h</code> 用 <code>CC_IS_RHCC</code> 宏隔了一层，
+        这个宏由 Makefile 全局 <code>-DCC_IS_RHCC</code> 定义：
+      </p>
+<pre><code>#ifdef CC_IS_RHCC
+#define ATTRIBUTE_ALIGN(x) __align((x))     <span class="del">← 见问题清单</span>
+#define FALLTHROUGH        <span class="cmt">// 空</span>
+#else
+#define ATTRIBUTE_ALIGN(x) __attribute__((aligned((x))))
+#define FALLTHROUGH        __attribute__((fallthrough))
+#endif</code></pre>
+
+      <p>
+        <code>src/core/inc/cpu.h</code> 里也有一个 <code>#ifdef CC_IS_RHCC</code>，
+        但两个分支内容完全相同，是没写完的空壳。
+      </p>
+    </section>
+
+    <!-- ============ 6 ============ -->
+    <section id="s6">
+      <h2><span class="num">06</span><span>段放置：section 属性 → #pragma section</span></h2>
+      <p>
+        GCC 版用一个宏 <code>CPU_MSG_HANDLER(ipc_handler, IPC_CPUMSG_ID)</code> 就够了。
+        CC-RH 的 <code>#pragma section</code> 是<strong>作用于后续所有定义的区域开关</strong>，
+        不能包进宏里，所以宏被弃用，在每个调用点手工展开。
+      </p>
+
+      <div class="split">
+        <figure>
+          <figcaption><b>GCC</b> — src/core/ipc.c</figcaption>
+<pre><code>CPU_MSG_HANDLER(ipc_handler, IPC_CPUMSG_ID)
+
+<span class="cmt">// 宏内部用
+// __attribute__((section(...), used))</span></code></pre>
+        </figure>
+        <figure>
+          <figcaption><b>CC-RH</b> — src/core/ipc.c:55</figcaption>
+<pre><code>#pragma section.ipi_cpumsg_handlers
+cpu_msg_handler_t __cpumsg_handler_ipc_handler
+    = ipc_handler;
+#pragma section.ipi_cpumsg_handlers_id
+volatile size_t IPC_CPUMSG_ID = ~0x0;
+#pragma section default</code></pre>
+        </figure>
+      </div>
+
+      <p>三处这么改：<code>src/core/ipc.c:55</code>、<code>src/core/remio.c:135</code>、<code>src/core/mpu/mem.c:271</code>。</p>
+
+      <div class="callout callout-note">
+        <div class="callout-head">
+          <h3>段名是怎么算出来的</h3>
+          <span class="src">User&rsquo;s Manual §4.2.6.1 规则 2</span>
+        </div>
+        <blockquote>
+          A string representing the relocation attribute is linked after the &ldquo;user-defined name&rdquo;.
+        </blockquote>
+        <p>
+          预处理器把 <code>section.ipi_cpumsg_handlers</code> 切成
+          <code>section</code>、<code>.</code>、<code>ipi_cpumsg_handlers</code> 三个 token，
+          <code>.ipi_cpumsg_handlers</code> 作为 user-defined name，编译器再追加重定位属性：
+        </p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>变量</th><th>类型</th><th>属性</th><th class="m">最终段名</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="m">__cpumsg_handler_*</td>
+                <td class="m">void (*const)(...)</td>
+                <td>const</td>
+                <td class="m">.ipi_cpumsg_handlers.const</td>
+              </tr>
+              <tr>
+                <td class="m">IPC_CPUMSG_ID</td>
+                <td class="m">volatile size_t = ~0</td>
+                <td>data</td>
+                <td class="m">.ipi_cpumsg_handlers_id.data</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          这两个名字正是 Makefile <code>-start=</code> 里排布的段
+          （加上 <code>-rom=</code> 生成的 <code>.R</code> 副本共四个）。段机制是生效的。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 7 ============ -->
+    <section id="s7">
+      <h2><span class="num">07</span><span>asm_defs.h 的生成</span></h2>
+      <p>
+        这个头文件把 C 结构体的偏移和大小导出给汇编用。两套做法都是
+        &ldquo;编译成汇编再从文本里抠&rdquo;，但抠的东西不一样。
+      </p>
+
+      <div class="split">
+        <figure>
+          <figcaption><b>GCC</b> — 靠宏发射 ## 标记</figcaption>
+<pre><code><span class="cmt"># util.h 里 DEFINE_OFFSET / DEFINE_SIZE
+# 发射 "##  SYMBOL $imm"</span>
+$(cc) -S $(CFLAGS) -DGENERATING_DEFS $&lt; -o - \
+ | awk '($$1 == "##") {
+     gsub("#","",$$3);
+     print "#define " $$2 " " $$3 }'</code></pre>
+        </figure>
+        <figure>
+          <figcaption><b>CC-RH</b> — 靠 inline_asm 发射 .equ</figcaption>
+<pre><code><span class="cmt"># asm_defs.c 先定义 const size_t，
+# 再用 #pragma inline_asm 发射 .equ</span>
+$(cc) -S $(CFLAGS) -DGENERATING_DEFS $&lt; -otmp
+paste -d ' ' \
+  &lt;(grep -E '^_[^asm].*:' tmp | sed 's/:$$//') \
+  &lt;(grep '\.dw' tmp | awk '{print $$2}') \
+ | awk '{ printf "#define %-20s %s\n", $$1, $$2 }'</code></pre>
+        </figure>
+      </div>
+
+      <p>
+        CC-RH 那条依赖 <code>paste</code> 把两次 <code>grep</code> 的结果按行号对齐，
+        只要 ccrh 的汇编输出顺序或格式变一下就会静默错位。比原来脆弱得多。
+      </p>
+    </section>
+
+    <!-- ============ 核对表 ============ -->
+    <section id="verify">
+      <h2><span class="num">—</span><span>手册核对表</span></h2>
+      <p>
+        逐项在 <span class="m">R20UT3516EJ0110 Rev.1.10</span>（796 页）中检索的结果。
+      </p>
+
+      <div class="tablewrap">
+        <table>
+          <caption>移植做法 → 手册依据</caption>
+          <thead>
+            <tr><th>移植中用到的</th><th>状态</th><th>手册出处</th><th class="n">命中</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="m">#pragma inline_asm</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td>§4.2.6.2 Describing assembler instruction</td>
+              <td class="n">45</td>
+            </tr>
+            <tr>
+              <td class="m">参数 r6&ndash;r9 / 返回 r10</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td>§9.1.2 Setting and referencing arguments and return values</td>
+              <td class="n">—</td>
+            </tr>
+            <tr>
+              <td class="m">Callee-save r20&ndash;r31</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td>§9.1.1 General-purpose registers guaranteed before and after function calls</td>
+              <td class="n">—</td>
+            </tr>
+            <tr>
+              <td class="m">#pragma section</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td>§4.2.6.1 Allocation of function and data to section</td>
+              <td class="n">102</td>
+            </tr>
+            <tr>
+              <td class="m">-Xcommon=rh850</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td>§2 Command Reference</td>
+              <td class="n">91</td>
+            </tr>
+            <tr>
+              <td class="m">-lang=c99</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td>§2 Command Reference</td>
+              <td class="n">47</td>
+            </tr>
+            <tr>
+              <td class="m">rlink -form / -start / -rom</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td>§7、§31（含等价示例）</td>
+              <td class="n">110 / 23 / 5</td>
+            </tr>
+            <tr>
+              <td class="m">subcommand 文件</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td>§ 命令通用规则</td>
+              <td class="n">98</td>
+            </tr>
+            <tr>
+              <td class="m">asrh .db4 / .public</td>
+              <td><span class="chip chip-ok">已核实</span></td>
+              <td>汇编器章节</td>
+              <td class="n">19 / 48</td>
+            </tr>
+            <tr>
+              <td class="m">__align(x)</td>
+              <td><span class="chip chip-warn">无依据</span></td>
+              <td>全文 0 处；<code>#pragma align4</code> 只管分支目标地址（§4.2.6.11）</td>
+              <td class="n">0</td>
+            </tr>
+            <tr>
+              <td class="m">.incbin（VM_IMAGE）</td>
+              <td><span class="chip chip-warn">无依据</span></td>
+              <td>全文 0 处，CC-RH 不支持</td>
+              <td class="n">0</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="src">
+        另一份参考文件 <code>.claude/refer/cc-rh c compiler.pdf</code>
+        （R20UT3845EJ0100，37 页）是优化技巧应用指南，只在 §3.1 和 §4.3.4
+        提到 <code>#pragma section</code> 的<em>性能影响</em>，不含任何语法定义，
+        对本次核对几乎没有帮助。
+      </p>
+    </section>
+
+    <!-- ============ 问题 ============ -->
+    <section id="issues">
+      <h2><span class="num">—</span><span>发现的问题</span></h2>
+
+      <div class="findings">
+
+        <div class="callout callout-warn">
+          <div class="callout-head">
+            <span class="chip chip-warn">问题</span>
+            <h3>自旋锁实际是空实现</h3>
+            <span class="src">src/arch/rh850/inc/arch/spinlock.h · objects.mk</span>
+          </div>
+          <p>
+            <code>inc/arch/spinlock.h</code> 里的 <code>spin_lock</code> /
+            <code>spin_unlock</code> 是空函数体，里面还留着 RISC-V 的
+            <code>amoadd.w.aqrl</code> 注释：
+          </p>
+<pre><code>static inline void spin_lock(spinlock_t* lock)
+{
+    UNUSED_ARG(lock);
+    <span class="cmt">/* ...全是注释 */</span>
+}</code></pre>
+          <p>
+            真正的 <code>ldl.w</code> / <code>stc.w</code> 实现在
+            <code>spinlock.c</code>，但
+            <strong><code>objects.mk</code> 的 <code>cpu-objs-y</code> 里没有
+            <code>spinlock.o</code>，这个文件不参与编译</strong>。
+            头文件里的空实现赢了——ccrh 构建出来的锁是 no-op。多核上是实打实的 bug。
+          </p>
+        </div>
+
+        <div class="callout callout-warn">
+          <div class="callout-head">
+            <span class="chip chip-warn">问题</span>
+            <h3>备用锁实现破坏 callee-save 寄存器</h3>
+            <span class="src">src/arch/rh850/spinlock.c · Manual §9.1.1 / §4.2.6.2(2)</span>
+          </div>
+          <p>就算把 <code>spinlock.o</code> 加回编译，实现本身也有问题——它拿 <code>r21</code> 当临时寄存器：</p>
+<pre><code>#pragma inline_asm spin_lock
+void spin_lock(spinlock_t* lock)
+{
+Lock:
+    ldl.w [r6], <span class="del">r21</span>      <span class="cmt">; r21 是 callee-save，没有 save/restore</span>
+    cmp   r0, <span class="del">r21</span>
+    ...</code></pre>
+          <blockquote>
+            §9.1.1 — Callee-Save registers: <b class="m">r20, r21, &hellip; r31</b>。
+            这些寄存器必须由被调用方保存和恢复。
+          </blockquote>
+          <blockquote>
+            §4.2.6.2(2) — If you use a register to guarantee the entrance and exit of an inline
+            function with embedded assembly, you must save and restore this register at the
+            beginning and end of the function.
+          </blockquote>
+          <p>
+            <code>inline_asm</code> 是在<strong>调用点内联展开</strong>的，
+            调用方正在用的 <code>r21</code> 会被直接冲掉。
+            改用 <code>r10</code>&ndash;<code>r14</code>（22 和 32 两种
+            <code>-Xreg_mode</code> 下都是可自由使用的工作寄存器），
+            或者在函数首尾显式 push / pop <code>r21</code>。
+          </p>
+        </div>
+
+        <div class="callout callout-warn">
+          <div class="callout-head">
+            <span class="chip chip-warn">问题</span>
+            <h3>inline_asm 里的标签会重复定义</h3>
+            <span class="src">src/arch/rh850/spinlock.c · Manual §4.2.6.2(2)</span>
+          </div>
+          <blockquote>
+            When a label is written in an assembly-language function, labels having the same
+            name are generated for the number of times the function is expanded inline.
+          </blockquote>
+          <p>
+            <code>spinlock.c</code> 里的 <code>Lock:</code> / <code>Lock_wait:</code> /
+            <code>Lock_success:</code> 是普通标签，而 <code>spin_lock</code> 不是
+            <code>static</code>，多处调用就会重复定义。手册给的解法是用汇编的
+            <strong>local label</strong>，或者保证只在一处展开。
+          </p>
+        </div>
+
+        <div class="callout callout-warn">
+          <div class="callout-head">
+            <span class="chip chip-warn">问题</span>
+            <h3>__align 不是 CC-RH 构造</h3>
+            <span class="src">src/core/inc/bao.h:29</span>
+          </div>
+          <p>
+            手册全文 0 处提及 <code>__align</code>。CC-RH 的
+            <code>#pragma align4</code> 只管<strong>分支目标地址</strong>对齐（§4.2.6.11），
+            不是数据对齐。
+          </p>
+          <p>
+            影响目前为零——<code>ATTRIBUTE_ALIGN</code> 在整棵树里
+            <strong>只在 bao.h 定义过，没有任何地方使用</strong>。
+            属于埋着的雷，哪天有人用就炸。
+          </p>
+        </div>
+
+        <div class="callout callout-warn">
+          <div class="callout-head">
+            <span class="chip chip-warn">限制</span>
+            <h3>VM_IMAGE 无法使用</h3>
+            <span class="src">src/core/inc/config.h:21</span>
+          </div>
+          <p>
+            内嵌 guest 镜像的 <code>VM_IMAGE</code> 宏仍然是 GNU 内联汇编
+            <code>__asm__(".incbin ...")</code>，CC-RH 不认。
+            所以只能用 <code>configs/null</code> 这类空配置——
+            <code>rh850-u2a-noguest</code> 平台就是这么来的。
+          </p>
+        </div>
+
+        <div class="callout">
+          <div class="callout-head">
+            <span class="chip chip-note">状态</span>
+            <h3>非 CC-RH 特有的 WIP 项</h3>
+          </div>
+          <ul>
+            <li>真实的 <code>renesas_rlin3</code> UART 驱动被换成 <code>dummy_uart</code>，串口输出实际是空的</li>
+            <li><code>cache_flush_range</code> 等 cache 操作全是空函数（GCC 版也是）</li>
+            <li><code>src/core/inc/cpu.h</code> 的 <code>#ifdef CC_IS_RHCC</code> 两分支相同，空壳</li>
+            <li>armv8 / riscv 目标已无法从本分支构建，工具链写死为 CC-RH</li>
+          </ul>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ 更正 ============ -->
+    <section id="correction">
+      <h2><span class="num">—</span><span>更正记录</span></h2>
+
+      <div class="callout callout-note">
+        <div class="callout-head">
+          <span class="chip chip-note">更正</span>
+          <h3>#pragma section.xxx 的写法是对的</h3>
+        </div>
+        <p>
+          在拿到 User&rsquo;s Manual 之前，仅凭应用指南里
+          <code>#pragma section fw1</code>（带空格）的示例，
+          曾判断源码里 <code>#pragma section.ipi_cpumsg_handlers</code>
+          （带点、无空格）可能被当成未知 pragma 静默忽略，导致段为空。
+        </p>
+        <p>
+          <strong>这个判断是错的。</strong>§4.2.6.1 的
+          <code>#pragma section user-defined-name</code> 格式加上规则 2
+          的属性追加机制，正好解释了 Makefile <code>-start=</code> 里
+          <code>.ipi_cpumsg_handlers.const</code> 和
+          <code>.ipi_cpumsg_handlers_id.data</code> 这两个段名的由来。机制是生效的。
+        </p>
+        <p>
+          连带地，<code>boot.asm</code> 里手写
+          <code>_ipi_cpumsg_handlers</code> 等符号也不是&ldquo;段机制失效后的绕行方案&rdquo;，
+          而是 rlink 与 GNU ld 在提供段边界符号上的方式差异。
+        </p>
+        <p>
+          实际构建后的 <code>bao.map</code> 进一步证实了这一点：两个 handler 段各
+          <span class="m">0xc</span> 字节、非空，见<a href="#build">编译验证</a>。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 参考 ============ -->
+    <section id="refs">
+      <h2><span class="num">—</span><span>参考手册</span></h2>
+
+      <div class="tablewrap">
+        <table>
+          <thead>
+            <tr><th>文档</th><th class="m">编号</th><th>用途</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>CC-RH Compiler User&rsquo;s Manual<br><span class="src">.claude/refer/ccrh-user-manual.pdf</span></td>
+              <td class="m">R20UT3516EJ0110<br>Rev.1.10 · 796 p</td>
+              <td>本次核对的主要依据。<code>#pragma inline_asm</code>、<code>#pragma section</code>、
+                  函数调用接口、ccrh / asrh / rlink 全部选项</td>
+            </tr>
+            <tr>
+              <td>Application Guide: Programming Techniques<br><span class="src">.claude/refer/cc-rh c compiler.pdf</span></td>
+              <td class="m">R20UT3845EJ0100<br>Rev.1.00 · 37 p</td>
+              <td>优化技巧指南，只讲各选项与 pragma 对代码体积和速度的影响，不含语法定义</td>
+            </tr>
+            <tr>
+              <td>RH850 Software User&rsquo;s Manual<br><span class="src">未收录</span></td>
+              <td class="m">—</td>
+              <td><code>ldsr</code> / <code>stsr</code> 的 regID 与 selID 编号，
+                  <code>srs.h</code> 里那几百个访问器照此表编写</td>
+            </tr>
+            <tr>
+              <td>RH850/U2A User&rsquo;s Manual: Hardware<br><span class="src">未收录</span></td>
+              <td class="m">—</td>
+              <td>MPU、INTC、PEID 的寄存器定义</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="colophon">
+    <div>
+      Bao hypervisor · RH850/U2A CC-RH 移植分析 · 生成于 2026-08-04
+    </div>
+    <div>
+      对比范围 <span class="m">rh850-gcc @ a95edc0</span> →
+      <span class="m">ccrh @ 766dc3c</span>　·
+      分支拆分为 4 个提交：<span class="m">45efdc3</span> 删除无关 arch/platform、
+      <span class="m">ddf8953</span> 回退共享代码基线、
+      <span class="m">5331152</span> rh850 移植、
+      <span class="m">766dc3c</span> 工具链切换
+    </div>
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var btn = document.getElementById('themeToggle');
+  btn.addEventListener('click', function () {
+    var current = root.getAttribute('data-theme');
+    if (!current) {
+      current = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    root.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  });
+})();
+</script>
+</body>
+</html>
