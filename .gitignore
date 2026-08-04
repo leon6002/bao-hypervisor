@@ -11,3 +11,11 @@ configs/*
 !configs/example/
 !configs/null/
 !configs/autosar-vm0+vm1/
+
+# Local working directories, none of which belong in the repository:
+#   flash/    the flashing bundle -- rfp-cli, the CC-RH installers, guest images (~166 MB)
+#   dist/     release tarballs, built on demand (~121 MB)
+#   .claude/  working notes and vendor manuals (~5 MB)
+flash/
+dist/
+.claude/
