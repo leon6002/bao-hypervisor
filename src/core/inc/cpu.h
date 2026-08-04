@@ -61,10 +61,29 @@ void cpu_send_msg(cpuid_t cpu, struct cpu_msg* msg);
 
 typedef void (*cpu_msg_handler_t)(uint32_t event, uint64_t data);
 
+#ifdef CC_IS_RHCC
+
+/*
+ * CC-RH places objects with #pragma section, which is a region switch rather than an attribute
+ * on one declaration, so the region has to be closed again afterwards. _Pragma lets all of that
+ * come out of the macro. The section names pick up a relocation-attribute suffix -- .const for
+ * the handler, .data for the id -- which is what the linker script has to place.
+ */
+#define CPU_MSG_HANDLER(handler, handler_id)                           \
+    _Pragma("section .ipi_cpumsg_handlers")                            \
+    cpu_msg_handler_t __cpumsg_handler_##handler = handler;            \
+    _Pragma("section .ipi_cpumsg_handlers_id")                         \
+    volatile const size_t handler_id;                                  \
+    _Pragma("section default")
+
+#else
+
 #define CPU_MSG_HANDLER(handler, handler_id)                           \
     __attribute__((section(".ipi_cpumsg_handlers"),                    \
         used)) cpu_msg_handler_t __cpumsg_handler_##handler = handler; \
     __attribute__((section(".ipi_cpumsg_handlers_id"), used)) volatile const size_t handler_id;
+
+#endif
 
 struct cpu_synctoken {
     spinlock_t lock;

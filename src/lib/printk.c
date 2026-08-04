@@ -123,10 +123,10 @@ size_t vsnprintk(char* buf, size_t buf_size, const char** fmt, va_list* args)
                     case 'x':
                     case 'X':
                         flags = flags | F_BASE16;
-                        __attribute__((fallthrough));
+                        FALLTHROUGH;
                     case 'u':
                         flags = flags | F_UNSIGNED;
-                        __attribute__((fallthrough));
+                        FALLTHROUGH;
                     case 'd':
                     case 'i':
                         va_copy(args_tmp, *args);

@@ -215,10 +215,9 @@ objs-y+=$(addprefix $(platform_dir)/, $(boards-objs-y))
 objs-y+=$(addprefix $(drivers_dir)/, $(drivers-objs-y))
 
 c_src_files:=$(wildcard $(patsubst %.o,%.c, $(objs-y)))
-ifdef CC_IS_RHCC
-asm_src_files:=$(wildcard $(patsubst %.o,%.asm, $(objs-y)))
-else
 asm_src_files:=$(wildcard $(patsubst %.o,%.S, $(objs-y)))
+ifdef CC_IS_RHCC
+asm_src_files+=$(wildcard $(patsubst %.o,%.asm, $(objs-y)))
 endif
 c_hdr_files=$(shell cat $(deps) | grep -o "$(src_dir)/\S*\.h" | sort | uniq)
 
@@ -429,7 +428,19 @@ $(build_dir)%.d : %.[c,S]
 $(objs-y):
 	@echo "Compiling source	$(patsubst $(cur_dir)/%,%, $<)"
 ifdef CC_IS_RHCC
-	@$(cc) $(CFLAGS) -c $< -o$@
+# Assembly exists twice: a .S for the GNU assemblers and a .asm in asrh syntax next to it.
+# Both map to the same object, and make's pattern search finds the .S first, so prefer the
+# .asm here when one exists. asrh does not run the preprocessor either, so the .asm is
+# expanded with the host cpp first; that keeps asm_defs.h and platform_defs.h usable from
+# assembly rather than having their values copied into it by hand.
+	@src="$<"; \
+	if [ -z "$$src" ]; then src="$(patsubst $(build_dir)/%,$(cur_dir)/%,$(@:.o=.asm))"; fi; \
+	case "$$src" in *.S) [ -f "$${src%.S}.asm" ] && src="$${src%.S}.asm";; esac; \
+	case "$$src" in \
+	*.asm) $(HOST_CC) -E -x assembler-with-cpp $(CPPFLAGS) "$$src" | grep -v '^\#' > $@.pp.asm && \
+	       $(cc) $(CFLAGS) -c $@.pp.asm -o$@;; \
+	*)     $(cc) $(CFLAGS) -c "$$src" -o$@;; \
+	esac
 else
 	@$(cc) $(CFLAGS) -c $< -o $@
 endif
@@ -450,9 +461,21 @@ $(deps): | $(gens)
 ifneq ($(wildcard $(asm_defs_src)),)
 $(asm_defs_hdr): $(asm_defs_src)
 	@echo "Generating header	$(patsubst $(cur_dir)/%,%, $@)"
+ifdef CC_IS_RHCC
+# CC-RH emits the definitions as ordinary constants named ASMDEF_*, so they are read back out
+# of the generated assembly: a .public line names each one, and the .dw that follows its label
+# carries the value.
+	@$(cc) -S $(CFLAGS) -DGENERATING_DEFS $< -o$@.tmp.asm
+	@awk '/^_ASMDEF_[A-Z_0-9]*:/ { name = substr($$1, 9, length($$1) - 9); next } \
+	      name && /\.dw/  { print "#define " name " " $$2; name = ""; next } \
+	      name && /\.ds/  { print "#define " name " 0";    name = ""; next } \
+	      name && /^_/     { print "#define " name " 0";    name = "" }' $@.tmp.asm > $@
+	@rm -f $@.tmp.asm
+else
 	@$(cc) -S $(CFLAGS) -DGENERATING_DEFS $< -o - \
 		| awk '($$1 == "//#" || $$1 == "##" || $$1 == "@#")   \
 			{ gsub("#", "", $$3); print "#define " $$2 " " $$3 }' > $@
+endif
 
 $(asm_defs_hdr).d: $(asm_defs_src)
 	@echo "Creating dependency	$(patsubst $(cur_dir)/%,%,\

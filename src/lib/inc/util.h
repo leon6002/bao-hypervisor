@@ -33,11 +33,27 @@
 
 #ifndef __ASSEMBLER__
 
+#ifdef CC_IS_RHCC
+
+/*
+ * CC-RH has no GNU extended asm, so the values cannot be smuggled out through an asm comment
+ * as they are below. They are emitted as ordinary constants instead and the build reads them
+ * back out of the generated assembly. ASMDEF_ marks the ones to pick up.
+ */
+#define DEFINE_OFFSET(SYMBOL, STRUCT, FIELD) \
+    const unsigned long ASMDEF_##SYMBOL = (unsigned long)offsetof(STRUCT, FIELD)
+
+#define DEFINE_SIZE(SYMBOL, TYPE) const unsigned long ASMDEF_##SYMBOL = (unsigned long)sizeof(TYPE)
+
+#else
+
 #define DEFINE_OFFSET(SYMBOL, STRUCT, FIELD) \
     __asm__ volatile("\n##  " XSTR(SYMBOL) " %0 \n" : : "i"(offsetof(STRUCT, FIELD)))
 
 #define DEFINE_SIZE(SYMBOL, TYPE) \
     __asm__ volatile("\n##  " XSTR(SYMBOL) " %0 \n" : : "i"(sizeof(TYPE)))
+
+#endif
 
 #define max(n1, n2) (((n1) > (n2)) ? (n1) : (n2))
 #define min(n1, n2) (((n1) < (n2)) ? (n1) : (n2))

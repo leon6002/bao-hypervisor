@@ -295,11 +295,13 @@ static struct remio_device* remio_find_vm_dev_by_addr(struct vm* vm, unsigned lo
 static void remio_cpu_send_msg(enum REMIO_CPU_MSG_EVENT event, unsigned long target_cpu,
     unsigned long remio_bind_key, unsigned long request_id, unsigned long interrupt)
 {
-    union remio_cpu_msg_data data = {
-        .remio_bind_key = (uint8_t)remio_bind_key,
-        .request_id = (uint8_t)request_id,
-        .interrupt = (uint8_t)interrupt,
-    };
+    /* Assigned field by field: CC-RH rejects designated initializers for anonymous
+     * members. Member access itself is fine. */
+    union remio_cpu_msg_data data;
+    data.raw = 0;
+    data.remio_bind_key = (uint8_t)remio_bind_key;
+    data.request_id = (uint8_t)request_id;
+    data.interrupt = (uint8_t)interrupt;
     struct cpu_msg msg = { (uint32_t)REMIO_CPUMSG_ID, event, data.raw };
     cpu_send_msg(target_cpu, &msg);
 }

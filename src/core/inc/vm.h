@@ -23,11 +23,14 @@ struct vm_mem_region {
     paddr_t base;
     size_t size;
     colormap_t colors;
-    struct {
-        bool place_phys;
-        paddr_t phys;
-        bool reserved;
-    };
+    /*
+     * These three were wrapped in an anonymous struct purely as grouping. Flattened because
+     * CC-RH rejects designated initializers for members of an anonymous struct, and configs
+     * set .place_phys and .phys by name. The layout is unchanged.
+     */
+    bool place_phys;
+    paddr_t phys;
+    bool reserved;
 };
 
 struct vm_dev_region {

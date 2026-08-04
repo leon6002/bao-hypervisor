@@ -2,10 +2,8 @@
 ## Copyright (c) Bao Project and Contributors. All rights reserved.
 
 cpu-objs-y+=aborts.o
-cpu-objs-y+=boot.o
 cpu-objs-y+=cache.o
 cpu-objs-y+=cpu.o
-cpu-objs-y+=exceptions.o
 cpu-objs-y+=intc.o
 cpu-objs-y+=ipir.o
 cpu-objs-y+=interrupts.o
@@ -17,5 +15,13 @@ cpu-objs-y+=vbootctrl.o
 cpu-objs-y+=vm.o
 cpu-objs-y+=vmm.o
 
-# The GCC build keeps the spin lock inline in the header; CC-RH needs it out of line.
-cpu-objs-$(CC_IS_RHCC)+=spinlock.o
+# boot and exceptions exist twice: a .S for the GNU assemblers and a .asm for asrh. The build
+# picks by toolchain, and the spin lock is only out of line on CC-RH.
+ifdef CC_IS_RHCC
+cpu-objs-y+=boot.o
+cpu-objs-y+=exceptions.o
+cpu-objs-y+=spinlock.o
+else
+cpu-objs-y+=boot.o
+cpu-objs-y+=exceptions.o
+endif

@@ -35,6 +35,24 @@
 #define ATTRIB_ALIGN(n) __attribute__((aligned(n)))
 #endif
 
+#ifdef CC_IS_RHCC
+/* CC-RH has no fallthrough attribute; falling through is simply not diagnosed there. */
+#define FALLTHROUGH
+#else
+#define FALLTHROUGH __attribute__((fallthrough))
+#endif
+
+#ifdef CC_IS_RHCC
+/* CC-RH compiles as C99 and has no _Alignof. This is the usual C99 stand-in for it. */
+#include <stddef.h>
+#define _Alignof(type)                \
+    offsetof(struct {                 \
+        char _alignof_c;              \
+        type _alignof_m;              \
+    },                                \
+        _alignof_m)
+#endif
+
 #include <types.h>
 #include <console.h>
 #include <util.h>
