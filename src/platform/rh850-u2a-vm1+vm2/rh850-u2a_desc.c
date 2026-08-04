@@ -16,48 +16,15 @@ struct platform platform = {
     .region_num = 7,
     .regions =
         (struct mem_region[]){
-            // Bao Data
-            {
-                .base = 0xfe100000,
-                .size = 0x80000,
-                .perms = RWX,
-            },
-            // Guest1 retention RAM (Cluster3 RAM)
-            {
-                .base = 0xfe800000,
-                .size = 0x20000,
-                .perms = RWX,
-            },
-            // Guest retention RAM (Cluster3 RAM)
-            {
-                .base = 0xfe820000,
-                .size = 0x20000,
-                .perms = RWX,
-            },
-            // Shared memory
-            {
-                .base = 0xfe000000,
-                .size = 0x1000,
-                .perms = RWX,
-            },
-            // Bao code
-            {
-                .base = 0x0,
-                .size = 0x10000,
-                .perms = RX,
-            },
-            // Guest1 code
-            {
-                .base = 0x10000,
-                .size = 0x100000,
-                .perms = RX,
-            },
-            // Guest2 code
-            {
-                .base = 0x7F0000,
-                .size = 0x100000,
-                .perms = RX,
-            }
+            /* Region table recovered from the reference image bao_AutoSar_TwoVM.bin, which is
+             * the CC-RH build known to drive both the UART and the CAN guest on real hardware. */
+            { .base = 0xfe100000, .size = 0x80000,  .perms = RWX },
+            { .base = 0xfe000000, .size = 0x80000,  .perms = RWX },
+            { .base = 0xfe820000, .size = 0x20000,  .perms = RWX },
+            { .base = 0xfe800000, .size = 0x1000,   .perms = RWX },
+            { .base = 0x0,        .size = 0x10000,  .perms = RX  },
+            { .base = 0x10000,    .size = 0x30000,  .perms = RX  },
+            { .base = 0x7F0000,   .size = 0x100000, .perms = RX  }
         },
 
     .console = {
