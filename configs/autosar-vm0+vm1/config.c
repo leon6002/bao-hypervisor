@@ -79,7 +79,10 @@ struct config config = {
                         .interrupt_num = 0,
                         .interrupts = NULL,
                     },
-                    /* Standby Controller */
+                    /*
+                     * MSR_RSCFD -- the module standby register for the CAN block (PBG20).
+                     * RSCFD comes out of reset stopped; this is what lets the guest start it.
+                     */
                     {
                         .pa = 0xFF981000,
                         .va = 0xFF981000,
@@ -87,7 +90,7 @@ struct config config = {
                         .interrupt_num = 0,
                         .interrupts = NULL,
                     },
-                    /* OSTM1 */
+                    /* OSTM1, FFBF 0100H..FFBF 013FH. INTOSTM1TINT = 200. */
                     {
                         .pa = 0xFFBF0100,
                         .va = 0xFFBF0100,
@@ -95,7 +98,14 @@ struct config config = {
                         .interrupt_num = 1,
                         .interrupts = (irqid_t[]){ 200 },
                     },
-                    /* RSCFD0 -- the CAN controller */
+                    /*
+                     * RSCFD0, FFF5 0000H..FFF6 FFFFH. The eight interrupts are the two
+                     * global ones plus channels CAN2 and CAN7:
+                     *   296 INTRCANGERR0   global error
+                     *   297 INTRCANGRECC0  receive FIFO
+                     *   304/305/306        CAN2 error / receive / transmit
+                     *   319/320/321        CAN7 error / receive / transmit
+                     */
                     {
                         .pa = 0xFFF50000,
                         .va = 0xFFF50000,
@@ -103,7 +113,12 @@ struct config config = {
                         .interrupt_num = 8,
                         .interrupts = (irqid_t[]){ 296, 297, 304, 305, 306, 319, 320, 321 },
                     },
-                    /* INTC1 */
+                    /*
+                     * The core's own peripheral window, FFFC 0000H..FFFC 3FFFH, which the
+                     * manual calls "CPU peripheral (self)". INTC1 lives inside it. Without
+                     * this the CAN interrupts never reach the guest, while the console guest
+                     * -- whose interrupts take another path -- looks perfectly healthy.
+                     */
                     {
                         .pa = 0xFFFC0000,
                         .va = 0xFFFC0000,
@@ -111,6 +126,12 @@ struct config config = {
                         .interrupt_num = 0,
                         .interrupts = NULL,
                     },
+                    /*
+                     * FEINC_PE0. The manual gives this block FF9A 3B00H..FF9A 3B0FH -- 16
+                     * bytes, where this maps 256. The extra 240 bytes were carried over from
+                     * the image this configuration was recovered from and have not been
+                     * checked against what lies above the block; narrow it once that is known.
+                     */
                     {
                         .pa = 0xFF9A3B00,
                         .va = 0xFF9A3B00,
@@ -166,7 +187,7 @@ struct config config = {
                         .interrupt_num = 0,
                         .interrupts = NULL,
                     },
-                    /* OSTM0 */
+                    /* OSTM0, FFBF 0000H..FFBF 003FH. INTOSTM0TINT = 199. */
                     {
                         .pa = 0xFFBF0000,
                         .va = 0xFFBF0000,
@@ -174,6 +195,9 @@ struct config config = {
                         .interrupt_num = 1,
                         .interrupts = (irqid_t[]){ 199 },
                     },
+                    /*
+                     * TAUD1, FFBF 5000H..FFBF 53FFH. Channels 12..15 = 396..399.
+                     */
                     {
                         .pa = 0xFFBF5000,
                         .va = 0xFFBF5000,
@@ -181,6 +205,9 @@ struct config config = {
                         .interrupt_num = 4,
                         .interrupts = (irqid_t[]){ 396, 397, 398, 399 },
                     },
+                    /*
+                     * TAUJ3, FFE8 1000H..FFE8 10FFH. Channels 0..3 = 372..375.
+                     */
                     {
                         .pa = 0xFFE81000,
                         .va = 0xFFE81000,
@@ -188,7 +215,10 @@ struct config config = {
                         .interrupt_num = 4,
                         .interrupts = (irqid_t[]){ 372, 373, 374, 375 },
                     },
-                    /* RLIN35 -- the guest console */
+                    /*
+                     * RLIN35, FFC7 C100H..FFC7 C13FH -- the guest console.
+                     *   437 transmit   438 receive complete   439 status
+                     */
                     {
                         .pa = 0xFFC7C100,
                         .va = 0xFFC7C100,
@@ -196,6 +226,10 @@ struct config config = {
                         .interrupt_num = 3,
                         .interrupts = (irqid_t[]){ 437, 438, 439 },
                     },
+                    /*
+                     * RLIN34, FFD2 8400H..FFD2 843FH.
+                     *   433 transmit   434 receive complete   435 status
+                     */
                     {
                         .pa = 0xFFD28400,
                         .va = 0xFFD28400,
