@@ -19,3 +19,4 @@ configs/*
 flash/
 dist/
 .claude/
+!configs/baremetal-devcat/
