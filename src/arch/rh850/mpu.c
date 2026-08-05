@@ -19,7 +19,13 @@ static inline size_t mpu_num_entries(void)
     return num;
 }
 
-static void mpu_entry_set(mpid_t mpid, struct mp_region* mpr)
+/**
+ * Program one entry without synchronising.
+ *
+ * MPAT carries the enable bit and is written last, so the entry only goes live once its bounds
+ * are in place. The caller owes a synci() before the new protection is relied upon.
+ */
+static void mpu_entry_write(mpid_t mpid, struct mp_region* mpr)
 {
     unsigned long lim = mpr->base + mpr->size - 4;
 
@@ -27,7 +33,28 @@ static void mpu_entry_set(mpid_t mpid, struct mp_region* mpr)
     srs_mpla_write(mpr->base & MPLA_MASK);
     srs_mpua_write(lim & MPUA_MASK);
     srs_mpat_write(mpr->mem_flags.raw);
+}
 
+/**
+ * Program one entry and synchronise.
+ *
+ * Section 3.2.7.3(2) of the hardware manual asks for a SYNCI, EIRET or FERET only so that the
+ * updated protection is reflected in the fetch of subsequent instructions -- it is a per-batch
+ * requirement, not a per-entry one. Splitting the write from the sync lets a future bulk path
+ * (swapping the whole table on a vCPU switch) pay for one sync instead of thirty-two.
+ *
+ * Measured on RH850/U2A at 400 MHz, rewriting all 32 entries: 1037 cycles with a synci after
+ * every entry against 474 cycles with a single trailing synci. More than half the cost of a
+ * full-table swap is redundant synchronisation.
+ *
+ * G4MH additionally has STM.MP/LDM.MP, which move a whole bank in one instruction (48 and 73
+ * cycles measured). They are deliberately not used here: binutils does not encode them, and in
+ * a first experiment the entries above #27 were neither saved nor restored, so their exact
+ * semantics need the RH850 ISA manual before anything depends on them.
+ */
+static void mpu_entry_set(mpid_t mpid, struct mp_region* mpr)
+{
+    mpu_entry_write(mpid, mpr);
     synci();
 }
 
