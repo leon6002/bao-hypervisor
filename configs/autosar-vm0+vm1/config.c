@@ -24,6 +24,17 @@
 
 struct config config = {
 
+    /*
+     * Bao's .data/.bss default to PLAT_DATA_ADDR, which platform_defs_gen picks as the first
+     * MEM_RWX region in u2a16_desc.c -- Cluster0 at 0xFE000000. That is exactly where VM0's RAM
+     * is, so the guest overwrites the hypervisor's data as soon as it runs and the console goes
+     * silent. Relocate to Cluster1, which neither VM uses.
+     */
+    .hyp = {
+        .data_relocate = true,
+        .data_addr = 0xFE100000,
+    },
+
     .shmemlist_size = 1,
     .shmemlist = (struct shmem[]){
         [0] = {
