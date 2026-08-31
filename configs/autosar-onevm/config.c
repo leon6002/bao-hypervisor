@@ -58,18 +58,22 @@ struct config config = {
                 },
 
                 /*
-                 * MPU budget: 4 regions + 24 devs = 28 of the 32 per-core
-                 * entries. If it ever gets tight, the four Port windows at
-                 * the end drop out when the guest's Port_Init is disabled.
+                 * MPU budget: the per-core MPU has 32 entries and Bao's own
+                 * mappings take roughly a quarter of them; mpu_add_region()
+                 * fails silently once the bitmap is full, and every dev past
+                 * the cutoff faults as "no emulation handler" even though it
+                 * is declared here. Adjacent pages are therefore merged into
+                 * wide windows: 4 regions + 16 devs = 20 guest entries.
+                 * Over-granting inside a window is harmless in a single-VM
+                 * setup -- the guest owns the whole chip anyway.
                  */
-                .dev_num = 24,
+                .dev_num = 16,
                 .devs = (struct vm_dev_region[]){
                     /* Local RAM, self view (each core sees its own) */
                     { .pa = 0xFDE00000, .va = 0xFDE00000, .size = 0x10000,
                       .interrupt_num = 0, .interrupts = NULL },
-                    /* Local RAM global views: per-core stacks of PE1..PE3
-                     * are linked at these addresses (PE0's global view is
-                     * used by the vendor scrub only, kept for symmetry) */
+                    /* Local RAM global views (per-core stacks of PE1..PE3
+                     * are linked at these addresses) */
                     { .pa = 0xFDC00000, .va = 0xFDC00000, .size = 0x10000,
                       .interrupt_num = 0, .interrupts = NULL },
                     { .pa = 0xFDA00000, .va = 0xFDA00000, .size = 0x10000,
@@ -78,71 +82,43 @@ struct config config = {
                       .interrupt_num = 0, .interrupts = NULL },
                     { .pa = 0xFD600000, .va = 0xFD600000, .size = 0x10000,
                       .interrupt_num = 0, .interrupts = NULL },
-                    /* SYSCTRL module-standby page: MSR_OSTM/MSR_RSCFD plus
-                     * MSRKCPROT at +0x710, all written via R_STBC_CfgMsr */
+                    /* SYSCTRL module-standby page (MSR_* + MSRKCPROT) */
                     { .pa = 0xFF981000, .va = 0xFF981000, .size = 0x1000,
                       .interrupt_num = 0, .interrupts = NULL },
-                    /* OSTM0..OSTM3, one OS tick per core */
-                    { .pa = 0xFFBF0000, .va = 0xFFBF0000, .size = 0x40,
-                      .interrupt_num = 1, .interrupts = (irqid_t[]){ 199 } },
-                    { .pa = 0xFFBF0100, .va = 0xFFBF0100, .size = 0x40,
-                      .interrupt_num = 1, .interrupts = (irqid_t[]){ 200 } },
-                    { .pa = 0xFFBF0200, .va = 0xFFBF0200, .size = 0x40,
-                      .interrupt_num = 1, .interrupts = (irqid_t[]){ 201 } },
-                    { .pa = 0xFFBF0300, .va = 0xFFBF0300, .size = 0x40,
-                      .interrupt_num = 1, .interrupts = (irqid_t[]){ 202 } },
-                    /* RSCFD0: guest drives channel 2 (comes out on the
-                     * board connector silk-screened CAN1). Interrupts:
-                     * 296/297 global error + global RX FIFO, 304/305/306
-                     * channel-2 error/receive/transmit. */
+                    /* Timer/watchdog block, one window: OSTM0..3 ticks
+                     * (+0x0000, IRQs 199..202), WDTB0..3 (+0x1000, INTC1
+                     * ch22 -- declaration still open), port noise filter
+                     * add-page (+0x6900), TAUJ0 1ms GPT (+0x7000, IRQ 360) */
+                    { .pa = 0xFFBF0000, .va = 0xFFBF0000, .size = 0x8000,
+                      .interrupt_num = 5,
+                      .interrupts = (irqid_t[]){ 199, 200, 201, 202, 360 } },
+                    /* RSCFD0: channel 2 (board connector CAN1) + globals */
                     { .pa = 0xFFF50000, .va = 0xFFF50000, .size = 0x20000,
                       .interrupt_num = 5,
                       .interrupts = (irqid_t[]){ 296, 297, 304, 305, 306 } },
-                    /* TAUJ0: 1 ms GPT channel 0, INTTAUJ0I0 = 360 */
-                    { .pa = 0xFFBF7000, .va = 0xFFBF7000, .size = 0x100,
-                      .interrupt_num = 1, .interrupts = (irqid_t[]){ 360 } },
-                    /* WDTB0 watchdog. Its trigger interrupt is INTC1
-                     * channel 22 (per-core); how INTC1-range channels are
-                     * declared here is still open with the Bao team, so it
-                     * is not listed yet. */
-                    { .pa = 0xFFBF1000, .va = 0xFFBF1000, .size = 0x20,
-                      .interrupt_num = 0, .interrupts = NULL },
-                    /* IPIR inter-processor interrupts (OS RemoteCall).
-                     * IPIR0 is INTC1 channel 0 on every core -- same open
-                     * question as WDTB0 above. */
+                    /* IPIR inter-processor interrupts (INTC1 ch0, open) */
                     { .pa = 0xFFFB9000, .va = 0xFFFB9000, .size = 0x1000,
                       .interrupt_num = 0, .interrupts = NULL },
-                    /* CPU peripheral self window: INTC1 EIC writes for
-                     * channels < 32 go here. Without it INTC2 interrupts
-                     * look healthy while INTC1 ones never fire. */
+                    /* CPU peripheral self window: INTC1 EIC writes, ch<32 */
                     { .pa = 0xFFFC0000, .va = 0xFFFC0000, .size = 0x4000,
                       .interrupt_num = 0, .interrupts = NULL },
                     /* FEINC_PE0..PE3: the OS masks FEINT at init */
                     { .pa = 0xFF9A3B00, .va = 0xFF9A3B00, .size = 0x400,
                       .interrupt_num = 0, .interrupts = NULL },
-                    /* Flash control registers (RFD, polled -- no IRQs) */
+                    /* Flash control registers (RFD, polled) */
                     { .pa = 0xFFA08000, .va = 0xFFA08000, .size = 0x1000,
                       .interrupt_num = 0, .interrupts = NULL },
-                    /* Data flash user areas DFDA0..2 (Fee/NvM) */
-                    { .pa = 0xFF200000, .va = 0xFF200000, .size = 0x50000,
+                    /* Data flash, one window: user areas DFDA0..2, the
+                     * property/config areas and the RFD extended area */
+                    { .pa = 0xFF200000, .va = 0xFF200000, .size = 0x180000,
                       .interrupt_num = 0, .interrupts = NULL },
-                    /* Data flash property/config areas read by RFD */
-                    { .pa = 0xFF320000, .va = 0xFF320000, .size = 0x21000,
-                      .interrupt_num = 0, .interrupts = NULL },
-                    /* Data flash extended area read by RFD */
-                    { .pa = 0xFF374000, .va = 0xFF374000, .size = 0x1000,
-                      .interrupt_num = 0, .interrupts = NULL },
-                    /* Port block, ECM page and noise filters: needed only
-                     * while the guest keeps its own Port_Init (Bao's
-                     * platform layer does not set up this guest's CAN pin
-                     * muxing, so it does for now). */
-                    { .pa = 0xFFD90000, .va = 0xFFD90000, .size = 0x7000,
-                      .interrupt_num = 0, .interrupts = NULL },
+                    /* Port block, ECM page, noise filters (kept while the
+                     * guest runs its own Port_Init) */
                     { .pa = 0xFFD38000, .va = 0xFFD38000, .size = 0x1000,
                       .interrupt_num = 0, .interrupts = NULL },
-                    { .pa = 0xFFED0000, .va = 0xFFED0000, .size = 0x8000,
+                    { .pa = 0xFFD90000, .va = 0xFFD90000, .size = 0x7000,
                       .interrupt_num = 0, .interrupts = NULL },
-                    { .pa = 0xFFBF6900, .va = 0xFFBF6900, .size = 0x100,
+                    { .pa = 0xFFED0000, .va = 0xFFED0000, .size = 0x8000,
                       .interrupt_num = 0, .interrupts = NULL },
                 },
             },
