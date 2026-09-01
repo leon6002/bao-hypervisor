@@ -83,6 +83,7 @@ void intc_set_trgt(irqid_t int_id, cpuid_t cpu_id);
 void intc_set_enable(irqid_t int_id, bool en);
 void intc_set_prio(irqid_t int_id, unsigned long prio);
 
+void eibd_write_verified(volatile uint32_t* reg, uint32_t val);
 void intc_vm_assign(struct vm* vm, irqid_t int_id);
 void intc_hyp_assign(irqid_t int_id);
 
