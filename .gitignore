@@ -20,3 +20,4 @@ flash/
 dist/
 .claude/
 !configs/baremetal-devcat/
+!configs/autosar-onevm/
