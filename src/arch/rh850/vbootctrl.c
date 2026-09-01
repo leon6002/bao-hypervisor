@@ -5,6 +5,8 @@
 
 #include <vbootctrl.h>
 #include <arch/emul.h>
+#include <bao.h>
+#include <srs.h>
 
 static bool vbootctrl_emul_handler(struct emul_access* acc)
 {
@@ -13,6 +15,11 @@ static bool vbootctrl_emul_handler(struct emul_access* acc)
     struct vcpu* waking_vcpu = NULL;
 
     if (acc->addr != platform.arch.bootctrl_addr && acc->width != 4) {
+        /* debug probe: guest trace markers (16-bit writes into the page) */
+        if (acc->write) {
+            INFO("guest-trace: 0x%lx cpu%d\n", vcpu_readreg(vcpu, acc->reg),
+                (int)cpu()->id);
+        }
         /* ignore access */
         if (!acc->write && !emul_arch_is_bwop(&acc->arch)) {
             vcpu_writereg(vcpu, acc->reg, 0);
@@ -46,6 +53,12 @@ static bool vbootctrl_emul_handler(struct emul_access* acc)
             }
         }
         vcpu_writereg(vcpu, acc->reg, val);
+    }
+
+    if (acc->write) {
+        INFO("vbootctrl: wr pc=0x%lx cpu%d notify=0x%lx eipswh=0x%lx gmpeid=%d\n",
+            vcpu_readpc(cpu()->vcpu), (int)cpu()->id, notify,
+            srs_eipswh_read(), (int)srs_gmpeid_read());
     }
 
     /* Notify physical CPUs, if any */

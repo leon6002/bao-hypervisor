@@ -3,6 +3,7 @@
  * Copyright (c) Bao Project and Contributors. All rights reserved.
  */
 
+#include <console.h>
 #include <interrupts.h>
 
 #include <cpu.h>
@@ -90,6 +91,14 @@ static inline bool interrupt_assigned(irqid_t int_id)
 
 enum irq_res interrupts_handle(irqid_t int_id)
 {
+    /* debug probe: first host-side interrupt arrivals per cpu */
+    {
+        static int iseq[8];
+        if (iseq[cpu()->id] < 24) {
+            iseq[cpu()->id]++;
+            console_printk("hirq %d c%d\n", (int)int_id, (int)cpu()->id);
+        }
+    }
     if (interrupts_arch_irq_is_forwardable(int_id) && vm_has_interrupt(cpu()->vcpu->vm, int_id)) {
         vcpu_inject_hw_irq(cpu()->vcpu, int_id);
 

@@ -67,7 +67,7 @@ struct config config = {
                  * Over-granting inside a window is harmless in a single-VM
                  * setup -- the guest owns the whole chip anyway.
                  */
-                .dev_num = 16,
+                .dev_num = 19,
                 .devs = (struct vm_dev_region[]){
                     /* Local RAM, self view (each core sees its own) */
                     { .pa = 0xFDE00000, .va = 0xFDE00000, .size = 0x10000,
@@ -82,8 +82,10 @@ struct config config = {
                       .interrupt_num = 0, .interrupts = NULL },
                     { .pa = 0xFD600000, .va = 0xFD600000, .size = 0x10000,
                       .interrupt_num = 0, .interrupts = NULL },
-                    /* SYSCTRL module-standby page (MSR_* + MSRKCPROT) */
-                    { .pa = 0xFF981000, .va = 0xFF981000, .size = 0x1000,
+                    /* SYSCTRL cluster, one window: module standby + key
+                     * protection (+0x1000), flash high-voltage enables FHVE
+                     * (+0x4800, written by RFD), AWO standby (+0x8E00) */
+                    { .pa = 0xFF980000, .va = 0xFF980000, .size = 0xF000,
                       .interrupt_num = 0, .interrupts = NULL },
                     /* Timer/watchdog block, one window: OSTM0..3 ticks
                      * (+0x0000, IRQs 199..202), WDTB0..3 (+0x1000, INTC1
@@ -96,26 +98,53 @@ struct config config = {
                     { .pa = 0xFFF50000, .va = 0xFFF50000, .size = 0x20000,
                       .interrupt_num = 5,
                       .interrupts = (irqid_t[]){ 296, 297, 304, 305, 306 } },
-                    /* IPIR inter-processor interrupts (INTC1 ch0, open) */
-                    { .pa = 0xFFFB9000, .va = 0xFFFB9000, .size = 0x1000,
-                      .interrupt_num = 0, .interrupts = NULL },
-                    /* CPU peripheral self window: INTC1 EIC writes, ch<32 */
-                    { .pa = 0xFFFC0000, .va = 0xFFFC0000, .size = 0x4000,
+                    /* IPIR is deliberately NOT mapped: Bao emulates the whole
+                     * page (vipir.c) -- it forwards channels 0..2, protects
+                     * its own channel 3 and assigns the channel interrupts to
+                     * the VM. A direct map would bypass all of that. */
+                    /* CPU peripheral windows: the self view at +0x0 plus
+                     * the four cross-PE views at 0xFFFC4000 + n*0x4000 (the
+                     * Wdg driver masks its INTC1 channel via IMR0 there) */
+                    { .pa = 0xFFFC0000, .va = 0xFFFC0000, .size = 0x14000,
                       .interrupt_num = 0, .interrupts = NULL },
                     /* FEINC_PE0..PE3: the OS masks FEINT at init */
                     { .pa = 0xFF9A3B00, .va = 0xFF9A3B00, .size = 0x400,
                       .interrupt_num = 0, .interrupts = NULL },
-                    /* Flash control registers (RFD, polled) */
-                    { .pa = 0xFFA08000, .va = 0xFFA08000, .size = 0x1000,
+                    /* Flash control window (RFD/FACI, polled): FACI0 regs
+                     * at +0x10000, SPID regs at +0x8000, aux at +0x40000 */
+                    { .pa = 0xFFA00000, .va = 0xFFA00000, .size = 0x50000,
+                      .interrupt_num = 0, .interrupts = NULL },
+                    /* Data flash ECC controller (ECCDF), probed by
+                     * Fls_PreFcuInitCheck during Fls_Init */
+                    { .pa = 0xFFC62C00, .va = 0xFFC62C00, .size = 0x100,
+                      .interrupt_num = 0, .interrupts = NULL },
+                    /* Data flash blank-check alias area: reads report
+                     * whether the corresponding DF word is blank, used by
+                     * Fls_PerformBlankCheckForReadOp on every NvM read */
+                    { .pa = 0xFF400000, .va = 0xFF400000, .size = 0x200000,
                       .interrupt_num = 0, .interrupts = NULL },
                     /* Data flash, one window: user areas DFDA0..2, the
                      * property/config areas and the RFD extended area */
                     { .pa = 0xFF200000, .va = 0xFF200000, .size = 0x180000,
                       .interrupt_num = 0, .interrupts = NULL },
+                    /* Reset/standby controller block around BOOTCTRL:
+                     * the MCU driver reads reset and standby status here.
+                     * BOOTCTRL itself (0xFFFB2000) stays emulated -- Bao
+                     * installs its handler over this mapping. */
+                    { .pa = 0xFFFB2800, .va = 0xFFFB2800, .size = 0x800,
+                      .interrupt_num = 0, .interrupts = NULL },
+                    /* RAM ECC capture block (MECCCAP_*): the guest's MCU
+                     * driver arms the local- and cluster-RAM ECC error
+                     * interrupts here as part of Mcu_Init */
+                    { .pa = 0xFFC50000, .va = 0xFFC50000, .size = 0x9000,
+                      .interrupt_num = 0, .interrupts = NULL },
+                    /* ECM and the diagnostic block around it, one window:
+                     * the error thresholds that go with the full-speed
+                     * clock live here (0xFFD38000 page included) */
+                    { .pa = 0xFFD30000, .va = 0xFFD30000, .size = 0xB000,
+                      .interrupt_num = 0, .interrupts = NULL },
                     /* Port block, ECM page, noise filters (kept while the
                      * guest runs its own Port_Init) */
-                    { .pa = 0xFFD38000, .va = 0xFFD38000, .size = 0x1000,
-                      .interrupt_num = 0, .interrupts = NULL },
                     { .pa = 0xFFD90000, .va = 0xFFD90000, .size = 0x7000,
                       .interrupt_num = 0, .interrupts = NULL },
                     { .pa = 0xFFED0000, .va = 0xFFED0000, .size = 0x8000,

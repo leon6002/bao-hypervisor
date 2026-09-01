@@ -42,7 +42,17 @@ void uart_enable(volatile struct renesas_rlin3* uart)
 
 void uart_putc(volatile struct renesas_rlin3* uart, int8_t c)
 {
-    while (uart->RLN3nLST & RLN3_LST_UTS_MSK)
-        ;
+    /* debug probe: the TX-busy poll is unbounded; if the guest disturbs
+     * the module this spins forever while holding the console lock and
+     * silently freezes every core. Bounded wait + self-heal + '#' marker. */
+    unsigned long n = 0;
+    while (uart->RLN3nLST & RLN3_LST_UTS_MSK) {
+        if (++n > 4000000UL) {
+            uart_init(uart);
+            uart_enable(uart);
+            uart->RLN3nLUTDR = (uint16_t)'#';
+            n = 0;
+        }
+    }
     uart->RLN3nLUTDR = (uint16_t)(c);
 }

@@ -127,6 +127,46 @@ static struct vm_allocation* vmm_alloc_install_vm(vmid_t vm_id, bool master)
 void vmm_init()
 {
     vmm_arch_init();
+
+    if (cpu_is_master()) {
+        extern uint32_t plat_resf_at_boot;
+        console_printk("RESF at boot = 0x%x\n", (unsigned)plat_resf_at_boot);
+    }
+
+    /* debug probe: walk the guest Port PIBC addresses from the hypervisor
+     * to find which access hangs the bus (round-10 guest death site) */
+    if (cpu_is_master()) {
+        vaddr_t pw = mem_alloc_map_dev(&cpu()->as, SEC_HYP_GLOBAL, INVALID_VA,
+            0xFFD90000, NUM_PAGES(0x7000));
+        if (pw != INVALID_VA) {
+            unsigned long grp[] = { 0, 1, 2, 3, 5, 6, 10, 17, 20, 21, 22, 24 };
+            for (size_t i = 0; i < sizeof(grp) / sizeof(grp[0]); i++) {
+                unsigned long off = 0x4000 + 0x40 * grp[i];
+                console_printk("probe PIBC g%d @0x%lx : ", (int)grp[i],
+                    0xFFD90000 + off);
+                unsigned short v = *(volatile unsigned short*)(pw + off);
+                console_printk("0x%x\n", (unsigned)v);
+            }
+            for (unsigned long g = 0; g <= 4; g++) {
+                unsigned long off = 0xC80 + 0x40 * g + 0x4000;
+                console_printk("probe APIBC%d @0x%lx : ", (int)g, 0xFFD90000 + off);
+                unsigned short v = *(volatile unsigned short*)(pw + off);
+                console_printk("rd=0x%x ", (unsigned)v);
+                *(volatile unsigned short*)(pw + off) = v;
+                console_printk("wr ok\n");
+            }
+            {
+                volatile unsigned short* r =
+                    (volatile unsigned short*)(pw + 0xC80 + 0x40 * 4 + 0x4000);
+                console_printk("probe APIBC4 value-write 0x5 : ");
+                *r = 0x0005;
+                console_printk("ok rb=0x%x, restoring : ", (unsigned)*r);
+                *r = 0x0000;
+                console_printk("ok\n");
+            }
+            console_printk("probe done\n");
+        }
+    }
     vmm_io_init();
     shmem_init();
     remio_init();

@@ -117,7 +117,9 @@ static void decode_access(struct emul_access* acc, unsigned long addr)
     unsigned int rw = MEI_GET_RW(mei);
 
     /* Decode possible bitwise instruction */
+    console_printk("df\n");
     unsigned long inst = read_instruction(vcpu_readpc(cpu()->vcpu));
+    console_printk("di=0x%lx\n", inst);
     unsigned long opcode = ((inst & OPCODE_MASK) >> OPCODE_SHIFT);
     unsigned long subopcode = ((inst & SUBOPCODE_MASK) >> SUBOPCODE_SHIFT);
     unsigned long bwop = EMUL_ARCH_BWOP_NO;
@@ -147,6 +149,16 @@ static void data_abort(void)
     unsigned long mea = srs_mea_read();
     unsigned long mei = srs_mei_read();
     vaddr_t addr = mea;
+
+    /* debug probe: sequence + host stack pointer on every emulation trap,
+     * hunting a per-trap stack leak (deaths track trap count, not code) */
+    {
+        static int tseq[8];
+        unsigned long hsp;
+        __asm__ volatile("mov sp, %0" : "=r"(hsp));
+        console_printk("t%d c%d sp=0x%lx a=0x%lx pc=0x%lx\n", tseq[cpu()->id]++,
+            (int)cpu()->id, hsp, addr, vcpu_readpc(cpu()->vcpu));
+    }
 
     emul_handler_t handler = vm_emul_get_mem(cpu()->vcpu->vm, addr);
     if (handler != NULL) {
