@@ -42,7 +42,19 @@ void uart_enable(volatile struct renesas_rlin3* uart)
 
 void uart_putc(volatile struct renesas_rlin3* uart, int8_t c)
 {
-    while (uart->RLN3nLST & RLN3_LST_UTS_MSK)
-        ;
+    /* The TX-busy poll has no bound. If the guest disturbs the module --
+     * it owns the pins and sweeps them during Port_Init -- this spins
+     * forever while holding the console lock, which freezes every core
+     * with no output to say so. Bound the wait, re-init the module and
+     * emit '#' so the stall is visible rather than fatal. */
+    unsigned long n = 0;
+    while (uart->RLN3nLST & RLN3_LST_UTS_MSK) {
+        if (++n > 4000000UL) {
+            uart_init(uart);
+            uart_enable(uart);
+            uart->RLN3nLUTDR = (uint16_t)'#';
+            n = 0;
+        }
+    }
     uart->RLN3nLUTDR = (uint16_t)(c);
 }
