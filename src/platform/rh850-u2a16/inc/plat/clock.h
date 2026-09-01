@@ -25,6 +25,10 @@
 #define PLLS_PLLCLKSTAB_BIT   (0x1UL << 1)
 
 /* Clock Controller Registers for ISO area */
+#define CLKD_PLL_DIV1      (0x1UL)
+#define CLKD_PLL_DIV2      (0x2UL)
+#define CLKD_PLLS_SYNC_BIT (0x2UL)
+
 struct clk_ctl_iso_hw {
     uint32_t PLLE;       // 0x0000 PLL Enable Register
     uint32_t PLLS;       // 0x0004 PLL Status Register
