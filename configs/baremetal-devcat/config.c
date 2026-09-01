@@ -896,6 +896,33 @@ struct config config = {
                     /* PIC22   FFBF E000H..FFBF E0FFH */
                     { .pa = 0xFFBFE000, .va = 0xFFBFE000, .size = 0x100,
                       .interrupt_num = 0, .interrupts = NULL, },
+
+                    /* ---- Security -------------------------------------------------- */
+                    /* ICUMHA  FF1F 0000H..FF1F FFFFH -- the on-chip hardware security
+                     * module, section 48. It is not one of PE0..PE3: it carries its own
+                     * processor (ICUP) and the manual treats it as a separate bus master,
+                     * with registers whose write access belongs to it alone ("Data can be
+                     * read from or written to these bits only from ICUMHA. When another
+                     * master device such as a CPU accesses these bits, these bits have the
+                     * read-only (R) attribute").
+                     *
+                     * A hypervisor neither virtualises nor arbitrates it. Map this window
+                     * so the guest's security driver can reach the command interface --
+                     * ICUM_ACTFLAG at FF1F 0018H reads 11b once the module is activated by
+                     * option byte -- and map whatever cluster RAM the project uses for the
+                     * host-to-ICUM mailboxes at the same physical addresses.
+                     *
+                     * No interrupts: section 48.3.1 says this module has none for CPU(PE),
+                     * so the host talks to it through shared memory and this register block
+                     * and there is no routing to arrange.
+                     *
+                     * ⚠ Deliberately absent from this catalogue: the flash the module owns
+                     * exclusively (its own program flash, and the 64 KB of data flash the
+                     * datasheet lists as dedicated to ICUMHA). Leaving those out of a VM is
+                     * what turns "the application must not overwrite this" from a comment
+                     * in a linker script into something the MPU enforces. */
+                    { .pa = 0xFF1F0000, .va = 0xFF1F0000, .size = 0x10000,
+                      .interrupt_num = 0, .interrupts = NULL, },
                 },
             },
         },
