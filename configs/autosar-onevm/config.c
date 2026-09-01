@@ -89,11 +89,14 @@ struct config config = {
                       .interrupt_num = 0, .interrupts = NULL },
                     /* Timer/watchdog block, one window: OSTM0..3 ticks
                      * (+0x0000, IRQs 199..202), WDTB0..3 (+0x1000, INTC1
-                     * ch22 -- declaration still open), port noise filter
-                     * add-page (+0x6900), TAUJ0 1ms GPT (+0x7000, IRQ 360) */
+                     * ch22 -- the 75% trigger interrupt, one per PE, which
+                     * is the only thing that ever feeds the dog: the driver
+                     * kicks it once in Wdg_Init and reloads it from its own
+                     * ISR thereafter), port noise filter add-page (+0x6900),
+                     * TAUJ0 1ms GPT (+0x7000, IRQ 360) */
                     { .pa = 0xFFBF0000, .va = 0xFFBF0000, .size = 0x8000,
-                      .interrupt_num = 5,
-                      .interrupts = (irqid_t[]){ 199, 200, 201, 202, 360 } },
+                      .interrupt_num = 6,
+                      .interrupts = (irqid_t[]){ 22, 199, 200, 201, 202, 360 } },
                     /* RSCFD0: channel 2 (board connector CAN1) + globals */
                     { .pa = 0xFFF50000, .va = 0xFFF50000, .size = 0x20000,
                       .interrupt_num = 5,

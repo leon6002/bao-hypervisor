@@ -17,7 +17,7 @@ static bool vbootctrl_emul_handler(struct emul_access* acc)
     if (acc->addr != platform.arch.bootctrl_addr && acc->width != 4) {
         /* debug probe: guest trace markers (16-bit writes into the page) */
         if (acc->write) {
-            INFO("guest-trace: 0x%lx cpu%d\n", vcpu_readreg(vcpu, acc->reg),
+            console_printk("guest-trace: 0x%lx c%d\n", vcpu_readreg(vcpu, acc->reg),
                 (int)cpu()->id);
         }
         /* ignore access */

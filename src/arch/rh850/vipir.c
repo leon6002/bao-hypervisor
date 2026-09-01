@@ -26,15 +26,6 @@ static bool vipir_emul_handler(struct emul_access* acc)
     struct vcpu* vcpu = cpu()->vcpu;
     struct vm* vm = vcpu->vm;
 
-    /* debug probe: trace the first IPIR accesses of the guest */
-    {
-        static int ipir_probe = 0;
-        if (ipir_probe < 8) {
-            ipir_probe++;
-            INFO("vipir: %s off 0x%lx cpu%d\n", acc->write ? "wr" : "rd",
-                acc->addr - (unsigned long)ipir, (unsigned long)cpu()->id);
-        }
-    }
 
     if (acc->width != 1) {
         /* only 8bit aligment allowed */
