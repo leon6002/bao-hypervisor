@@ -4,27 +4,6 @@
  */
 
 /*
- * ⚠ WORK IN PROGRESS -- does not boot. Kept for the next attempt.
- *
- * The idea is right for a single VM: sweep the whole peripheral space in a few
- * windows instead of naming devices one at a time, which is how autosar-onevm
- * came to cover a fifth of the manual's peripheral regions. Eleven windows here
- * against nineteen there, and they cover everything.
- *
- * What is known so far. The interrupt half of this file is fine and now lives
- * in autosar-onevm, board-verified. The mapping half stops the guest dead with
- * no CAN and no console. One cause was found and fixed and did not account for
- * it: INTC2 is 32 KB by the manual's address map, while deriving the size from
- * sizeof(struct intc2) gave 0x6000 and left its last 8 KB -- EIBD and EEIC --
- * passed through, so the guest could reprogram routing behind vintc. Take
- * peripheral extents from the manual, never from the emulation struct.
- *
- * Still to find: what else in the sweep breaks it. Bisect the windows, and get
- * a readable console first -- every round of this cost four minutes and told us
- * only "no frames", which is the same answer for every cause.
- */
-
-/*
  * RH850/U2A16 -- the whole four-core AUTOSAR project as one VM.
  *
  * With a single VM there is nothing to partition, so this configuration is not
